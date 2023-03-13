@@ -140,14 +140,15 @@ def print_iqmc_eigenvalue_exit_code(mcdc):
         itt = mcdc["technique"]["iqmc_itt_outter"]
         tol = mcdc["technique"]["iqmc_tol"]
         res = mcdc["technique"]["iqmc_res_outter"]
+        solver = mcdc["technique"]["eigenmode_solver"]
         if itt >= maxit:
-            print("\n ================================")
+            print("\n ================================\n ")
             print(
-                " Power Iteration convergence to tolerance not achieved: Maximum number of iterations."
+                solver+" convergence to tolerance not achieved: Maximum number of iterations."
             )
         elif res <= tol:
-            print("\n ================================")
-            print("Successful Power Iteration convergence.")
+            print("\n ================================\n ")
+            print("Successful "+solver+" convergence.")
 
 
 def print_runtime(mcdc):

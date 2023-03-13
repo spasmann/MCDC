@@ -2561,16 +2561,6 @@ def prepare_qmc_fission_source(mcdc):
                     fission_source(flux[:, t, i, j, k], mat_idx, mcdc)
                     + fixed_source[:, t, i, j, k]
                 )
-                t = 0
-                mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
-                mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
-                # we can vectorize the multigroup calculation here
-                Q[:, t, i, j, k] = (
-                    fission_source(flux[:, t, i, j, k], mat_idx, mcdc)
-                    + scattering_source(flux[:, t, i, j, k], mat_idx, mcdc)
-                    + fixed_source[:, t, i, j, k]
-                )
-
 
 @njit
 def prepare_qmc_particles(mcdc):
@@ -2661,7 +2651,7 @@ def fission_source(phi, mat_idx, mcdc):
     nu_p = material["nu_p"]
     nu_d = material["nu_d"]
     J = material["J"]
-    keff = mcdc["k_eff"]
+    keff = 1.0#mcdc["k_eff"]
     SigmaF = material["fission"]
 
     F_p = np.dot(chi_p.T, nu_p / keff * SigmaF * phi)
@@ -2784,7 +2774,7 @@ def iqmc_cell_volume(x, y, z, mesh):
 
     Returns
     -------
-    dV : TYPE
+    dV : float64
         cell volume.
 
     """
@@ -2858,6 +2848,113 @@ def sample_qmc_group(sample, G):
 
     """
     return int(np.floor(sample * G))
+
+
+# =============================================================================
+# iQMC Iterative Mapping Functions
+# =============================================================================
+from mcdc.loop import loop_source
+
+@njit
+def AxV(V, mcdc):
+    """
+    Linear operator for scattering term (I-L^(-1)S)*phi
+    """
+    # flux input is most recent iteration of eigenvector
+    v = V[:, -1]
+    # reshape v and assign to iqmc_flux
+    vector_size = v.size
+    matrix_shape = mcdc["technique"]["iqmc_flux"].shape
+    mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
+    # reset bank size
+    mcdc["bank_source"]["size"] = 0
+    mcdc["technique"]["iqmc_source"] = np.zeros_like(
+                                        mcdc["technique"]["iqmc_source"])
+    
+    # QMC Sweep
+    prepare_qmc_scattering_source(mcdc)
+    prepare_qmc_particles(mcdc)
+    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    loop_source(mcdc)
+    
+    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,))
+    axv = v - v_out
+    axv = np.reshape(axv, (vector_size,1))
+
+    return axv
+
+@njit
+def BxV(V, mcdc):
+    """
+    Linear operator for fission term (L^(-1)F*phi)
+    """
+    # flux input is most recent iteration of eigenvector
+    v = V[:, -1]
+    # reshape v and assign to iqmc_flux
+    vector_size = v.size
+    matrix_shape = mcdc["technique"]["iqmc_flux"].shape
+    mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
+    
+    # reset bank size
+    mcdc["bank_source"]["size"] = 0
+    mcdc["technique"]["iqmc_source"] = np.zeros_like(
+                                        mcdc["technique"]["iqmc_source"])
+    
+    # QMC Sweep
+    prepare_qmc_fission_source(mcdc)
+    prepare_qmc_particles(mcdc)
+    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    loop_source(mcdc)
+    
+    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,1))
+    # print("\n v_out")
+    # print(v_out)
+    return v_out
+
+@njit
+def preconditioner(V, mcdc, num_sweeps=8):
+    """
+    Linear operator approximation of L^(-1)S
+
+    In this case the preconditioner is a specified number of purely scattering
+    transport sweeps.
+    """
+    # flux input is most recent iteration of eigenvector
+    v = V[:, -1]
+    # reshape v and assign to iqmc_flux
+    vector_size = v.size
+    matrix_shape = mcdc["technique"]["iqmc_flux"].shape
+    mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
+    for i in range(num_sweeps):
+        # print("\n precondition sweep")
+        # print("\n", mcdc["technique"]["iqmc_flux"] )
+        # reset bank size
+        mcdc["bank_source"]["size"] = 0
+        mcdc["technique"]["iqmc_source"] = np.zeros_like(
+                                            mcdc["technique"]["iqmc_source"])
+    
+        # QMC Sweep
+        prepare_qmc_scattering_source(mcdc)
+        prepare_qmc_particles(mcdc)
+        mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+        loop_source(mcdc)
+    
+    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,1))
+        
+    return v_out
+
+@njit
+def modified_gram_schmidt(V, u):
+    """
+    Modified Gram Schmidt routine
+
+    """
+    w1 = u - np.dot(V, np.dot(V.T, u))
+    v1 = w1 / np.linalg.norm(w1)
+    w2 = v1 - np.dot(V, np.dot(V.T, v1))
+    v2 = w2 / np.linalg.norm(w2)
+    V = np.append(V, v2, axis=1)
+    return V
 
 
 # =============================================================================

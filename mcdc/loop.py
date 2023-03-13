@@ -1,6 +1,6 @@
 import numpy as np
 
-from numba import njit, objmode
+from numba import njit, objmode, jit
 
 import mcdc.kernel as kernel
 
@@ -273,13 +273,17 @@ def loop_particle(P, mcdc):
 # =============================================================================
 # iQMC Loop
 # =============================================================================
-
+from scipy.linalg import eig
+from numba import typeof
 
 @njit
 def loop_iqmc(mcdc):
     # function calls from specified solvers
     if mcdc["setting"]["mode_eigenvalue"]:
-        power_iteration(mcdc)
+        if mcdc["technique"]["eigenmode_solver"] == "davidson":
+            davidson(mcdc)
+        else:
+           power_iteration(mcdc)
     else:
         source_iteration(mcdc)
 
@@ -369,3 +373,104 @@ def power_iteration(mcdc):
             simulation_end = True
 
     print_iqmc_eigenvalue_exit_code(mcdc)
+
+@njit
+def davidson(mcdc):
+    # Davidson parameters
+    simulation_end = False
+    maxit = mcdc["technique"]["iqmc_maxitt"]
+    tol = mcdc["technique"]["iqmc_tol"]
+    # num_sweeps = mcdc["technique"]["num_sweeps"]
+    # m = mcdc["technique"]["krylov_restart"]
+    
+    # initial size of Krylov subspace
+    Vsize = 1
+    # l : number of eigenvalues to solve for
+    l = 1
+    # numSweeps: number of preconditioner sweeps
+    numSweeps = 5
+    # m : restart parameter
+    m = None
+    
+    phi0 = mcdc["technique"]["iqmc_flux"]
+    Nt = phi0.size
+    phi0 = np.reshape(phi0, (Nt,))
+
+    # orthonormalize initial guess
+    V0 = phi0 / np.linalg.norm(phi0)
+    # we allocate matrices then use slice indexing in loop
+    V = np.zeros((Nt, maxit))
+    axv = np.zeros((Nt, maxit))
+    bxv = np.zeros((Nt, maxit))
+    V[:, 0] = V0
+
+    if (m is None):
+        # unless specified there is no restart parameter
+        m = maxit + 1 
+    V[:, :Vsize] = kernel.preconditioner(V[:, :Vsize], mcdc, numSweeps)
+    
+    # Davidson Routine
+    while not simulation_end:
+        
+        # Calculate V*A*V (AxV is scattering linear operator function)
+        axv[:, Vsize - 1] = kernel.AxV(V[:, :Vsize], mcdc)[:,0]
+        # print("\n axv", axv)
+        AV = np.dot(V[:, :Vsize].T, axv[:, :Vsize])
+        # print("\n AV", AV)
+        # Calculate V*B*V (BxV is fission linear operator function)
+        bxv[:, Vsize - 1] = kernel.BxV(V[:, :Vsize], mcdc)[:,0]
+        # print("\n bxv", bxv)
+        BV = np.dot(V[:, :Vsize].T, bxv[:, :Vsize])
+        
+        # solve for eigenvalues and vectors
+        # TODO: find generalized eigenvalue solver that works with numba
+        with objmode(Lambda="float64[:,::i]", w="float64[:,::i]"):
+            Lambda, w = eig(AV, b=BV)
+            
+        # get indices of eigenvalues from smallest to largest
+        idx = np.argsort(Lambda)#Lambda.argsort()
+        # sort eigenvalues from smalles to largest
+        Lambda = Lambda[idx]
+        
+        # there can't be any imaginary eigenvalues
+        assert (Lambda.imag.all() == 0.0)
+        
+        # take the real component of the l largest eigenvalues
+        Lambda = Lambda[:l].real
+                
+        # sort corresponding eigenvector
+        w = w[:, idx]
+        # take the l largest eigenvectors
+        w = w[:, :l].real   
+        # Ritz vectors
+        u = np.dot(V[:, :Vsize], w)
+        # residual
+        res = kernel.AxV(u, mcdc) - Lambda * kernel.BxV(u, mcdc) 
+        mcdc["technique"]["iqmc_res_outter"] = np.linalg.norm(res, ord=2)
+        
+        # Precondition for next iteration
+        # TODO: maybe move to top of loop ?
+        t = kernel.preconditioner(res, mcdc, numSweeps)
+        # check restart condition
+        if (Vsize < m - l):
+            Vsize += 1
+            # appends new orthogonalization to V
+            V[:, :Vsize] = kernel.modified_gram_schmidt(V[:, :Vsize - 1], t)
+        else:
+            # "restarts" by appending to a new array
+            Vsize = 2
+            V[:, :Vsize] = kernel.modified_gram_schmidt(u, t)
+        mcdc["k_eff"] = 1 / Lambda
+        mcdc["technique"]["iqmc_itt_outter"] += 1
+        print_iqmc_eigenvalue_progress(mcdc)
+        
+        # iQMC convergence criteria
+        if (mcdc["technique"]["iqmc_itt_outter"] == maxit) or (
+            mcdc["technique"]["iqmc_res_outter"] <= tol
+        ):
+            simulation_end = True
+        
+    print_iqmc_eigenvalue_exit_code(mcdc)
+
+    # phi = V[:, 0]
+    # phi = phi / np.linalg.norm(phi).T
