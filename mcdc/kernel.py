@@ -2562,6 +2562,7 @@ def prepare_qmc_fission_source(mcdc):
                     + fixed_source[:, t, i, j, k]
                 )
 
+
 @njit
 def prepare_qmc_particles(mcdc):
     """
@@ -2651,9 +2652,12 @@ def fission_source(phi, mat_idx, mcdc):
     nu_p = material["nu_p"]
     nu_d = material["nu_d"]
     J = material["J"]
-    keff = 1.0#mcdc["k_eff"]
-    SigmaF = material["fission"]
+    if mcdc["technique"]["eigenmode_solver"] == "davidson":
+        keff = 1.0
+    else:
+        keff = mcdc["k_eff"]
 
+    SigmaF = material["fission"]
     F_p = np.dot(chi_p.T, nu_p / keff * SigmaF * phi)
     F_d = np.dot(chi_d.T, (nu_d.T / keff * SigmaF * phi).sum(axis=1))
     F = F_p + F_d
@@ -2855,6 +2859,7 @@ def sample_qmc_group(sample, G):
 # =============================================================================
 from mcdc.loop import loop_source
 
+
 @njit
 def AxV(V, mcdc):
     """
@@ -2868,20 +2873,20 @@ def AxV(V, mcdc):
     mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
     # reset bank size
     mcdc["bank_source"]["size"] = 0
-    mcdc["technique"]["iqmc_source"] = np.zeros_like(
-                                        mcdc["technique"]["iqmc_source"])
-    
+    mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
+
     # QMC Sweep
     prepare_qmc_scattering_source(mcdc)
     prepare_qmc_particles(mcdc)
     mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
     loop_source(mcdc)
-    
+
     v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,))
     axv = v - v_out
-    axv = np.reshape(axv, (vector_size,1))
+    axv = np.reshape(axv, (vector_size, 1))
 
     return axv
+
 
 @njit
 def BxV(V, mcdc):
@@ -2894,22 +2899,21 @@ def BxV(V, mcdc):
     vector_size = v.size
     matrix_shape = mcdc["technique"]["iqmc_flux"].shape
     mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
-    
+
     # reset bank size
     mcdc["bank_source"]["size"] = 0
-    mcdc["technique"]["iqmc_source"] = np.zeros_like(
-                                        mcdc["technique"]["iqmc_source"])
-    
+    mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
+
     # QMC Sweep
     prepare_qmc_fission_source(mcdc)
     prepare_qmc_particles(mcdc)
     mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
     loop_source(mcdc)
-    
-    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,1))
-    # print("\n v_out")
-    # print(v_out)
+
+    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size, 1))
+
     return v_out
+
 
 @njit
 def preconditioner(V, mcdc, num_sweeps=8):
@@ -2926,22 +2930,22 @@ def preconditioner(V, mcdc, num_sweeps=8):
     matrix_shape = mcdc["technique"]["iqmc_flux"].shape
     mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
     for i in range(num_sweeps):
-        # print("\n precondition sweep")
-        # print("\n", mcdc["technique"]["iqmc_flux"] )
         # reset bank size
         mcdc["bank_source"]["size"] = 0
         mcdc["technique"]["iqmc_source"] = np.zeros_like(
-                                            mcdc["technique"]["iqmc_source"])
-    
+            mcdc["technique"]["iqmc_source"]
+        )
+
         # QMC Sweep
         prepare_qmc_scattering_source(mcdc)
         prepare_qmc_particles(mcdc)
         mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
         loop_source(mcdc)
-    
-    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,1))
-        
+
+    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size, 1))
+
     return v_out
+
 
 @njit
 def modified_gram_schmidt(V, u):
@@ -2949,9 +2953,9 @@ def modified_gram_schmidt(V, u):
     Modified Gram Schmidt routine
 
     """
-    w1 = u - np.dot(V, np.dot(V.T, u))
+    w1 = u - np.dot(np.ascontiguousarray(V), np.dot(np.ascontiguousarray(V.T), u))
     v1 = w1 / np.linalg.norm(w1)
-    w2 = v1 - np.dot(V, np.dot(V.T, v1))
+    w2 = v1 - np.dot(np.ascontiguousarray(V), np.dot(np.ascontiguousarray(V.T), v1))
     v2 = w2 / np.linalg.norm(w2)
     V = np.append(V, v2, axis=1)
     return V

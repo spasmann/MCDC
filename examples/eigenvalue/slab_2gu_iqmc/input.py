@@ -39,10 +39,10 @@ mcdc.cell([+s1, -s2], m1)
 # =============================================================================
 # iQMC Parameters
 # =============================================================================
-Nx = 10
-N = 10
-maxit = 5
-tol = 1e-3
+Nx = 25
+N = 2000
+maxit = 25
+tol = 1e-4
 x = np.linspace(0.0, 6.01275, num=Nx + 1)
 generator = "halton"
 solver = "davidson"
@@ -62,7 +62,7 @@ mcdc.iQMC(
     maxitt=maxit,
     tol=tol,
     generator=generator,
-    eigenmode_solver=solver
+    eigenmode_solver=solver,
 )
 # Setting
 mcdc.setting(N_particle=N)

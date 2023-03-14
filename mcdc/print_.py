@@ -144,11 +144,12 @@ def print_iqmc_eigenvalue_exit_code(mcdc):
         if itt >= maxit:
             print("\n ================================\n ")
             print(
-                solver+" convergence to tolerance not achieved: Maximum number of iterations."
+                solver
+                + " convergence to tolerance not achieved: Maximum number of iterations."
             )
         elif res <= tol:
             print("\n ================================\n ")
-            print("Successful "+solver+" convergence.")
+            print("Successful " + solver + " convergence.")
 
 
 def print_runtime(mcdc):
