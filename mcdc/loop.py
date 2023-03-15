@@ -280,7 +280,7 @@ def loop_particle(P, mcdc):
 def loop_iqmc(mcdc):
     # function calls from specified solvers
     if mcdc["setting"]["mode_eigenvalue"]:
-        if mcdc["technique"]["eigenmode_solver"] == "davidson":
+        if mcdc["technique"]["iqmc_eigenmode_solver"] == "davidson":
             davidson(mcdc)
         else:
             power_iteration(mcdc)
@@ -385,7 +385,7 @@ def davidson(mcdc):
     maxit = mcdc["technique"]["iqmc_maxitt"]
     tol = mcdc["technique"]["iqmc_tol"]
     # num_sweeps: number of preconditioner sweeps
-    num_sweeps = mcdc["technique"]["iqmc_num_sweeps"]
+    num_sweeps = mcdc["technique"]["iqmc_preconditioner_sweeps"]
     # m : restart parameter
     m = mcdc["technique"]["iqmc_krylov_restart"]
 
@@ -442,7 +442,7 @@ def davidson(mcdc):
         # sort corresponding eigenvector
         w = w[:, idx]
         # take the l largest eigenvectors
-        w = w[:, :l]
+        w = w[:, :l]        
         # Ritz vectors
         u = np.dot(np.ascontiguousarray(V[:, :Vsize]), np.ascontiguousarray(w))
         # residual
@@ -471,6 +471,9 @@ def davidson(mcdc):
             simulation_end = True
 
     print_iqmc_eigenvalue_exit_code(mcdc)
+    
+    # normalize and save final scalar flux
+    flux = np.reshape( V[:, 0] / np.linalg.norm(V[:,0]), 
+                      mcdc["technique"]["iqmc_flux"].shape)
+    mcdc["technique"]["iqmc_flux"] = flux
 
-    # phi = V[:, 0]
-    # phi = phi / np.linalg.norm(phi).T

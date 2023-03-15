@@ -1748,10 +1748,6 @@ def move_to_event(P, mcdc):
     # Move particle
     move_particle(P, distance, mcdc)
 
-    # if mcdc['technique']['iQMC']:
-    #     P['iqmc_w'] = w_final
-
-
 @njit
 def distance_to_collision(P, mcdc):
     # Get total cross-section
@@ -2652,7 +2648,7 @@ def fission_source(phi, mat_idx, mcdc):
     nu_p = material["nu_p"]
     nu_d = material["nu_d"]
     J = material["J"]
-    if mcdc["technique"]["eigenmode_solver"] == "davidson":
+    if mcdc["technique"]["iqmc_eigenmode_solver"] == "davidson":
         keff = 1.0
     else:
         keff = mcdc["k_eff"]

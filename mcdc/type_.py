@@ -9,7 +9,7 @@ float64 = np.float64
 int64 = np.int64
 uint64 = np.uint64
 bool_ = np.bool_
-str_ = "U30"  # np.str_
+str_ = "U30"
 
 # MC/DC types defined by input card
 particle = None
@@ -552,8 +552,10 @@ def make_type_technique(card):
         ("iqmc_scramble", bool_),
         ("iqmc_seed", int64),
         ("iqmc_generator", str_),
-        ("fixed_source_solver", str_),
-        ("eigenmode_solver", str_),
+        ("iqmc_fixed_source_solver", str_),
+        ("iqmc_eigenmode_solver", str_),
+        ("iqmc_krylov_restart", int64),
+        ("iqmc_preconditioner_sweeps", int64)
     ]
 
     # =========================================================================
