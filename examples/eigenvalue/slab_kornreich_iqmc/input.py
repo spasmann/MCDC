@@ -43,8 +43,6 @@ Nx = len(x) - 1
 generator = "halton"
 solver = "power_iteration"
 fixed_source = np.zeros(Nx)
-material_idx = np.zeros(Nx, dtype=int)
-material_idx[15:] = 1
 phi0 = np.ones((Nx))
 
 # =============================================================================
@@ -55,7 +53,6 @@ mcdc.iQMC(
     x=x,
     fixed_source=fixed_source,
     phi0=phi0,
-    material_idx=material_idx,
     maxitt=maxit,
     tol=tol,
     generator=generator,

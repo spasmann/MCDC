@@ -1167,7 +1167,6 @@ def iQMC(
     phi0=None,
     krylov_restart=None,
     fixed_source=None,
-    material_idx=None,
     scramble=False,
     maxitt=25,
     tol=1e-6,
@@ -1213,18 +1212,6 @@ def iQMC(
     for ax in ax_expand:
         fixed_source = np.expand_dims(fixed_source, axis=ax)
         phi0 = np.expand_dims(phi0, axis=ax)
-
-    ax_expand = []
-    if t is None:
-        ax_expand.append(0)
-    if x is None:
-        ax_expand.append(1)
-    if y is None:
-        ax_expand.append(2)
-    if z is None:
-        ax_expand.append(3)
-    for ax in ax_expand:
-        material_idx = np.expand_dims(material_idx, axis=ax)
 
     if krylov_restart is None:
         krylov_restart = maxitt
