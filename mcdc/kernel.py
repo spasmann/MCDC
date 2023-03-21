@@ -2987,7 +2987,7 @@ def BxV(V, mcdc):
 
     return v_out
 
-
+from mcdc.loop import source_iteration
 @njit
 def preconditioner(V, mcdc, num_sweeps=8):
     """
@@ -3003,12 +3003,9 @@ def preconditioner(V, mcdc, num_sweeps=8):
     matrix_shape = mcdc["technique"]["iqmc_flux"].shape
     mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
 
-    # size = mcdc["technique"]["iqmc_source"].size
-    # source_old = mcdc["technique"]["iqmc_source"].copy().reshape((size,))
-    # res = np.linalg.norm(source_old)
+    # source_iteration(mcdc)
 
     for i in range(num_sweeps):
-        # while res >= 1e-2:
         # reset bank size
         mcdc["bank_source"]["size"] = 0
         mcdc["technique"]["iqmc_source"] = np.zeros_like(
@@ -3023,10 +3020,6 @@ def preconditioner(V, mcdc, num_sweeps=8):
         # sum resultant flux on all processors
         iqmc_distribute_flux(mcdc)
         
-        # source_new = mcdc["technique"]["iqmc_source"].copy().reshape((size,))
-        # res = np.linalg.norm(source_new - source_old, ord=2)
-        # print(res)
-        # source_old = source_new.copy()
 
     v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size, 1))
 

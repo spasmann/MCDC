@@ -39,14 +39,16 @@ mcdc.cell([+s1, -s2], m1)
 # =============================================================================
 # iQMC Parameters
 # =============================================================================
-Nx = 5
+Nx = 20
 N = 1e3
 maxit = 10
-tol = 1e-3
+tol = 1e-6
+pre_sweeps = 12
 x = np.linspace(0.0, 6.01275, num=Nx + 1)
 generator = "halton"
 solver = "davidson"
 fixed_source = np.zeros(Nx)
+np.random.seed(123456)
 phi0 = np.random.random((Nx))
 
 # =============================================================================
@@ -61,6 +63,7 @@ mcdc.iQMC(
     tol=tol,
     generator=generator,
     eigenmode_solver=solver,
+    preconditioner_sweeps=pre_sweeps
 )
 # Setting
 mcdc.setting(N_particle=N)

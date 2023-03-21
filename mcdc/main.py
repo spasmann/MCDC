@@ -430,18 +430,21 @@ def generate_hdf5():
 
             # iQMC
             if mcdc["technique"]["iQMC"]:
-                # TODO: dump time dependent tallies
+                # dump iQMC mesh
                 T = mcdc["technique"]
                 f.create_dataset("iqmc/grid/t", data=T["iqmc_mesh"]["t"])
                 f.create_dataset("iqmc/grid/x", data=T["iqmc_mesh"]["x"])
                 f.create_dataset("iqmc/grid/y", data=T["iqmc_mesh"]["y"])
                 f.create_dataset("iqmc/grid/z", data=T["iqmc_mesh"]["z"])
-
                 # dump x,y,z scalar flux across all groups
-                f.create_dataset(
-                    "tally/" + "iqmc_flux", data=np.squeeze(T["iqmc_flux"])
-                )
-
+                f.create_dataset("iqmc/flux", data=np.squeeze(T["iqmc_flux"]))
+                # iteration data
+                f.create_dataset("iqmc/itteration_count", data=T["iqmc_itt"])
+                f.create_dataset("iqmc/final_residual", data=T["iqmc_res"])
+                if mcdc["setting"]["mode_eigenvalue"]:
+                    f.create_dataset("iqmc/outter_itteration_count", data=T["iqmc_itt_outter"])
+                    f.create_dataset("iqmc/outter_final_residual", data=T["iqmc_res_outter"])
+                    
             # Particle tracker
             if mcdc["setting"]["track_particle"]:
                 with h5py.File(mcdc["setting"]["output"] + "_ptrack.h5", "w") as f:
