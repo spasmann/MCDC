@@ -2576,17 +2576,23 @@ def prepare_qmc_particles(mcdc):
     None.
 
     """
-    Q = mcdc["technique"]["iqmc_source"]
-    mesh = mcdc["technique"]["iqmc_mesh"]
+    # determine which portion of particles to loop through
     N_particle = mcdc["setting"]["N_particle"]
     N_work = mcdc["mpi_work_size"]
-    mpi_rank = mcdc["mpi_rank"]
-    print("I'm rank ", mpi_rank)
-    lds = mcdc["technique"]["lds"]  # low discrepency sequence
+    rank = mcdc["mpi_rank"]
+    start = int(rank * N_work)
+    stop = int((rank + 1) * N_work)
+
+    # low discrepency sequence
+    lds = mcdc["technique"]["lds"]
+    # source
+    Q = mcdc["technique"]["iqmc_source"]
+    mesh = mcdc["technique"]["iqmc_mesh"]
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
     Nz = len(mesh["z"]) - 1
-    Nt = Nx * Ny * Nz  # total number of spatial cells
+    # total number of spatial cells
+    Nt = Nx * Ny * Nz
     # outter mesh boundaries for sampling position
     xa = mesh["x"][0]
     xb = mesh["x"][-1]
@@ -2594,7 +2600,8 @@ def prepare_qmc_particles(mcdc):
     yb = mesh["y"][-1]
     za = mesh["z"][0]
     zb = mesh["z"][-1]
-    for n in range(N_work):
+
+    for n in range(start, stop):
         # Create new particle
         P_new = np.zeros(1, dtype=type_.particle_record)[0]
         # assign direction
@@ -2619,8 +2626,6 @@ def prepare_qmc_particles(mcdc):
         # Set weight
         P_new["iqmc_w"] = Q[:, t, x, y, z] * dV * Nt / N_particle
         P_new["w"] = (P_new["iqmc_w"]).sum()
-        # print(P_new['w'])
-        # print(P_new['iqmc_w'])
         # add to source bank
         add_particle(P_new, mcdc["bank_source"])
 
@@ -2907,6 +2912,16 @@ def generate_iqmc_material_idx(mcdc):
 
                 # assign material index
                 mcdc["technique"]["iqmc_material_idx"][t, i, j, k] = material_ID
+
+
+@njit
+def iqmc_distribute_flux(mcdc):
+    flux_local = mcdc["technique"]["iqmc_flux"].copy()
+    # TODO: is there a way to do this without creating a new matrix ?
+    flux_total = np.zeros_like(flux_local, np.float64)
+    with objmode():
+        MPI.COMM_WORLD.Allreduce(flux_local, flux_total, op=MPI.SUM)
+    mcdc["technique"]["iqmc_flux"] = flux_total
 
 
 # =============================================================================
