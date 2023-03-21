@@ -8,6 +8,7 @@ import mcdc.type_ as type_
 from mcdc.constant import *
 from mcdc.print_ import print_error
 from mcdc.type_ import score_list
+from mcdc.loop import loop_source
 
 
 # =============================================================================
@@ -2921,14 +2922,12 @@ def iqmc_distribute_flux(mcdc):
     flux_total = np.zeros_like(flux_local, np.float64)
     with objmode():
         MPI.COMM_WORLD.Allreduce(flux_local, flux_total, op=MPI.SUM)
-    mcdc["technique"]["iqmc_flux"] = flux_total
+    mcdc["technique"]["iqmc_flux"] = flux_total.copy()
 
 
 # =============================================================================
 # iQMC Iterative Mapping Functions
 # =============================================================================
-from mcdc.loop import loop_source
-
 
 @njit
 def AxV(V, mcdc):
@@ -2950,6 +2949,8 @@ def AxV(V, mcdc):
     prepare_qmc_particles(mcdc)
     mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
     loop_source(mcdc)
+    # sum resultant flux on all processors
+    iqmc_distribute_flux(mcdc)
 
     v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,))
     axv = v - v_out
@@ -2979,6 +2980,8 @@ def BxV(V, mcdc):
     prepare_qmc_particles(mcdc)
     mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
     loop_source(mcdc)
+    # sum resultant flux on all processors
+    iqmc_distribute_flux(mcdc)
 
     v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size, 1))
 
@@ -3017,7 +3020,9 @@ def preconditioner(V, mcdc, num_sweeps=8):
         prepare_qmc_particles(mcdc)
         mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
         loop_source(mcdc)
-
+        # sum resultant flux on all processors
+        iqmc_distribute_flux(mcdc)
+        
         # source_new = mcdc["technique"]["iqmc_source"].copy().reshape((size,))
         # res = np.linalg.norm(source_new - source_old, ord=2)
         # print(res)

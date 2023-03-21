@@ -42,12 +42,12 @@ mcdc.cell([+s1, -s2], m1)
 Nx = 5
 N = 1e3
 maxit = 10
-tol = 1e-4
+tol = 1e-3
 x = np.linspace(0.0, 6.01275, num=Nx + 1)
 generator = "halton"
 solver = "davidson"
 fixed_source = np.zeros(Nx)
-phi0 = np.ones((Nx))
+phi0 = np.random.random((Nx))
 
 # =============================================================================
 # Set tally, setting, and run mcdc

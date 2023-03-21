@@ -171,18 +171,18 @@ mcdc.universe([core], root=True)
 # =============================================================================
 # iQMC Parameters
 # =============================================================================
-N = 5e3
+N = 1e4
 maxit = 10
-tol = 1e-2
-pre_sweeps = 4
+tol = 1e-3
+pre_sweeps = 6
 x_grid = np.linspace(0.0, pitch * 17 * 3, 17 * 3 + 1)
 y_grid = np.linspace(-pitch * 17 * 3, 0.0, 17 * 3 + 1)
 
 generator = "halton"
-solver = "davidson"
+solver = "power_iteration"
 
 phi0 = np.zeros((x_grid.size - 1, y_grid.size - 1))
-phi0[: int(pitch * 17 * 2), int(-pitch * 17 * 2) :] = 1.0
+phi0[: int(pitch * 17), int(-pitch * 17) :] = 1.0#np.random.random((21,21))
 
 fixed_source = np.zeros_like(phi0)
 
