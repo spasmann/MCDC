@@ -1215,7 +1215,7 @@ def iQMC(
 
     if krylov_restart is None:
         krylov_restart = maxitt
-        
+
     card["iqmc_flux"] = phi0
     card["iqmc_fixed_source"] = fixed_source
     card["iqmc_fixed_source_solver"] = fixed_source_solver

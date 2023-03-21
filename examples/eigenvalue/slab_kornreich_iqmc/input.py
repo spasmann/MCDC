@@ -56,7 +56,7 @@ mcdc.iQMC(
     maxitt=maxit,
     tol=tol,
     generator=generator,
-    eigenmode_solver=solver
+    eigenmode_solver=solver,
 )
 # Setting
 mcdc.setting(N_particle=N, output="davidson_output")

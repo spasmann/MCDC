@@ -444,7 +444,7 @@ def davidson(mcdc):
         # sort corresponding eigenvector
         w = w[:, idx]
         # take the l largest eigenvectors
-        w = w[:, :l]        
+        w = w[:, :l]
         # Ritz vectors
         u = np.dot(np.ascontiguousarray(V[:, :Vsize]), np.ascontiguousarray(w))
         # residual
@@ -473,9 +473,9 @@ def davidson(mcdc):
             simulation_end = True
 
     print_iqmc_eigenvalue_exit_code(mcdc)
-    
-    # normalize and save final scalar flux
-    flux = np.reshape( V[:, 0] / np.linalg.norm(V[:,0]), 
-                      mcdc["technique"]["iqmc_flux"].shape)
-    mcdc["technique"]["iqmc_flux"] = flux
 
+    # normalize and save final scalar flux
+    flux = np.reshape(
+        V[:, 0] / np.linalg.norm(V[:, 0]), mcdc["technique"]["iqmc_flux"].shape
+    )
+    mcdc["technique"]["iqmc_flux"] = flux

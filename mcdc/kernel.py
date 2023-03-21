@@ -1748,6 +1748,7 @@ def move_to_event(P, mcdc):
     # Move particle
     move_particle(P, distance, mcdc)
 
+
 @njit
 def distance_to_collision(P, mcdc):
     # Get total cross-section
@@ -2578,7 +2579,9 @@ def prepare_qmc_particles(mcdc):
     Q = mcdc["technique"]["iqmc_source"]
     mesh = mcdc["technique"]["iqmc_mesh"]
     N_particle = mcdc["setting"]["N_particle"]
-    N_work = math.ceil(N_particle / MPI.COMM_WORLD.Get_size())
+    N_work = mcdc["mpi_work_size"]
+    mpi_rank = mcdc["mpi_rank"]
+    print("I'm rank ", mpi_rank)
     lds = mcdc["technique"]["lds"]  # low discrepency sequence
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
@@ -2878,11 +2881,11 @@ def generate_iqmc_material_idx(mcdc):
     P_temp["alive"] = True
     P_temp["material_ID"] = -1
     P_temp["cell_ID"] = -1
-    
+
     x_mid = 0.5 * (iqmc_mesh["x"][1:] + iqmc_mesh["x"][:-1])
     y_mid = 0.5 * (iqmc_mesh["y"][1:] + iqmc_mesh["y"][:-1])
     z_mid = 0.5 * (iqmc_mesh["z"][1:] + iqmc_mesh["z"][:-1])
-    
+
     # loop through every cell
     for i in range(Nx):
         x = x_mid[i]
@@ -2904,7 +2907,7 @@ def generate_iqmc_material_idx(mcdc):
 
                 # assign material index
                 mcdc["technique"]["iqmc_material_idx"][t, i, j, k] = material_ID
-                
+
 
 # =============================================================================
 # iQMC Iterative Mapping Functions
@@ -2985,9 +2988,9 @@ def preconditioner(V, mcdc, num_sweeps=8):
     # size = mcdc["technique"]["iqmc_source"].size
     # source_old = mcdc["technique"]["iqmc_source"].copy().reshape((size,))
     # res = np.linalg.norm(source_old)
-    
+
     for i in range(num_sweeps):
-    # while res >= 1e-2:
+        # while res >= 1e-2:
         # reset bank size
         mcdc["bank_source"]["size"] = 0
         mcdc["technique"]["iqmc_source"] = np.zeros_like(
@@ -2999,12 +3002,12 @@ def preconditioner(V, mcdc, num_sweeps=8):
         prepare_qmc_particles(mcdc)
         mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
         loop_source(mcdc)
-        
+
         # source_new = mcdc["technique"]["iqmc_source"].copy().reshape((size,))
         # res = np.linalg.norm(source_new - source_old, ord=2)
         # print(res)
         # source_old = source_new.copy()
-        
+
     v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size, 1))
 
     return v_out

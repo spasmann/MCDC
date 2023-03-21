@@ -67,7 +67,7 @@ phi_exact /= norm
 # Begin Plot
 # =============================================================================
 plt.figure(dpi=300, figsize=(8, 5))
-plt.plot(x_exact, phi_exact, label='sol')
+plt.plot(x_exact, phi_exact, label="sol")
 
 # =============================================================================
 # MCDC results
@@ -89,7 +89,7 @@ norm = np.sum(tmp * dx)
 phi_avg /= norm
 
 
-plt.plot(x, phi_avg, label='MC')
+plt.plot(x, phi_avg, label="MC")
 
 
 # =============================================================================
@@ -108,7 +108,7 @@ tmp = 0.5 * (phi_avg[1:] + phi_avg[:-1])
 norm = np.sum(tmp * dx)
 phi_avg /= norm
 
-plt.plot(x_mid, phi_avg, label='PI')
+plt.plot(x_mid, phi_avg, label="PI")
 
 # =============================================================================
 # Davidson Results
@@ -125,16 +125,15 @@ with h5py.File("davidson_output.h5", "r") as f:
 tmp = 0.5 * (phi_avg[1:] + phi_avg[:-1])
 norm = np.sum(tmp * dx)
 phi_avg /= norm
-    
-plt.plot(x_mid, phi_avg, label='davidson')
+
+plt.plot(x_mid, phi_avg, label="davidson")
 
 
 # =============================================================================
 # Finish Plot
 # =============================================================================
-plt.title('Kornreich et al. Slab')
+plt.title("Kornreich et al. Slab")
 plt.ylabel(r"$\phi(x)$")
 plt.xlabel(r"$x$")
 plt.grid()
 plt.legend()
-

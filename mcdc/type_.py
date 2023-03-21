@@ -555,7 +555,7 @@ def make_type_technique(card):
         ("iqmc_fixed_source_solver", str_),
         ("iqmc_eigenmode_solver", str_),
         ("iqmc_krylov_restart", int64),
-        ("iqmc_preconditioner_sweeps", int64)
+        ("iqmc_preconditioner_sweeps", int64),
     ]
 
     # =========================================================================

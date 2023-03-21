@@ -23,11 +23,11 @@ Y, X = np.meshgrid(x_mid, y_mid)
 norm = np.sum(phi_avg)
 phi_tot = phi_avg.sum(axis=0) / norm
 
-phi_fast = phi_avg[:5,:,:].sum(axis=0)
+phi_fast = phi_avg[:5, :, :].sum(axis=0)
 norm = np.sum(phi_fast)
 phi_fast /= norm
 
-phi_slow = phi_avg[5:7,:,:].sum(axis=0)
+phi_slow = phi_avg[5:7, :, :].sum(axis=0)
 norm = np.sum(phi_slow)
 phi_slow /= norm
 
@@ -63,4 +63,3 @@ plt.xlabel(r"$x$ [cm]")
 plt.ylabel(r"$y$ [cm]")
 plt.title(r"Thermal Neutron Flux")
 plt.show()
-
