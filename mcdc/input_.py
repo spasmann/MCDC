@@ -1218,7 +1218,6 @@ def iQMC(
         
     card["iqmc_flux"] = phi0
     card["iqmc_fixed_source"] = fixed_source
-    card["iqmc_material_idx"] = material_idx
     card["iqmc_fixed_source_solver"] = fixed_source_solver
     card["iqmc_eigenmode_solver"] = eigenmode_solver
     card["iqmc_preconditioner_sweeps"] = preconditioner_sweeps

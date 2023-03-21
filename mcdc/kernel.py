@@ -2578,6 +2578,7 @@ def prepare_qmc_particles(mcdc):
     Q = mcdc["technique"]["iqmc_source"]
     mesh = mcdc["technique"]["iqmc_mesh"]
     N_particle = mcdc["setting"]["N_particle"]
+    N_work = math.ceil(N_particle / MPI.COMM_WORLD.Get_size())
     lds = mcdc["technique"]["lds"]  # low discrepency sequence
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
@@ -2590,7 +2591,7 @@ def prepare_qmc_particles(mcdc):
     yb = mesh["y"][-1]
     za = mesh["z"][0]
     zb = mesh["z"][-1]
-    for n in range(N_particle):
+    for n in range(N_work):
         # Create new particle
         P_new = np.zeros(1, dtype=type_.particle_record)[0]
         # assign direction
@@ -2877,17 +2878,18 @@ def generate_iqmc_material_idx(mcdc):
     P_temp["alive"] = True
     P_temp["material_ID"] = -1
     P_temp["cell_ID"] = -1
-
+    
+    x_mid = 0.5 * (iqmc_mesh["x"][1:] + iqmc_mesh["x"][:-1])
+    y_mid = 0.5 * (iqmc_mesh["y"][1:] + iqmc_mesh["y"][:-1])
+    z_mid = 0.5 * (iqmc_mesh["z"][1:] + iqmc_mesh["z"][:-1])
+    
     # loop through every cell
     for i in range(Nx):
-        dx = iqmc_mesh["x"][i + 1] - iqmc_mesh["x"][i]
-        x = iqmc_mesh["x"][i] + dx * 0.5
+        x = x_mid[i]
         for j in range(Ny):
-            dy = iqmc_mesh["y"][j + 1] - iqmc_mesh["y"][j]
-            y = iqmc_mesh["y"][j] + dy * 0.5
+            y = y_mid[j]
             for k in range(Nz):
-                dx = iqmc_mesh["z"][k + 1] - iqmc_mesh["z"][k]
-                z = iqmc_mesh["z"][k] + dz * 0.5
+                z = z_mid[k]
 
                 # assign cell center position
                 P_temp["x"] = x
@@ -2902,7 +2904,7 @@ def generate_iqmc_material_idx(mcdc):
 
                 # assign material index
                 mcdc["technique"]["iqmc_material_idx"][t, i, j, k] = material_ID
-
+                
 
 # =============================================================================
 # iQMC Iterative Mapping Functions
@@ -2979,7 +2981,13 @@ def preconditioner(V, mcdc, num_sweeps=8):
     vector_size = v.size
     matrix_shape = mcdc["technique"]["iqmc_flux"].shape
     mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
+
+    # size = mcdc["technique"]["iqmc_source"].size
+    # source_old = mcdc["technique"]["iqmc_source"].copy().reshape((size,))
+    # res = np.linalg.norm(source_old)
+    
     for i in range(num_sweeps):
+    # while res >= 1e-2:
         # reset bank size
         mcdc["bank_source"]["size"] = 0
         mcdc["technique"]["iqmc_source"] = np.zeros_like(
@@ -2991,7 +2999,12 @@ def preconditioner(V, mcdc, num_sweeps=8):
         prepare_qmc_particles(mcdc)
         mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
         loop_source(mcdc)
-
+        
+        # source_new = mcdc["technique"]["iqmc_source"].copy().reshape((size,))
+        # res = np.linalg.norm(source_new - source_old, ord=2)
+        # print(res)
+        # source_old = source_new.copy()
+        
     v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size, 1))
 
     return v_out
