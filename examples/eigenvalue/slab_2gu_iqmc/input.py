@@ -63,7 +63,7 @@ mcdc.iQMC(
     tol=tol,
     generator=generator,
     eigenmode_solver=solver,
-    preconditioner_sweeps=pre_sweeps
+    preconditioner_sweeps=pre_sweeps,
 )
 # Setting
 mcdc.setting(N_particle=N)

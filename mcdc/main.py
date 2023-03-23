@@ -442,9 +442,13 @@ def generate_hdf5():
                 f.create_dataset("iqmc/itteration_count", data=T["iqmc_itt"])
                 f.create_dataset("iqmc/final_residual", data=T["iqmc_res"])
                 if mcdc["setting"]["mode_eigenvalue"]:
-                    f.create_dataset("iqmc/outter_itteration_count", data=T["iqmc_itt_outter"])
-                    f.create_dataset("iqmc/outter_final_residual", data=T["iqmc_res_outter"])
-                    
+                    f.create_dataset(
+                        "iqmc/outter_itteration_count", data=T["iqmc_itt_outter"]
+                    )
+                    f.create_dataset(
+                        "iqmc/outter_final_residual", data=T["iqmc_res_outter"]
+                    )
+
             # Particle tracker
             if mcdc["setting"]["track_particle"]:
                 with h5py.File(mcdc["setting"]["output"] + "_ptrack.h5", "w") as f:

@@ -2913,6 +2913,17 @@ def generate_iqmc_material_idx(mcdc):
 
                 # assign material index
                 mcdc["technique"]["iqmc_material_idx"][t, i, j, k] = material_ID
+    print("done")
+
+
+# import matplotlib.pyplot as plt
+# from matplotlib import colors as c
+# plt.figure(dpi=300)
+# Y, X = np.meshgrid(x_mid, y_mid)
+# plt.pcolormesh(X, Y, mcdc["technique"]["iqmc_material_idx"][0,:,:,0],
+# cmap = c.ListedColormap(['crimson', 'darkblue']), shading="nearest")
+# plt.xlabel('x')
+# plt.ylabel('y')
 
 
 @njit
@@ -2928,6 +2939,7 @@ def iqmc_distribute_flux(mcdc):
 # =============================================================================
 # iQMC Iterative Mapping Functions
 # =============================================================================
+
 
 @njit
 def AxV(V, mcdc):
@@ -2987,7 +2999,10 @@ def BxV(V, mcdc):
 
     return v_out
 
+
 from mcdc.loop import source_iteration
+
+
 @njit
 def preconditioner(V, mcdc, num_sweeps=8):
     """
@@ -3019,7 +3034,6 @@ def preconditioner(V, mcdc, num_sweeps=8):
         loop_source(mcdc)
         # sum resultant flux on all processors
         iqmc_distribute_flux(mcdc)
-        
 
     v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size, 1))
 

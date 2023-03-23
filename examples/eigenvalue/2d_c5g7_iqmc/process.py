@@ -11,7 +11,7 @@ import h5py
 with h5py.File("PI_output.h5", "r") as f:
     x = f["iqmc/grid/x"][:]
     y = f["iqmc/grid/y"][:]
-    phi_avg = f["tally/iqmc_flux"][:]
+    phi_avg = f["iqmc/flux"][:]
     f.close()
 
 
@@ -32,15 +32,16 @@ norm = np.sum(phi_slow)
 phi_slow /= norm
 
 
-plt.figure(dpi=300)
+plt.figure(dpi=300, figsize=(8, 4))
 plt.pcolormesh(X, Y, phi_tot, shading="nearest")
-plt.colorbar()
+plt.colorbar().set_label(r"Normalized Scalar Flux", rotation=270, labelpad=15)
 ax = plt.gca()
 ax.set_aspect("equal")
 plt.xlabel(r"$x$ [cm]")
 plt.ylabel(r"$y$ [cm]")
 plt.title(r"Total Neutron Flux")
 plt.show()
+plt.tight_layout()
 
 
 plt.figure(dpi=300)
