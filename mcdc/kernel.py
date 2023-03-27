@@ -3018,22 +3018,26 @@ def preconditioner(V, mcdc, num_sweeps=8):
     matrix_shape = mcdc["technique"]["iqmc_flux"].shape
     mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
 
-    # source_iteration(mcdc)
+    mcdc["technique"]["iqmc_maxitt"] = num_sweeps
+    mcdc["technique"]["iqmc_tol"] = 1e-12
+    mcdc["technique"]["iqmc_res"] = 1.0
+    source_iteration(mcdc)
 
-    for i in range(num_sweeps):
-        # reset bank size
-        mcdc["bank_source"]["size"] = 0
-        mcdc["technique"]["iqmc_source"] = np.zeros_like(
-            mcdc["technique"]["iqmc_source"]
-        )
+    # for i in range(num_sweeps):
+    #     # reset bank size
+    #     mcdc["bank_source"]["size"] = 0
+    #     mcdc["technique"]["iqmc_source"] = np.zeros_like(
+    #         mcdc["technique"]["iqmc_source"]
+    #     )
 
-        # QMC Sweep
-        prepare_qmc_scattering_source(mcdc)
-        prepare_qmc_particles(mcdc)
-        mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
-        loop_source(mcdc)
-        # sum resultant flux on all processors
-        iqmc_distribute_flux(mcdc)
+    #     # QMC Sweep
+    #     prepare_qmc_scattering_source(mcdc)
+    #     prepare_qmc_particles(mcdc)
+    #     mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    #     loop_source(mcdc)
+    #     # sum resultant flux on all processors
+    #     iqmc_distribute_flux(mcdc)
+    #     print("sweep")
 
     v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size, 1))
 
