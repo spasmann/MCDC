@@ -40,17 +40,17 @@ mcdc.cell([+s1, -s2], m1)
 # iQMC Parameters
 # =============================================================================
 Nx = 10
-N = 1000
+N = 2000
 maxit = 5
 tol = 1e-3
-pre_sweeps = 5
+pre_sweeps = 6
 x = np.linspace(0.0, 6.01275, num=Nx + 1)
 generator = "halton"
 solver = "davidson"
 fixed_source = np.zeros((2, Nx))
 np.random.seed(123456)
-# phi0 = np.random.random((2, Nx))
-phi0 = np.ones((2, Nx))
+phi0 = np.random.random((2, Nx))
+# phi0 = np.ones((2, Nx))
 
 # =============================================================================
 # Set tally, setting, and run mcdc

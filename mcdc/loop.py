@@ -398,7 +398,7 @@ def davidson(mcdc):
     # l : number of eigenvalues to solve for
     l = 1
 
-    phi0 = mcdc["technique"]["iqmc_flux"]
+    phi0 = mcdc["technique"]["iqmc_flux"].copy()
     Nt = phi0.size
     phi0 = np.reshape(phi0, (Nt,))
 
@@ -452,27 +452,27 @@ def davidson(mcdc):
         # residual
         res = kernel.AxV(u, mcdc) - Lambda * kernel.BxV(u, mcdc)
         mcdc["technique"]["iqmc_res_outter"] = np.linalg.norm(res, ord=2)
-
-        # Precondition for next iteration
-        t = kernel.preconditioner(res, mcdc, num_sweeps)
-        # check restart condition
-        if Vsize < m - l:
-            Vsize += 1
-            # appends new orthogonalization to V
-            V[:, :Vsize] = kernel.modified_gram_schmidt(V[:, : Vsize - 1], t)
-        else:
-            # "restarts" by appending to a new array
-            Vsize = 2
-            V[:, :Vsize] = kernel.modified_gram_schmidt(u, t)
         mcdc["k_eff"] = 1.0 / Lambda[0]
         mcdc["technique"]["iqmc_itt_outter"] += 1
         print_iqmc_eigenvalue_progress(mcdc)
-
-        # iQMC convergence criteria
+        # check convergence criteria
         if (mcdc["technique"]["iqmc_itt_outter"] == maxit) or (
             mcdc["technique"]["iqmc_res_outter"] <= tol
         ):
             simulation_end = True
+            break
+        else:
+            # Precondition for next iteration
+            t = kernel.preconditioner(res, mcdc, num_sweeps)
+            # check restart condition
+            if Vsize < m - l:
+                Vsize += 1
+                # appends new orthogonalization to V
+                V[:, :Vsize] = kernel.modified_gram_schmidt(V[:, : Vsize - 1], t)
+            else:
+                # "restarts" by appending to a new array
+                Vsize = 2
+                V[:, :Vsize] = kernel.modified_gram_schmidt(u, t)
 
     print_iqmc_eigenvalue_exit_code(mcdc)
 

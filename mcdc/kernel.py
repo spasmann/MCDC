@@ -3019,7 +3019,8 @@ def preconditioner(V, mcdc, num_sweeps=8):
     mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
 
     mcdc["technique"]["iqmc_maxitt"] = num_sweeps
-    mcdc["technique"]["iqmc_tol"] = 1e-12
+    mcdc["technique"]["iqmc_itt"] = 0
+    mcdc["technique"]["iqmc_tol"] = -np.inf
     mcdc["technique"]["iqmc_res"] = 1.0
     source_iteration(mcdc)
 
@@ -3037,7 +3038,6 @@ def preconditioner(V, mcdc, num_sweeps=8):
     #     loop_source(mcdc)
     #     # sum resultant flux on all processors
     #     iqmc_distribute_flux(mcdc)
-    #     print("sweep")
 
     v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size, 1))
 
@@ -3050,9 +3050,13 @@ def modified_gram_schmidt(V, u):
     Modified Gram Schmidt routine
 
     """
-    w1 = u - np.dot(np.ascontiguousarray(V), np.dot(np.ascontiguousarray(V.T), u))
+    w1 = u - np.linalg.multi_dot(
+        [np.ascontiguousarray(V), np.ascontiguousarray(V.T), u]
+    )
     v1 = w1 / np.linalg.norm(w1)
-    w2 = v1 - np.dot(np.ascontiguousarray(V), np.dot(np.ascontiguousarray(V.T), v1))
+    w2 = v1 - np.linalg.multi_dot(
+        [np.ascontiguousarray(V), np.ascontiguousarray(V.T), v1]
+    )
     v2 = w2 / np.linalg.norm(w2)
     V = np.append(V, v2, axis=1)
     return V
