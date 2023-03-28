@@ -2947,7 +2947,7 @@ def AxV(V, mcdc):
     Linear operator for scattering term (I-L^(-1)S)*phi
     """
     # flux input is most recent iteration of eigenvector
-    v = V[:, -1]
+    v = V  # V[:, -1]
     # reshape v and assign to iqmc_flux
     vector_size = v.size
     matrix_shape = mcdc["technique"]["iqmc_flux"].shape
@@ -2977,7 +2977,7 @@ def BxV(V, mcdc):
     Linear operator for fission term (L^(-1)F*phi)
     """
     # flux input is most recent iteration of eigenvector
-    v = V[:, -1]
+    v = V  # V[:, -1]
     # reshape v and assign to iqmc_flux
     vector_size = v.size
     matrix_shape = mcdc["technique"]["iqmc_flux"].shape
@@ -3000,9 +3000,6 @@ def BxV(V, mcdc):
     return v_out
 
 
-from mcdc.loop import source_iteration
-
-
 @njit
 def preconditioner(V, mcdc, num_sweeps=8):
     """
@@ -3012,32 +3009,26 @@ def preconditioner(V, mcdc, num_sweeps=8):
     transport sweeps.
     """
     # flux input is most recent iteration of eigenvector
-    v = V[:, -1]
+    v = V  # V[:, -1]
     # reshape v and assign to iqmc_flux
     vector_size = v.size
     matrix_shape = mcdc["technique"]["iqmc_flux"].shape
     mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
 
-    mcdc["technique"]["iqmc_maxitt"] = num_sweeps
-    mcdc["technique"]["iqmc_itt"] = 0
-    mcdc["technique"]["iqmc_tol"] = -np.inf
-    mcdc["technique"]["iqmc_res"] = 1.0
-    source_iteration(mcdc)
+    for i in range(num_sweeps):
+        # reset bank size
+        mcdc["bank_source"]["size"] = 0
+        mcdc["technique"]["iqmc_source"] = np.zeros_like(
+            mcdc["technique"]["iqmc_source"]
+        )
 
-    # for i in range(num_sweeps):
-    #     # reset bank size
-    #     mcdc["bank_source"]["size"] = 0
-    #     mcdc["technique"]["iqmc_source"] = np.zeros_like(
-    #         mcdc["technique"]["iqmc_source"]
-    #     )
-
-    #     # QMC Sweep
-    #     prepare_qmc_scattering_source(mcdc)
-    #     prepare_qmc_particles(mcdc)
-    #     mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
-    #     loop_source(mcdc)
-    #     # sum resultant flux on all processors
-    #     iqmc_distribute_flux(mcdc)
+        # QMC Sweep
+        prepare_qmc_scattering_source(mcdc)
+        prepare_qmc_particles(mcdc)
+        mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+        loop_source(mcdc)
+        # sum resultant flux on all processors
+        iqmc_distribute_flux(mcdc)
 
     v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size, 1))
 
@@ -3050,13 +3041,10 @@ def modified_gram_schmidt(V, u):
     Modified Gram Schmidt routine
 
     """
-    w1 = u - np.linalg.multi_dot(
-        [np.ascontiguousarray(V), np.ascontiguousarray(V.T), u]
-    )
+    V = np.ascontiguousarray(V)
+    w1 = u - np.dot(V, np.dot(V.T, u))
     v1 = w1 / np.linalg.norm(w1)
-    w2 = v1 - np.linalg.multi_dot(
-        [np.ascontiguousarray(V), np.ascontiguousarray(V.T), v1]
-    )
+    w2 = v1 - np.dot(V, np.dot(V.T, v1))
     v2 = w2 / np.linalg.norm(w2)
     V = np.append(V, v2, axis=1)
     return V

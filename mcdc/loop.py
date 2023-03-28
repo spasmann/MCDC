@@ -284,7 +284,7 @@ def loop_iqmc(mcdc):
     if mcdc["setting"]["mode_eigenvalue"]:
         if mcdc["technique"]["iqmc_eigenmode_solver"] == "davidson":
             davidson(mcdc)
-        else:
+        if mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration":
             power_iteration(mcdc)
     else:
         source_iteration(mcdc)
@@ -414,16 +414,16 @@ def davidson(mcdc):
     if m is None:
         # unless specified there is no restart parameter
         m = maxit + 1
-    V[:, :Vsize] = kernel.preconditioner(V[:, :Vsize], mcdc, num_sweeps)
+    V[:, :Vsize] = kernel.preconditioner(V[:, :Vsize][:, -1], mcdc, num_sweeps)
     # Davidson Routine
     while not simulation_end:
         # Calculate V*A*V (AxV is scattering linear operator function)
-        axv[:, Vsize - 1] = kernel.AxV(V[:, :Vsize], mcdc)[:, 0]
+        axv[:, Vsize - 1] = kernel.AxV(V[:, :Vsize][:, -1], mcdc)[:, 0]
         AV = np.dot(
             np.ascontiguousarray(V[:, :Vsize].T), np.ascontiguousarray(axv[:, :Vsize])
         )
         # Calculate V*B*V (BxV is fission linear operator function)
-        bxv[:, Vsize - 1] = kernel.BxV(V[:, :Vsize], mcdc)[:, 0]
+        bxv[:, Vsize - 1] = kernel.BxV(V[:, :Vsize][:, -1], mcdc)[:, 0]
         BV = np.dot(
             np.ascontiguousarray(V[:, :Vsize].T), np.ascontiguousarray(bxv[:, :Vsize])
         )
@@ -443,16 +443,18 @@ def davidson(mcdc):
         Lambda = Lambda[idx]
         # take the l largest eigenvalues
         Lambda = Lambda[:l]
-        # sort corresponding eigenvector
+        # assign keff
+        mcdc["k_eff"] = 1.0 / Lambda[0]
+        # sort corresponding eigenvector (oriented by column)
         w = w[:, idx]
         # take the l largest eigenvectors
         w = w[:, :l]
         # Ritz vectors
-        u = np.dot(np.ascontiguousarray(V[:, :Vsize]), np.ascontiguousarray(w))
+        # u = np.dot(np.ascontiguousarray(V[:, :Vsize]), np.ascontiguousarray(w))
+        u = V[:, Vsize - 1] * w[-1, 0]
         # residual
         res = kernel.AxV(u, mcdc) - Lambda * kernel.BxV(u, mcdc)
         mcdc["technique"]["iqmc_res_outter"] = np.linalg.norm(res, ord=2)
-        mcdc["k_eff"] = 1.0 / Lambda[0]
         mcdc["technique"]["iqmc_itt_outter"] += 1
         print_iqmc_eigenvalue_progress(mcdc)
         # check convergence criteria
@@ -469,10 +471,12 @@ def davidson(mcdc):
                 Vsize += 1
                 # appends new orthogonalization to V
                 V[:, :Vsize] = kernel.modified_gram_schmidt(V[:, : Vsize - 1], t)
-            else:
-                # "restarts" by appending to a new array
-                Vsize = 2
-                V[:, :Vsize] = kernel.modified_gram_schmidt(u, t)
+                # V[:,Vsize-1] = t[:,0]
+                # V[:,:Vsize],R = np.linalg.qr(V[:,:Vsize])
+            # else:
+            #     # "restarts" by appending to a new array
+            #     Vsize = 2
+            #     V[:, :Vsize] = kernel.modified_gram_schmidt(u, t)
 
     print_iqmc_eigenvalue_exit_code(mcdc)
 
