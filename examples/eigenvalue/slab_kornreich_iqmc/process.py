@@ -88,7 +88,7 @@ tmp = 0.5 * (phi_avg[1:] + phi_avg[:-1])
 norm = np.sum(tmp * dx)
 phi_avg /= norm
 
-
+print("MC Keff = ", k_avg)
 plt.plot(x, phi_avg, label="MC")
 
 
@@ -98,6 +98,7 @@ plt.plot(x, phi_avg, label="MC")
 
 with h5py.File("PI_output.h5", "r") as f:
     # Note the spatial (dx) and source strength (100+1) normalization
+    keff = f["k_eff"][()]
     phi_avg = f["tally/iqmc_flux"][:]
     x = f["iqmc/grid/x"][:]
     dx = x[1] - x[0]
@@ -107,7 +108,7 @@ with h5py.File("PI_output.h5", "r") as f:
 tmp = 0.5 * (phi_avg[1:] + phi_avg[:-1])
 norm = np.sum(tmp * dx)
 phi_avg /= norm
-
+print("PI Keff = ", keff)
 plt.plot(x_mid, phi_avg, label="PI")
 
 # =============================================================================
@@ -116,6 +117,7 @@ plt.plot(x_mid, phi_avg, label="PI")
 
 with h5py.File("davidson_output.h5", "r") as f:
     # Note the spatial (dx) and source strength (100+1) normalization
+    keff = f["k_eff"][()]
     phi_avg = f["tally/iqmc_flux"][:]
     x = f["iqmc/grid/x"][:]
     dx = x[1] - x[0]
@@ -126,6 +128,7 @@ tmp = 0.5 * (phi_avg[1:] + phi_avg[:-1])
 norm = np.sum(tmp * dx)
 phi_avg /= norm
 
+print("davidson Keff = ", keff)
 plt.plot(x_mid, phi_avg, label="davidson")
 
 

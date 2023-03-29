@@ -35,13 +35,13 @@ mcdc.cell([+s2, -s3], m2)
 # =============================================================================
 # iQMC Parameters
 # =============================================================================
-N = 5000
-maxit = 15
+N = 1000
+maxit = 10
 tol = 1e-3
 x = np.arange(0.0, 2.6, 0.1)
 Nx = len(x) - 1
 generator = "halton"
-solver = "power_iteration"
+solver = "davidson"
 fixed_source = np.zeros(Nx)
 phi0 = np.ones((Nx))
 
@@ -59,7 +59,7 @@ mcdc.iQMC(
     eigenmode_solver=solver,
 )
 # Setting
-mcdc.setting(N_particle=N, output="davidson_output")
+mcdc.setting(N_particle=N)
 mcdc.eigenmode()
 
 # Run

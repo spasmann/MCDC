@@ -2913,7 +2913,6 @@ def generate_iqmc_material_idx(mcdc):
 
                 # assign material index
                 mcdc["technique"]["iqmc_material_idx"][t, i, j, k] = material_ID
-    print("done")
 
 
 # import matplotlib.pyplot as plt
@@ -2942,12 +2941,12 @@ def iqmc_distribute_flux(mcdc):
 
 
 @njit
-def AxV(V, mcdc):
+def HxV(V, mcdc):
     """
-    Linear operator for scattering term (I-L^(-1)S)*phi
+    Linear operator for scattering + streaming term (I-L^(-1)S)*phi
     """
     # flux input is most recent iteration of eigenvector
-    v = V  # V[:, -1]
+    v = V[:, -1]
     # reshape v and assign to iqmc_flux
     vector_size = v.size
     matrix_shape = mcdc["technique"]["iqmc_flux"].shape
@@ -2972,12 +2971,12 @@ def AxV(V, mcdc):
 
 
 @njit
-def BxV(V, mcdc):
+def FxV(V, mcdc):
     """
     Linear operator for fission term (L^(-1)F*phi)
     """
     # flux input is most recent iteration of eigenvector
-    v = V  # V[:, -1]
+    v = V[:, -1]
     # reshape v and assign to iqmc_flux
     vector_size = v.size
     matrix_shape = mcdc["technique"]["iqmc_flux"].shape
@@ -3009,7 +3008,7 @@ def preconditioner(V, mcdc, num_sweeps=8):
     transport sweeps.
     """
     # flux input is most recent iteration of eigenvector
-    v = V  # V[:, -1]
+    v = V[:, -1]
     # reshape v and assign to iqmc_flux
     vector_size = v.size
     matrix_shape = mcdc["technique"]["iqmc_flux"].shape
@@ -3030,7 +3029,9 @@ def preconditioner(V, mcdc, num_sweeps=8):
         # sum resultant flux on all processors
         iqmc_distribute_flux(mcdc)
 
-    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size, 1))
+    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,))
+    v_out = v - v_out
+    v_out = np.reshape(v_out, (vector_size, 1))
 
     return v_out
 
