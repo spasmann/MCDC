@@ -1,5 +1,5 @@
 import numpy as np
-
+from numpy import ascontiguousarray as cga
 from numba import njit, objmode, jit
 from scipy.linalg import eig
 
@@ -272,7 +272,7 @@ def loop_particle(P, mcdc):
 
 
 # =============================================================================
-# iQMC Loop
+# iQMC Loops
 # =============================================================================
 
 
@@ -343,7 +343,7 @@ def power_iteration(mcdc):
     # maximum number of iterations
     maxit = mcdc["technique"]["iqmc_maxitt"]
     mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
-
+    k_old = mcdc["k_eff"]
     # assign function call from specified solvers
     # inner_iteration = globals()[mcdc["technique"]["iqmc_fixed_source_solver"]]
 
@@ -362,13 +362,13 @@ def power_iteration(mcdc):
         )
 
         # calculate diff in flux
-        mcdc["technique"]["iqmc_res_outter"] = kernel.qmc_res(
-            mcdc["technique"]["iqmc_flux"], mcdc["technique"]["iqmc_flux_outter"]
-        )
+        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"]- k_old)
+        k_old = mcdc["k_eff"]
         mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
         mcdc["technique"]["iqmc_itt_outter"] += 1
 
-        print_iqmc_eigenvalue_progress(mcdc)
+        if mcdc["setting"]["progress_bar"]:
+            print_iqmc_eigenvalue_progress(mcdc)
 
         # iQMC convergence criteria
         if (mcdc["technique"]["iqmc_itt_outter"] == maxit) or (
@@ -376,10 +376,8 @@ def power_iteration(mcdc):
         ):
             simulation_end = True
 
-    print_iqmc_eigenvalue_exit_code(mcdc)
-
-
-from numpy import ascontiguousarray as cga
+    if mcdc["setting"]["progress_bar"]:
+        print_iqmc_eigenvalue_exit_code(mcdc)
 
 
 @njit
@@ -395,13 +393,20 @@ def davidson(mcdc):
     num_sweeps = mcdc["technique"]["iqmc_preconditioner_sweeps"]
     # m : restart parameter
     m = mcdc["technique"]["iqmc_krylov_restart"]
-
+    k_old = mcdc["k_eff"]
     # initial size of Krylov subspace
     Vsize = 1
     # l : number of eigenvalues to solve for
     l = 1
 
-    # initial guess
+    # initial precondition with the power iteration
+    # mcdc["technique"]["iqmc_maxitt"] = 1
+    # mcdc["setting"]["progress_bar"] = False
+    # power_iteration(mcdc)
+    # mcdc["setting"]["progress_bar"] = True
+    # mcdc["technique"]["iqmc_maxitt"] = maxit
+    
+    # resulting guess
     phi0 = mcdc["technique"]["iqmc_flux"].copy()
     Nt = phi0.size
     phi0 = np.reshape(phi0, (Nt,))
@@ -415,8 +420,6 @@ def davidson(mcdc):
     # orthonormalize initial guess
     V0 = phi0 / np.linalg.norm(phi0)
     V[:, 0] = V0
-    # precondition V0
-    V[:, :Vsize] = kernel.preconditioner(V[:, :Vsize], mcdc, num_sweeps)
 
     if m is None:
         # unless specified there is no restart parameter
@@ -424,10 +427,10 @@ def davidson(mcdc):
 
     # Davidson Routine
     while not simulation_end:
-        # Calculate V*A*V (AxV is scattering linear operator function)
+        # Calculate V*H*V (HxV is scattering linear operator function)
         HV[:, Vsize - 1] = kernel.HxV(V[:, :Vsize], mcdc)[:, 0]
         VHV = np.dot(cga(V[:, :Vsize].T), cga(HV[:, :Vsize]))
-        # Calculate V*B*V (BxV is fission linear operator function)
+        # Calculate V*F*V (FxV is fission linear operator function)
         FV[:, Vsize - 1] = kernel.FxV(V[:, :Vsize], mcdc)[:, 0]
         VFV = np.dot(cga(V[:, :Vsize].T), cga(FV[:, :Vsize]))
         # solve for eigenvalues and vectors
@@ -456,7 +459,8 @@ def davidson(mcdc):
         u = np.dot(cga(V[:, :Vsize]), cga(w))
         # residual
         res = kernel.FxV(u, mcdc) - Lambda * kernel.HxV(u, mcdc)
-        mcdc["technique"]["iqmc_res_outter"] = np.linalg.norm(res, ord=2)
+        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"]- k_old)
+        k_old = mcdc["k_eff"]
         mcdc["technique"]["iqmc_itt_outter"] += 1
         print_iqmc_eigenvalue_progress(mcdc)
 
@@ -474,8 +478,6 @@ def davidson(mcdc):
                 # appends new orthogonalization to V
                 V[:, : Vsize + 1] = kernel.modified_gram_schmidt(V[:, :Vsize], t)
                 Vsize += 1
-                # V[:,Vsize-1] = t[:,0]
-                # V[:,:Vsize],R = np.linalg.qr(V[:,:Vsize])
             else:
                 # "restarts" by appending to a new array
                 Vsize = 2
