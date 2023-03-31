@@ -362,7 +362,7 @@ def power_iteration(mcdc):
         )
 
         # calculate diff in flux
-        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"]- k_old)
+        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
         k_old = mcdc["k_eff"]
         mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
         mcdc["technique"]["iqmc_itt_outter"] += 1
@@ -384,6 +384,7 @@ def power_iteration(mcdc):
 def davidson(mcdc):
     # TODO: find a cleaner way to make all matrices contiguous arrays for
     # dot products
+    # TODO: handle imaginary eigenvalues
 
     # Davidson parameters
     simulation_end = False
@@ -399,13 +400,14 @@ def davidson(mcdc):
     # l : number of eigenvalues to solve for
     l = 1
 
-    # initial precondition with the power iteration
-    # mcdc["technique"]["iqmc_maxitt"] = 1
-    # mcdc["setting"]["progress_bar"] = False
-    # power_iteration(mcdc)
-    # mcdc["setting"]["progress_bar"] = True
-    # mcdc["technique"]["iqmc_maxitt"] = maxit
-    
+    # initial scalar flux guess comes from power iteration
+    mcdc["technique"]["iqmc_maxitt"] = 1
+    mcdc["setting"]["progress_bar"] = False
+    power_iteration(mcdc)
+    mcdc["setting"]["progress_bar"] = True
+    mcdc["technique"]["iqmc_maxitt"] = maxit
+    mcdc["technique"]["iqmc_flux_outter"] = 0
+
     # resulting guess
     phi0 = mcdc["technique"]["iqmc_flux"].copy()
     Nt = phi0.size
@@ -439,7 +441,6 @@ def davidson(mcdc):
             Lambda = np.array(Lambda, dtype=np.complex128)
             w = np.array(w, dtype=np.complex128)
 
-        # TODO: handle imaginary eigenvalues
         assert Lambda.imag.all() == 0.0
         Lambda = Lambda.real
         w = w.real
@@ -459,7 +460,7 @@ def davidson(mcdc):
         u = np.dot(cga(V[:, :Vsize]), cga(w))
         # residual
         res = kernel.FxV(u, mcdc) - Lambda * kernel.HxV(u, mcdc)
-        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"]- k_old)
+        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
         k_old = mcdc["k_eff"]
         mcdc["technique"]["iqmc_itt_outter"] += 1
         print_iqmc_eigenvalue_progress(mcdc)
@@ -480,13 +481,14 @@ def davidson(mcdc):
                 Vsize += 1
             else:
                 # "restarts" by appending to a new array
-                Vsize = 2
+                Vsize = l + 1
                 V[:, :Vsize] = kernel.modified_gram_schmidt(u, t)
 
     print_iqmc_eigenvalue_exit_code(mcdc)
 
     # normalize and save final scalar flux
     flux = np.reshape(
-        V[:, 0] / np.linalg.norm(V[:, 0]), mcdc["technique"]["iqmc_flux"].shape
+        V[:, Vsize - 1] / np.linalg.norm(V[:, Vsize - 1]),
+        mcdc["technique"]["iqmc_flux"].shape,
     )
     mcdc["technique"]["iqmc_flux"] = flux
