@@ -262,10 +262,9 @@ def prepare():
             "iqmc_mesh",
             "iqmc_source",
             "lds",
-            "iqmc_effective_scattering",
-            "iqmc_effective_fission",
             "iqmc_res",
             "iqmc_generator",
+            "iqmc_sweep_counter",
             "wr_chance",
             "wr_threshold",
         ]:
@@ -436,11 +435,13 @@ def generate_hdf5():
                 f.create_dataset("iqmc/grid/x", data=T["iqmc_mesh"]["x"])
                 f.create_dataset("iqmc/grid/y", data=T["iqmc_mesh"]["y"])
                 f.create_dataset("iqmc/grid/z", data=T["iqmc_mesh"]["z"])
+                f.create_dataset("iqmc/material_idx", data=T["iqmc_material_idx"])
                 # dump x,y,z scalar flux across all groups
                 f.create_dataset("iqmc/flux", data=np.squeeze(T["iqmc_flux"]))
                 # iteration data
                 f.create_dataset("iqmc/itteration_count", data=T["iqmc_itt"])
                 f.create_dataset("iqmc/final_residual", data=T["iqmc_res"])
+                f.create_dataset("iqmc/sweep_count", data=T["iqmc_sweep_counter"])
                 if mcdc["setting"]["mode_eigenvalue"]:
                     f.create_dataset(
                         "iqmc/outter_itteration_count", data=T["iqmc_itt_outter"]

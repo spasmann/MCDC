@@ -535,8 +535,8 @@ def make_type_technique(card):
     # flux tallies
     struct += [("iqmc_flux", float64, (Ng, Nt, Nx, Ny, Nz))]
     struct += [("iqmc_flux_old", float64, (Ng, Nt, Nx, Ny, Nz))]
-    struct += [("iqmc_effective_scattering", float64, (Ng, Nt, Nx, Ny, Nz))]
-    struct += [("iqmc_effective_fission", float64, (Ng, Nt, Nx, Ny, Nz))]
+    # struct += [("iqmc_effective_scattering", float64, (Ng, Nt, Nx, Ny, Nz))]
+    # struct += [("iqmc_effective_fission", float64, (Ng, Nt, Nx, Ny, Nz))]
     # TODO: make outter flux size zero if not eigenmode
     struct += [("iqmc_flux_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
 
@@ -556,6 +556,7 @@ def make_type_technique(card):
         ("iqmc_eigenmode_solver", str_),
         ("iqmc_krylov_restart", int64),
         ("iqmc_preconditioner_sweeps", int64),
+        ("iqmc_sweep_counter", int64),
     ]
 
     # =========================================================================

@@ -82,6 +82,9 @@ def loop_source(mcdc):
     # Progress bar indicator
     N_prog = 0
 
+    if mcdc["technique"]["iQMC"]:
+        mcdc["technique"]["iqmc_sweep_counter"] += 1
+
     # Loop over particle sources
     for work_idx in range(mcdc["mpi_work_size"]):
         # Particle tracker

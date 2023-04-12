@@ -2760,10 +2760,10 @@ def score_iqmc_flux(P, distance, mcdc):
     else:
         flux = distance * w / dV
     mcdc["technique"]["iqmc_flux"][:, t, x, y, z] += flux
-    mcdc["technique"]["iqmc_effective_scattering"][:, t, x, y, z] += (
-        flux * SigmaS
-    )  # chi_s.T, SigmaS * phi
-    mcdc["technique"]["iqmc_effective_fission"][:, t, x, y, z] += flux * SigmaF
+    # mcdc["technique"]["iqmc_effective_scattering"][:, t, x, y, z] += (
+    #     flux * SigmaS
+    # )  # chi_s.T, SigmaS * phi
+    # mcdc["technique"]["iqmc_effective_fission"][:, t, x, y, z] += flux * SigmaF
 
 
 @njit
@@ -2914,26 +2914,6 @@ def generate_iqmc_material_idx(mcdc):
                 # assign material index
                 mcdc["technique"]["iqmc_material_idx"][t, i, j, k] = material_ID
 
-    print("done")
-    import matplotlib.pyplot as plt
-    from matplotlib import colors as c
-    
-    plt.figure(dpi=300)
-    X,Y = np.meshgrid(x_mid, y_mid)
-    plt.pcolormesh(X, Y, mcdc["technique"]["iqmc_material_idx"][0,:,:,0],
-    cmap = c.ListedColormap(['crimson', 'darkblue', 'green']), shading="nearest")
-    plt.xlabel('x')
-    plt.ylabel('y')
-    plt.show()
-    
-    plt.figure(dpi=300)
-    X,Z = np.meshgrid(x_mid, z_mid)
-    plt.pcolormesh(X, Z, mcdc["technique"]["iqmc_material_idx"][0,:,0,:],
-    cmap = c.ListedColormap(['crimson', 'darkblue', 'green']), shading="nearest")
-    plt.xlabel('x')
-    plt.ylabel('z')
-    plt.show()
-
 
 @njit
 def iqmc_distribute_flux(mcdc):
@@ -3010,9 +2990,9 @@ def FxV(V, mcdc):
 
 
 @njit
-def preconditioner(V, mcdc, num_sweeps=8):
+def preconditioner(V, mcdc, num_sweeps=3):
     """
-    Linear operator approximation of L^(-1)S
+    Linear operator approximation of (I-L^(-1)S)*phi
 
     In this case the preconditioner is a specified number of purely scattering
     transport sweeps.
