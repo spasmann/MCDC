@@ -2914,15 +2914,25 @@ def generate_iqmc_material_idx(mcdc):
                 # assign material index
                 mcdc["technique"]["iqmc_material_idx"][t, i, j, k] = material_ID
 
-
-# import matplotlib.pyplot as plt
-# from matplotlib import colors as c
-# plt.figure(dpi=300)
-# Y, X = np.meshgrid(x_mid, y_mid)
-# plt.pcolormesh(X, Y, mcdc["technique"]["iqmc_material_idx"][0,:,:,0],
-# cmap = c.ListedColormap(['crimson', 'darkblue']), shading="nearest")
-# plt.xlabel('x')
-# plt.ylabel('y')
+    print("done")
+    import matplotlib.pyplot as plt
+    from matplotlib import colors as c
+    
+    plt.figure(dpi=300)
+    X,Y = np.meshgrid(x_mid, y_mid)
+    plt.pcolormesh(X, Y, mcdc["technique"]["iqmc_material_idx"][0,:,:,0],
+    cmap = c.ListedColormap(['crimson', 'darkblue', 'green']), shading="nearest")
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.show()
+    
+    plt.figure(dpi=300)
+    X,Z = np.meshgrid(x_mid, z_mid)
+    plt.pcolormesh(X, Z, mcdc["technique"]["iqmc_material_idx"][0,:,0,:],
+    cmap = c.ListedColormap(['crimson', 'darkblue', 'green']), shading="nearest")
+    plt.xlabel('x')
+    plt.ylabel('z')
+    plt.show()
 
 
 @njit
@@ -3048,6 +3058,13 @@ def modified_gram_schmidt(V, u):
     w2 = v1 - np.dot(V, np.dot(V.T, v1))
     v2 = w2 / np.linalg.norm(w2)
     V = np.append(V, v2, axis=1)
+    # TODO: unit test that each column of V.dot(v2) == 0
+    # for i in range(V.shape[1]):
+    #     temp = V[:,i].dot(v2)
+    #     try:
+    #         assert np.isclose(temp, 0.0)
+    #     except:
+    #         print(temp)
     return V
 
 
