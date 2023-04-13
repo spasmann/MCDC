@@ -404,12 +404,12 @@ def davidson(mcdc):
     l = 1
 
     # initial scalar flux guess comes from power iteration
-    mcdc["technique"]["iqmc_maxitt"] = 1
+    mcdc["technique"]["iqmc_maxitt"] = 3
     mcdc["setting"]["progress_bar"] = False
     power_iteration(mcdc)
     mcdc["setting"]["progress_bar"] = True
     mcdc["technique"]["iqmc_maxitt"] = maxit
-    mcdc["technique"]["iqmc_flux_outter"] = 0
+    mcdc["technique"]["iqmc_itt_outter"] = 0
 
     # resulting guess
     phi0 = mcdc["technique"]["iqmc_flux"].copy()
@@ -491,7 +491,8 @@ def davidson(mcdc):
 
     # normalize and save final scalar flux
     flux = np.reshape(
-        V[:, Vsize - 1] / np.linalg.norm(V[:, Vsize - 1]),
+        u / np.linalg.norm(u),
         mcdc["technique"]["iqmc_flux"].shape,
     )
+
     mcdc["technique"]["iqmc_flux"] = flux

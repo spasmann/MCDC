@@ -310,6 +310,11 @@ def prepare():
             m = math.ceil(math.log(N, 2))
             mcdc["setting"]["N_particle"] = 2**m
             mcdc["technique"]["lds"] = sampler.random_base2(m=m)
+            # first row of an unscrambled Sobol sequence is all zeros
+            # and throws off some of the algorithms. So we add small amount
+            # to avoid this issue
+            # mcdc["technique"]["lds"][0,:] += 1e-6
+            mcdc["technique"]["lds"][mcdc["technique"]["lds"] == 0.0] += 1e-6
             # lds is shape (2**m, d)
         if input_card.technique["iqmc_generator"] == "halton":
             scramble = mcdc["technique"]["iqmc_scramble"]
