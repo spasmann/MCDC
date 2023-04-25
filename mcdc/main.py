@@ -262,10 +262,9 @@ def prepare():
             "iqmc_mesh",
             "iqmc_source",
             "lds",
-            "iqmc_effective_scattering",
-            "iqmc_effective_fission",
             "iqmc_res",
             "iqmc_generator",
+            "iqmc_sweep_counter",
             "wr_chance",
             "wr_threshold",
         ]:
@@ -311,6 +310,11 @@ def prepare():
             m = math.ceil(math.log(N, 2))
             mcdc["setting"]["N_particle"] = 2**m
             mcdc["technique"]["lds"] = sampler.random_base2(m=m)
+            # first row of an unscrambled Sobol sequence is all zeros
+            # and throws off some of the algorithms. So we add small amount
+            # to avoid this issue
+            # mcdc["technique"]["lds"][0,:] += 1e-6
+            mcdc["technique"]["lds"][mcdc["technique"]["lds"] == 0.0] += 1e-6
             # lds is shape (2**m, d)
         if input_card.technique["iqmc_generator"] == "halton":
             scramble = mcdc["technique"]["iqmc_scramble"]
@@ -430,17 +434,26 @@ def generate_hdf5():
 
             # iQMC
             if mcdc["technique"]["iQMC"]:
-                # TODO: dump time dependent tallies
+                # dump iQMC mesh
                 T = mcdc["technique"]
                 f.create_dataset("iqmc/grid/t", data=T["iqmc_mesh"]["t"])
                 f.create_dataset("iqmc/grid/x", data=T["iqmc_mesh"]["x"])
                 f.create_dataset("iqmc/grid/y", data=T["iqmc_mesh"]["y"])
                 f.create_dataset("iqmc/grid/z", data=T["iqmc_mesh"]["z"])
-
+                f.create_dataset("iqmc/material_idx", data=T["iqmc_material_idx"])
                 # dump x,y,z scalar flux across all groups
-                f.create_dataset(
-                    "tally/" + "iqmc_flux", data=np.squeeze(T["iqmc_flux"])
-                )
+                f.create_dataset("iqmc/flux", data=np.squeeze(T["iqmc_flux"]))
+                # iteration data
+                f.create_dataset("iqmc/itteration_count", data=T["iqmc_itt"])
+                f.create_dataset("iqmc/final_residual", data=T["iqmc_res"])
+                f.create_dataset("iqmc/sweep_count", data=T["iqmc_sweep_counter"])
+                if mcdc["setting"]["mode_eigenvalue"]:
+                    f.create_dataset(
+                        "iqmc/outter_itteration_count", data=T["iqmc_itt_outter"]
+                    )
+                    f.create_dataset(
+                        "iqmc/outter_final_residual", data=T["iqmc_res_outter"]
+                    )
 
             # Particle tracker
             if mcdc["setting"]["track_particle"]:

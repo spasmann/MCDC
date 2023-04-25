@@ -77,7 +77,7 @@ def test():
     answer = h5py.File("answer.h5", "r")
 
     a = answer["tally/iqmc_flux"][:]
-    b = output["tally/iqmc_flux"][:]
+    b = output["iqmc/flux"][:]
     assert np.allclose(a, b)
 
     a = output["k_eff"][()]

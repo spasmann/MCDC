@@ -1,6 +1,7 @@
 import numpy as np
-
-from numba import njit, objmode
+from numpy import ascontiguousarray as cga
+from numba import njit, objmode, jit
+from scipy.linalg import eig
 
 import mcdc.kernel as kernel
 
@@ -80,6 +81,9 @@ def loop_source(mcdc):
 
     # Progress bar indicator
     N_prog = 0
+
+    if mcdc["technique"]["iQMC"]:
+        mcdc["technique"]["iqmc_sweep_counter"] += 1
 
     # Loop over particle sources
     for work_idx in range(mcdc["mpi_work_size"]):
@@ -271,7 +275,7 @@ def loop_particle(P, mcdc):
 
 
 # =============================================================================
-# iQMC Loop
+# iQMC Loops
 # =============================================================================
 
 
@@ -281,7 +285,10 @@ def loop_iqmc(mcdc):
     kernel.generate_iqmc_material_idx(mcdc)
     # function calls from specified solvers
     if mcdc["setting"]["mode_eigenvalue"]:
-        power_iteration(mcdc)
+        if mcdc["technique"]["iqmc_eigenmode_solver"] == "davidson":
+            davidson(mcdc)
+        if mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration":
+            power_iteration(mcdc)
     else:
         source_iteration(mcdc)
 
@@ -339,9 +346,9 @@ def power_iteration(mcdc):
     # maximum number of iterations
     maxit = mcdc["technique"]["iqmc_maxitt"]
     mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
-
+    k_old = mcdc["k_eff"]
     # assign function call from specified solvers
-    # inner_iteration = globals()[mcdc["technique"]["fixed_source_solver"]]
+    # inner_iteration = globals()[mcdc["technique"]["iqmc_fixed_source_solver"]]
 
     while not simulation_end:
         # iterate over scattering source
@@ -358,13 +365,13 @@ def power_iteration(mcdc):
         )
 
         # calculate diff in flux
-        mcdc["technique"]["iqmc_res_outter"] = kernel.qmc_res(
-            mcdc["technique"]["iqmc_flux"], mcdc["technique"]["iqmc_flux_outter"]
-        )
+        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
+        k_old = mcdc["k_eff"]
         mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
         mcdc["technique"]["iqmc_itt_outter"] += 1
 
-        print_iqmc_eigenvalue_progress(mcdc)
+        if mcdc["setting"]["progress_bar"]:
+            print_iqmc_eigenvalue_progress(mcdc)
 
         # iQMC convergence criteria
         if (mcdc["technique"]["iqmc_itt_outter"] == maxit) or (
@@ -372,4 +379,120 @@ def power_iteration(mcdc):
         ):
             simulation_end = True
 
+    if mcdc["setting"]["progress_bar"]:
+        print_iqmc_eigenvalue_exit_code(mcdc)
+
+
+@njit
+def davidson(mcdc):
+    # TODO: find a cleaner way to make all matrices contiguous arrays for
+    # dot products
+    # TODO: handle imaginary eigenvalues
+
+    # Davidson parameters
+    simulation_end = False
+    maxit = mcdc["technique"]["iqmc_maxitt"]
+    tol = mcdc["technique"]["iqmc_tol"]
+    # num_sweeps: number of preconditioner sweeps
+    num_sweeps = mcdc["technique"]["iqmc_preconditioner_sweeps"]
+    # m : restart parameter
+    m = mcdc["technique"]["iqmc_krylov_restart"]
+    k_old = mcdc["k_eff"]
+    # initial size of Krylov subspace
+    Vsize = 1
+    # l : number of eigenvalues to solve for
+    l = 1
+
+    # initial scalar flux guess comes from power iteration
+    mcdc["technique"]["iqmc_maxitt"] = 3
+    mcdc["setting"]["progress_bar"] = False
+    power_iteration(mcdc)
+    mcdc["setting"]["progress_bar"] = True
+    mcdc["technique"]["iqmc_maxitt"] = maxit
+    mcdc["technique"]["iqmc_itt_outter"] = 0
+
+    # resulting guess
+    phi0 = mcdc["technique"]["iqmc_flux"].copy()
+    Nt = phi0.size
+    phi0 = np.reshape(phi0, (Nt,))
+
+    # Krylov subspace matrices
+    # we allocate memory then use slice indexing in loop
+    V = np.zeros((Nt, maxit), dtype=np.float64)
+    HV = np.zeros((Nt, maxit), dtype=np.float64)
+    FV = np.zeros((Nt, maxit), dtype=np.float64)
+
+    # orthonormalize initial guess
+    V0 = phi0 / np.linalg.norm(phi0)
+    V[:, 0] = V0
+
+    if m is None:
+        # unless specified there is no restart parameter
+        m = maxit + 1
+
+    # Davidson Routine
+    while not simulation_end:
+        # Calculate V*H*V (HxV is scattering linear operator function)
+        HV[:, Vsize - 1] = kernel.HxV(V[:, :Vsize], mcdc)[:, 0]
+        VHV = np.dot(cga(V[:, :Vsize].T), cga(HV[:, :Vsize]))
+        # Calculate V*F*V (FxV is fission linear operator function)
+        FV[:, Vsize - 1] = kernel.FxV(V[:, :Vsize], mcdc)[:, 0]
+        VFV = np.dot(cga(V[:, :Vsize].T), cga(FV[:, :Vsize]))
+        # solve for eigenvalues and vectors
+        with objmode(Lambda="complex128[:]", w="complex128[:,:]"):
+            Lambda, w = eig(VFV, b=VHV)
+            Lambda = np.array(Lambda, dtype=np.complex128)
+            w = np.array(w, dtype=np.complex128)
+
+        assert Lambda.imag.all() == 0.0
+        Lambda = Lambda.real
+        w = w.real
+        # get indices of eigenvalues from largest to smallest
+        idx = np.flip(Lambda.argsort())
+        # sort eigenvalues from largest to smallest
+        Lambda = Lambda[idx]
+        # take the l largest eigenvalues
+        Lambda = Lambda[:l]
+        # sort corresponding eigenvector (oriented by column)
+        w = w[:, idx]
+        # take the l largest eigenvectors
+        w = w[:, :l]
+        # assign keff
+        mcdc["k_eff"] = Lambda[0]
+        # Ritz vector
+        u = np.dot(cga(V[:, :Vsize]), cga(w))
+        # residual
+        res = kernel.FxV(u, mcdc) - Lambda * kernel.HxV(u, mcdc)
+        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
+        k_old = mcdc["k_eff"]
+        mcdc["technique"]["iqmc_itt_outter"] += 1
+        print_iqmc_eigenvalue_progress(mcdc)
+
+        # check convergence criteria
+        if (mcdc["technique"]["iqmc_itt_outter"] == maxit) or (
+            mcdc["technique"]["iqmc_res_outter"] <= tol
+        ):
+            simulation_end = True
+            break
+        else:
+            # Precondition for next iteration
+            t = kernel.preconditioner(res, mcdc, num_sweeps)
+            # check restart condition
+            if Vsize <= m - l:
+                # appends new orthogonalization to V
+                V[:, : Vsize + 1] = kernel.modified_gram_schmidt(V[:, :Vsize], t)
+                Vsize += 1
+            else:
+                # "restarts" by appending to a new array
+                Vsize = l + 1
+                V[:, :Vsize] = kernel.modified_gram_schmidt(u, t)
+
     print_iqmc_eigenvalue_exit_code(mcdc)
+
+    # normalize and save final scalar flux
+    flux = np.reshape(
+        u / np.linalg.norm(u),
+        mcdc["technique"]["iqmc_flux"].shape,
+    )
+
+    mcdc["technique"]["iqmc_flux"] = flux

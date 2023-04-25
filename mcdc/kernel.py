@@ -8,6 +8,7 @@ import mcdc.type_ as type_
 from mcdc.constant import *
 from mcdc.print_ import print_error
 from mcdc.type_ import score_list
+from mcdc.loop import loop_source
 
 
 # =============================================================================
@@ -1748,9 +1749,6 @@ def move_to_event(P, mcdc):
     # Move particle
     move_particle(P, distance, mcdc)
 
-    # if mcdc['technique']['iQMC']:
-    #     P['iqmc_w'] = w_final
-
 
 @njit
 def distance_to_collision(P, mcdc):
@@ -2561,15 +2559,6 @@ def prepare_qmc_fission_source(mcdc):
                     fission_source(flux[:, t, i, j, k], mat_idx, mcdc)
                     + fixed_source[:, t, i, j, k]
                 )
-                t = 0
-                mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
-                mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
-                # we can vectorize the multigroup calculation here
-                Q[:, t, i, j, k] = (
-                    fission_source(flux[:, t, i, j, k], mat_idx, mcdc)
-                    + scattering_source(flux[:, t, i, j, k], mat_idx, mcdc)
-                    + fixed_source[:, t, i, j, k]
-                )
 
 
 @njit
@@ -2669,9 +2658,12 @@ def fission_source(phi, mat_idx, mcdc):
     nu_p = material["nu_p"]
     nu_d = material["nu_d"]
     J = material["J"]
-    keff = mcdc["k_eff"]
-    SigmaF = material["fission"]
+    if mcdc["technique"]["iqmc_eigenmode_solver"] == "davidson":
+        keff = 1.0
+    else:
+        keff = mcdc["k_eff"]
 
+    SigmaF = material["fission"]
     F_p = np.dot(chi_p.T, nu_p / keff * SigmaF * phi)
     F_d = np.dot(chi_d.T, (nu_d.T / keff * SigmaF * phi).sum(axis=1))
     F = F_p + F_d
@@ -2768,10 +2760,10 @@ def score_iqmc_flux(P, distance, mcdc):
     else:
         flux = distance * w / dV
     mcdc["technique"]["iqmc_flux"][:, t, x, y, z] += flux
-    mcdc["technique"]["iqmc_effective_scattering"][:, t, x, y, z] += (
-        flux * SigmaS
-    )  # chi_s.T, SigmaS * phi
-    mcdc["technique"]["iqmc_effective_fission"][:, t, x, y, z] += flux * SigmaF
+    # mcdc["technique"]["iqmc_effective_scattering"][:, t, x, y, z] += (
+    #     flux * SigmaS
+    # )  # chi_s.T, SigmaS * phi
+    # mcdc["technique"]["iqmc_effective_fission"][:, t, x, y, z] += flux * SigmaF
 
 
 @njit
@@ -2792,7 +2784,7 @@ def iqmc_cell_volume(x, y, z, mesh):
 
     Returns
     -------
-    dV : TYPE
+    dV : float64
         cell volume.
 
     """
@@ -2930,7 +2922,130 @@ def iqmc_distribute_flux(mcdc):
     flux_total = np.zeros_like(flux_local, np.float64)
     with objmode():
         MPI.COMM_WORLD.Allreduce(flux_local, flux_total, op=MPI.SUM)
-    mcdc["technique"]["iqmc_flux"] = flux_total
+    mcdc["technique"]["iqmc_flux"] = flux_total.copy()
+
+
+# =============================================================================
+# iQMC Iterative Mapping Functions
+# =============================================================================
+
+
+@njit
+def HxV(V, mcdc):
+    """
+    Linear operator for scattering + streaming term (I-L^(-1)S)*phi
+    """
+    # flux input is most recent iteration of eigenvector
+    v = V[:, -1]
+    # reshape v and assign to iqmc_flux
+    vector_size = v.size
+    matrix_shape = mcdc["technique"]["iqmc_flux"].shape
+    mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
+    # reset bank size
+    mcdc["bank_source"]["size"] = 0
+    mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
+
+    # QMC Sweep
+    prepare_qmc_scattering_source(mcdc)
+    prepare_qmc_particles(mcdc)
+    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    loop_source(mcdc)
+    # sum resultant flux on all processors
+    iqmc_distribute_flux(mcdc)
+
+    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,))
+    axv = v - v_out
+    axv = np.reshape(axv, (vector_size, 1))
+
+    return axv
+
+
+@njit
+def FxV(V, mcdc):
+    """
+    Linear operator for fission term (L^(-1)F*phi)
+    """
+    # flux input is most recent iteration of eigenvector
+    v = V[:, -1]
+    # reshape v and assign to iqmc_flux
+    vector_size = v.size
+    matrix_shape = mcdc["technique"]["iqmc_flux"].shape
+    mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
+
+    # reset bank size
+    mcdc["bank_source"]["size"] = 0
+    mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
+
+    # QMC Sweep
+    prepare_qmc_fission_source(mcdc)
+    prepare_qmc_particles(mcdc)
+    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    loop_source(mcdc)
+    # sum resultant flux on all processors
+    iqmc_distribute_flux(mcdc)
+
+    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size, 1))
+
+    return v_out
+
+
+@njit
+def preconditioner(V, mcdc, num_sweeps=3):
+    """
+    Linear operator approximation of (I-L^(-1)S)*phi
+
+    In this case the preconditioner is a specified number of purely scattering
+    transport sweeps.
+    """
+    # flux input is most recent iteration of eigenvector
+    v = V[:, -1]
+    # reshape v and assign to iqmc_flux
+    vector_size = v.size
+    matrix_shape = mcdc["technique"]["iqmc_flux"].shape
+    mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
+
+    for i in range(num_sweeps):
+        # reset bank size
+        mcdc["bank_source"]["size"] = 0
+        mcdc["technique"]["iqmc_source"] = np.zeros_like(
+            mcdc["technique"]["iqmc_source"]
+        )
+
+        # QMC Sweep
+        prepare_qmc_scattering_source(mcdc)
+        prepare_qmc_particles(mcdc)
+        mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+        loop_source(mcdc)
+        # sum resultant flux on all processors
+        iqmc_distribute_flux(mcdc)
+
+    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,))
+    v_out = v - v_out
+    v_out = np.reshape(v_out, (vector_size, 1))
+
+    return v_out
+
+
+@njit
+def modified_gram_schmidt(V, u):
+    """
+    Modified Gram Schmidt routine
+
+    """
+    V = np.ascontiguousarray(V)
+    w1 = u - np.dot(V, np.dot(V.T, u))
+    v1 = w1 / np.linalg.norm(w1)
+    w2 = v1 - np.dot(V, np.dot(V.T, v1))
+    v2 = w2 / np.linalg.norm(w2)
+    V = np.append(V, v2, axis=1)
+    # TODO: unit test that each column of V.dot(v2) == 0
+    # for i in range(V.shape[1]):
+    #     temp = V[:,i].dot(v2)
+    #     try:
+    #         assert np.isclose(temp, 0.0)
+    #     except:
+    #         print(temp)
+    return V
 
 
 # =============================================================================

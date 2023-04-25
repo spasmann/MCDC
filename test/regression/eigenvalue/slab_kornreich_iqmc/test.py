@@ -79,8 +79,8 @@ def test():
         b = output["tally/iqmc_flux"][:]
         assert np.allclose(a, b)
 
-        a = output["k_eff"][()]
-        b = answer["k_eff"][()]
+        a = answer["tally/iqmc_flux"][:]
+        b = output["iqmc/flux"][:]
         assert np.allclose(a, b)
 
         output.close()
