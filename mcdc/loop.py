@@ -298,7 +298,6 @@ def loop_iqmc(mcdc):
 def source_iteration(mcdc):
     simulation_end = False
 
-    
     while not simulation_end:
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
@@ -342,7 +341,7 @@ def effective_source_iteration(mcdc):
     simulation_end = False
     # set bank source
     kernel.prepare_qmc_source(mcdc)
-    
+
     while not simulation_end:
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
@@ -374,14 +373,21 @@ def effective_source_iteration(mcdc):
 
         # set flux_old = current flux
         mcdc["technique"]["iqmc_flux_old"] = mcdc["technique"]["iqmc_flux"].copy()
-        
+
         # calculate new source
-        mcdc["technique"]["iqmc_source"] = (mcdc["technique"]["iqmc_fixed_source"] + 
-                                            mcdc["technique"]["iqmc_effective_scattering"] + 
-                                            mcdc["technique"]["iqmc_effective_fission"])
+        mcdc["technique"]["iqmc_source"] = (
+            mcdc["technique"]["iqmc_fixed_source"]
+            + mcdc["technique"]["iqmc_effective_scattering"]
+            + mcdc["technique"]["iqmc_effective_fission"]
+        )
         # zero source for next iteration
-        mcdc["technique"]["iqmc_effective_scattering"] = np.zeros_like(mcdc["technique"]["iqmc_effective_scattering"])
-        mcdc["technique"]["iqmc_effective_fission"] = np.zeros_like(mcdc["technique"]["iqmc_effective_fission"])
+        mcdc["technique"]["iqmc_effective_scattering"] = np.zeros_like(
+            mcdc["technique"]["iqmc_effective_scattering"]
+        )
+        mcdc["technique"]["iqmc_effective_fission"] = np.zeros_like(
+            mcdc["technique"]["iqmc_effective_fission"]
+        )
+
 
 @njit
 def power_iteration(mcdc):
