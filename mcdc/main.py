@@ -259,6 +259,8 @@ def prepare():
             "IC_resample",
             "iqmc_flux_old",
             "iqmc_flux_outter",
+            "iqmc_effective_scattering",
+            "iqmc_effective_fission",
             "iqmc_mesh",
             "iqmc_source",
             "lds",

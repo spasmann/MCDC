@@ -291,12 +291,14 @@ def loop_iqmc(mcdc):
             power_iteration(mcdc)
     else:
         source_iteration(mcdc)
+        # effective_source_iteration(mcdc)
 
 
 @njit
 def source_iteration(mcdc):
     simulation_end = False
 
+    
     while not simulation_end:
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
@@ -308,10 +310,8 @@ def source_iteration(mcdc):
         kernel.prepare_qmc_source(mcdc)
         # initialize particles with LDS
         kernel.prepare_qmc_particles(mcdc)
-
-        # prepare source for next iteration
+        # zero source for next iteration
         mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
-
         # sweep particles
         loop_source(mcdc)
         # sum resultant flux on all processors
@@ -336,6 +336,52 @@ def source_iteration(mcdc):
         # set flux_old = current flux
         mcdc["technique"]["iqmc_flux_old"] = mcdc["technique"]["iqmc_flux"].copy()
 
+
+@njit
+def effective_source_iteration(mcdc):
+    simulation_end = False
+    # set bank source
+    kernel.prepare_qmc_source(mcdc)
+    
+    while not simulation_end:
+        # reset particle bank size
+        mcdc["bank_source"]["size"] = 0
+
+        # initialize particles with LDS
+        kernel.prepare_qmc_particles(mcdc)
+        # zero flux for next iteration
+        mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+        # sweep particles
+        loop_source(mcdc)
+        # sum resultant flux on all processors
+        kernel.iqmc_distribute_tallies(mcdc)
+        mcdc["technique"]["iqmc_itt"] += 1
+
+        # calculate norm of flux iterations
+        mcdc["technique"]["iqmc_res"] = kernel.qmc_res(
+            mcdc["technique"]["iqmc_flux"], mcdc["technique"]["iqmc_flux_old"]
+        )
+
+        # iQMC convergence criteria
+        if (mcdc["technique"]["iqmc_itt"] == mcdc["technique"]["iqmc_maxitt"]) or (
+            mcdc["technique"]["iqmc_res"] <= mcdc["technique"]["iqmc_tol"]
+        ):
+            simulation_end = True
+
+        # Print progres
+        if not mcdc["setting"]["mode_eigenvalue"]:
+            print_progress_iqmc(mcdc)
+
+        # set flux_old = current flux
+        mcdc["technique"]["iqmc_flux_old"] = mcdc["technique"]["iqmc_flux"].copy()
+        
+        # calculate new source
+        mcdc["technique"]["iqmc_source"] = (mcdc["technique"]["iqmc_fixed_source"] + 
+                                            mcdc["technique"]["iqmc_effective_scattering"] + 
+                                            mcdc["technique"]["iqmc_effective_fission"])
+        # zero source for next iteration
+        mcdc["technique"]["iqmc_effective_scattering"] = np.zeros_like(mcdc["technique"]["iqmc_effective_scattering"])
+        mcdc["technique"]["iqmc_effective_fission"] = np.zeros_like(mcdc["technique"]["iqmc_effective_fission"])
 
 @njit
 def power_iteration(mcdc):

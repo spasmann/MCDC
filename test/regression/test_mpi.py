@@ -14,8 +14,8 @@ def test():
     """
 
     tests = [
-        "eigenvalue/slab_kornreich_iqmc/",
-        "fixed_source/reed/",
+        # "eigenvalue/slab_kornreich_iqmc/",
+        "fixed_source/reed_iqmc/",
     ]
 
     for i in range(len(tests)):

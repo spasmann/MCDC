@@ -2445,7 +2445,6 @@ def UpdateK(keff, phi_outter, phi_inner, mcdc):
 @njit
 def prepare_qmc_source(mcdc):
     """
-
     Iterates trhough all spatial cells to calculate the iQMC source. The source
     is a combination of the user input Fixed-Source plus the calculated
     Scattering-Source and Fission-Sources. Resutls are stored in
@@ -2484,6 +2483,25 @@ def prepare_qmc_source(mcdc):
                     + fixed_source[:, t, i, j, k]
                 )
 
+@njit
+def prepare_qmc_efffective_source(mcdc):
+    """
+    Parameters
+    ----------
+    mcdc : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    Q = mcdc["technique"]["iqmc_source"]
+
+    # calculate source for every cell and group in the iqmc_mesh
+    Q = (mcdc["technique"]["iqmc_fixed_source"] + 
+         mcdc["technique"]["iqmc_effective_scattering"] + 
+         mcdc["technique"]["iqmc_effective_fission"])
 
 @njit
 def prepare_qmc_scattering_source(mcdc):
@@ -2742,6 +2760,7 @@ def score_iqmc_flux(P, distance, mcdc):
     None.
 
     """
+       
     # Get indices
     mesh = mcdc["technique"]["iqmc_mesh"]
     material = mcdc["materials"][P["material_ID"]]
@@ -2750,6 +2769,7 @@ def score_iqmc_flux(P, distance, mcdc):
     SigmaS = material["scatter"]
     SigmaF = material["fission"]
     t, x, y, z, outside = mesh_get_index(P, mesh)
+    mat_idx = mcdc["technique"]["iqmc_material_idx"][t, x, y, z]
     # Outside grid?
     if outside:
         return
@@ -2760,10 +2780,9 @@ def score_iqmc_flux(P, distance, mcdc):
     else:
         flux = distance * w / dV
     mcdc["technique"]["iqmc_flux"][:, t, x, y, z] += flux
-    # mcdc["technique"]["iqmc_effective_scattering"][:, t, x, y, z] += (
-    #     flux * SigmaS
-    # )  # chi_s.T, SigmaS * phi
-    # mcdc["technique"]["iqmc_effective_fission"][:, t, x, y, z] += flux * SigmaF
+    # effective source tallies
+    mcdc["technique"]["iqmc_effective_scattering"][:, t, x, y, z] += scattering_source(flux, mat_idx, mcdc)
+    mcdc["technique"]["iqmc_effective_fission"][:, t, x, y, z] += fission_source(flux, mat_idx, mcdc)
 
 
 @njit
@@ -2924,6 +2943,23 @@ def iqmc_distribute_flux(mcdc):
         MPI.COMM_WORLD.Allreduce(flux_local, flux_total, op=MPI.SUM)
     mcdc["technique"]["iqmc_flux"] = flux_total.copy()
 
+@njit
+def iqmc_distribute_tallies(mcdc):
+    flux_local = mcdc["technique"]["iqmc_flux"].copy()
+    scatter_local = mcdc["technique"]["iqmc_effective_scattering"].copy()
+    fission_local = mcdc["technique"]["iqmc_effective_fission"].copy()
+    # TODO: is there a way to do this without creating a new matrix ?
+    flux_total = np.zeros_like(flux_local)
+    scatter_total = np.zeros_like(scatter_local)
+    fission_total = np.zeros_like(fission_local)
+    with objmode():
+        MPI.COMM_WORLD.Allreduce(flux_local, flux_total, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(scatter_local, scatter_total, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(fission_local, fission_total, op=MPI.SUM)
+    mcdc["technique"]["iqmc_flux"] = flux_total
+    mcdc["technique"]["iqmc_effective_scattering"] = scatter_total
+    mcdc["technique"]["iqmc_effective_fission"] = fission_total
+    
 
 # =============================================================================
 # iQMC Iterative Mapping Functions
