@@ -539,6 +539,7 @@ def make_type_technique(card):
     struct += [("iqmc_effective_fission", float64, (Ng, Nt, Nx, Ny, Nz))]
     # TODO: make outter flux size zero if not eigenmode
     struct += [("iqmc_flux_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
+    struct += [("iqmc_effective_fission_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
 
     # Constants
     struct += [

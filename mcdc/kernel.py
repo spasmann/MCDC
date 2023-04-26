@@ -2470,6 +2470,10 @@ def prepare_qmc_source(mcdc):
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
     Nz = len(mesh["z"]) - 1
+
+    fission = np.zeros_like(Q)
+    scatter = np.zeros_like(Q)
+
     # calculate source for every cell and group in the iqmc_mesh
     for i in range(Nx):
         for j in range(Ny):
@@ -2477,34 +2481,19 @@ def prepare_qmc_source(mcdc):
                 t = 0
                 mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
                 # we can vectorize the multigroup calculation here
+                fission[:, t, i, j, k] = fission_source(
+                    flux_fission[:, t, i, j, k], mat_idx, mcdc
+                )
+                scatter[:, t, i, j, k] = scattering_source(
+                    flux_scatter[:, t, i, j, k], mat_idx, mcdc
+                )
                 Q[:, t, i, j, k] = (
-                    fission_source(flux_fission[:, t, i, j, k], mat_idx, mcdc)
-                    + scattering_source(flux_scatter[:, t, i, j, k], mat_idx, mcdc)
+                    fission[:, t, i, j, k]
+                    + scatter[:, t, i, j, k]
                     + fixed_source[:, t, i, j, k]
                 )
-
-
-@njit
-def prepare_qmc_efffective_source(mcdc):
-    """
-    Parameters
-    ----------
-    mcdc : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    None.
-
-    """
-    Q = mcdc["technique"]["iqmc_source"]
-
-    # calculate source for every cell and group in the iqmc_mesh
-    Q = (
-        mcdc["technique"]["iqmc_fixed_source"]
-        + mcdc["technique"]["iqmc_effective_scattering"]
-        + mcdc["technique"]["iqmc_effective_fission"]
-    )
+    mcdc["technique"]["iqmc_effective_scattering"] = scatter
+    mcdc["technique"]["iqmc_effective_fission"] = fission
 
 
 @njit
@@ -2694,6 +2683,42 @@ def fission_source(phi, mat_idx, mcdc):
 
 
 @njit
+def prepare_qmc_effective_fission_source(mcdc):
+    """
+
+    Iterates trhough all spatial cells to calculate the iQMC source.
+    Resutls are stored in mcdc['technique']['iqmc_source'], a matrix
+    of size [G,Nt,Nx,Ny,Nz].
+
+    Parameters
+    ----------
+    mcdc : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    temp = np.zeros_like(mcdc["technique"]["iqmc_source"])
+    fixed_source = mcdc["technique"]["iqmc_fixed_source"]
+    flux = mcdc["technique"]["iqmc_flux"]
+    mesh = mcdc["technique"]["iqmc_mesh"]
+    Nx = len(mesh["x"]) - 1
+    Ny = len(mesh["y"]) - 1
+    Nz = len(mesh["z"]) - 1
+    # calculate source for every cell and group in the iqmc_mesh
+    for i in range(Nx):
+        for j in range(Ny):
+            for k in range(Nz):
+                t = 0
+                mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
+                # we can vectorize the multigroup calculation here
+                temp[:, t, i, j, k] = fission_source(flux[:, t, i, j, k], mat_idx, mcdc)
+    return temp
+
+
+@njit
 def scattering_source(phi, mat_idx, mcdc):
     """
     Calculate the scattering source for use with iQMC.
@@ -2773,10 +2798,10 @@ def score_iqmc_flux(P, distance, mcdc):
     SigmaS = material["scatter"]
     SigmaF = material["fission"]
     t, x, y, z, outside = mesh_get_index(P, mesh)
-    mat_idx = mcdc["technique"]["iqmc_material_idx"][t, x, y, z]
     # Outside grid?
     if outside:
         return
+    mat_idx = mcdc["technique"]["iqmc_material_idx"][t, x, y, z]
     dV = iqmc_cell_volume(x, y, z, mesh)
     # Score
     if SigmaT.all() > 0.0:

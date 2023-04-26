@@ -261,6 +261,7 @@ def prepare():
             "iqmc_flux_outter",
             "iqmc_effective_scattering",
             "iqmc_effective_fission",
+            "iqmc_effective_fission_outter",
             "iqmc_mesh",
             "iqmc_source",
             "lds",
