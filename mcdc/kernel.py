@@ -2801,7 +2801,9 @@ def score_iqmc_flux(P, distance, mcdc):
     # Outside grid?
     if outside:
         return
-    mat_idx = mcdc["technique"]["iqmc_material_idx"][t, x, y, z]
+    mat_idx2 = mcdc["technique"]["iqmc_material_idx"][t, x, y, z]
+    mat_idx = P["material_ID"]
+    print(mat_idx, mat_idx2)
     dV = iqmc_cell_volume(x, y, z, mesh)
     # Score
     if SigmaT.all() > 0.0:

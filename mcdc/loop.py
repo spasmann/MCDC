@@ -290,8 +290,8 @@ def loop_iqmc(mcdc):
         if mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration":
             power_iteration(mcdc)
     else:
-        source_iteration(mcdc)
-        # effective_source_iteration(mcdc)
+        # source_iteration(mcdc)
+        effective_source_iteration(mcdc)
 
 
 @njit
@@ -419,7 +419,8 @@ def power_iteration(mcdc):
 
     while not simulation_end:
         # iterate over scattering source
-        effective_source_iteration(mcdc)
+        # effective_source_iteration(mcdc)
+        source_iteration(mcdc)
         # reset counter for inner iteration
         mcdc["technique"]["iqmc_itt"] = 0
 
