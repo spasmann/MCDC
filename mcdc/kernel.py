@@ -2492,8 +2492,9 @@ def prepare_qmc_source(mcdc):
                     + scatter[:, t, i, j, k]
                     + fixed_source[:, t, i, j, k]
                 )
-    mcdc["technique"]["iqmc_effective_scattering"] = scatter
-    mcdc["technique"]["iqmc_effective_fission"] = fission
+    if mcdc["setting"]["mode_eigenvalue"]:
+        mcdc["technique"]["iqmc_effective_fission_outter"] = fission
+        
 
 
 @njit
@@ -2643,7 +2644,7 @@ def prepare_qmc_particles(mcdc):
 
 
 @njit
-def fission_source(phi, mat_idx, mcdc):
+def fission_source(phi, mat_id, mcdc):
     """
     Calculate the fission source for use with iQMC.
 
@@ -2663,7 +2664,7 @@ def fission_source(phi, mat_idx, mcdc):
 
     """
     # TODO: Now, only single-nuclide material is allowed
-    material = mcdc["nuclides"][mat_idx]
+    material = mcdc["nuclides"][mat_id]
     chi_p = material["chi_p"]
     chi_d = material["chi_d"]
     nu_p = material["nu_p"]
@@ -2719,7 +2720,7 @@ def prepare_qmc_effective_fission_source(mcdc):
 
 
 @njit
-def scattering_source(phi, mat_idx, mcdc):
+def scattering_source(phi, mat_id, mcdc):
     """
     Calculate the scattering source for use with iQMC.
 
@@ -2738,7 +2739,7 @@ def scattering_source(phi, mat_idx, mcdc):
         scattering source
 
     """
-    material = mcdc["materials"][mat_idx]
+    material = mcdc["materials"][mat_id]
     chi_s = material["chi_s"]
     SigmaS = material["scatter"]
     return np.dot(chi_s.T, SigmaS * phi)
@@ -2798,13 +2799,14 @@ def score_iqmc_flux(P, distance, mcdc):
     SigmaS = material["scatter"]
     SigmaF = material["fission"]
     t, x, y, z, outside = mesh_get_index(P, mesh)
-    # Outside grid?
     if outside:
         return
-    mat_idx2 = mcdc["technique"]["iqmc_material_idx"][t, x, y, z]
-    mat_idx = P["material_ID"]
-    print(mat_idx, mat_idx2)
     dV = iqmc_cell_volume(x, y, z, mesh)
+    # mat_id = mcdc["technique"]["iqmc_material_idx"][t, x, y, z]
+    mat_id = P["material_ID"]
+    # print(mat_id, mat_id2)
+    # assert mat_id == mat_id2
+
     # Score
     if SigmaT.all() > 0.0:
         flux = w * (1 - np.exp(-(distance * SigmaT))) / (SigmaT * dV)
@@ -2813,10 +2815,10 @@ def score_iqmc_flux(P, distance, mcdc):
     mcdc["technique"]["iqmc_flux"][:, t, x, y, z] += flux
     # effective source tallies
     mcdc["technique"]["iqmc_effective_scattering"][:, t, x, y, z] += scattering_source(
-        flux, mat_idx, mcdc
+        flux, mat_id, mcdc
     )
     mcdc["technique"]["iqmc_effective_fission"][:, t, x, y, z] += fission_source(
-        flux, mat_idx, mcdc
+        flux, mat_id, mcdc
     )
 
 

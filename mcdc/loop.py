@@ -340,11 +340,9 @@ def source_iteration(mcdc):
 def effective_source_iteration(mcdc):
     simulation_end = False
     # set bank source
+    # if not mcdc["setting"]["mode_eigenvalue"]:
     kernel.prepare_qmc_source(mcdc)
-    mcdc["technique"]["iqmc_effective_fission_outter"] = mcdc["technique"][
-        "iqmc_effective_fission"
-    ].copy()
-
+            
     while not simulation_end:
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
@@ -414,13 +412,12 @@ def power_iteration(mcdc):
     maxit = mcdc["technique"]["iqmc_maxitt"]
     mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
     k_old = mcdc["k_eff"]
-    # assign function call from specified solvers
-    # inner_iteration = globals()[mcdc["technique"]["iqmc_fixed_source_solver"]]
+    kernel.prepare_qmc_source(mcdc)
 
     while not simulation_end:
         # iterate over scattering source
-        # effective_source_iteration(mcdc)
-        source_iteration(mcdc)
+        effective_source_iteration(mcdc)
+        # source_iteration(mcdc)
         # reset counter for inner iteration
         mcdc["technique"]["iqmc_itt"] = 0
 
