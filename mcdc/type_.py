@@ -541,6 +541,9 @@ def make_type_technique(card):
     struct += [("iqmc_flux_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
     struct += [("iqmc_effective_fission_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
 
+    struct += [("iqmc_nuSigmaF", float64, (Ng, Nt, Nx, Ny, Nz))]
+    struct += [("iqmc_nuSigmaF_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
+
     # Constants
     struct += [
         ("iqmc_maxitt", int64),

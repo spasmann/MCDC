@@ -262,6 +262,8 @@ def prepare():
             "iqmc_effective_scattering",
             "iqmc_effective_fission",
             "iqmc_effective_fission_outter",
+            "iqmc_nuSigmaF",
+            "iqmc_nuSigmaF_outter",
             "iqmc_mesh",
             "iqmc_source",
             "lds",

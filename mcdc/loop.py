@@ -340,17 +340,40 @@ def source_iteration(mcdc):
 def effective_source_iteration(mcdc):
     simulation_end = False
     # set bank source
-    # if not mcdc["setting"]["mode_eigenvalue"]:
-    kernel.prepare_qmc_source(mcdc)
-            
+    if not mcdc["setting"]["mode_eigenvalue"]:
+        kernel.prepare_qmc_source(mcdc)
+
     while not simulation_end:
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
 
+        # calculate new source
+        mcdc["technique"]["iqmc_source"] = (
+            mcdc["technique"]["iqmc_fixed_source"]
+            + mcdc["technique"]["iqmc_effective_scattering"]
+        )
+        if mcdc["setting"]["mode_eigenvalue"]:
+            mcdc["technique"]["iqmc_source"] += mcdc["technique"][
+                "iqmc_effective_fission_outter"
+            ]
+        else:
+            mcdc["technique"]["iqmc_source"] += mcdc["technique"][
+                "iqmc_effective_fission"
+            ]
         # initialize particles with LDS
         kernel.prepare_qmc_particles(mcdc)
         # zero flux for next iteration
         mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+        # zero source for next iteration
+        mcdc["technique"]["iqmc_effective_scattering"] = np.zeros_like(
+            mcdc["technique"]["iqmc_effective_scattering"]
+        )
+        mcdc["technique"]["iqmc_effective_fission"] = np.zeros_like(
+            mcdc["technique"]["iqmc_effective_fission"]
+        )
+        mcdc["technique"]["iqmc_nuSigmaF"] = np.zeros_like(
+            mcdc["technique"]["iqmc_nuSigmaF"]
+        )
         # sweep particles
         loop_source(mcdc)
         # sum resultant flux on all processors
@@ -379,28 +402,6 @@ def effective_source_iteration(mcdc):
         # set flux_old = current flux
         mcdc["technique"]["iqmc_flux_old"] = mcdc["technique"]["iqmc_flux"].copy()
 
-        # calculate new source
-        mcdc["technique"]["iqmc_source"] = (
-            mcdc["technique"]["iqmc_fixed_source"]
-            + mcdc["technique"]["iqmc_effective_scattering"]
-        )
-        if mcdc["setting"]["mode_eigenvalue"]:
-            mcdc["technique"]["iqmc_source"] += mcdc["technique"][
-                "iqmc_effective_fission_outter"
-            ]
-        else:
-            mcdc["technique"]["iqmc_source"] += mcdc["technique"][
-                "iqmc_effective_fission"
-            ]
-
-        # zero source for next iteration
-        mcdc["technique"]["iqmc_effective_scattering"] = np.zeros_like(
-            mcdc["technique"]["iqmc_effective_scattering"]
-        )
-        mcdc["technique"]["iqmc_effective_fission"] = np.zeros_like(
-            mcdc["technique"]["iqmc_effective_fission"]
-        )
-
 
 @njit
 def power_iteration(mcdc):
@@ -412,27 +413,31 @@ def power_iteration(mcdc):
     maxit = mcdc["technique"]["iqmc_maxitt"]
     mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
     k_old = mcdc["k_eff"]
+
     kernel.prepare_qmc_source(mcdc)
+    kernel.prepare_nuSigmaF(mcdc)
 
     while not simulation_end:
         # iterate over scattering source
         effective_source_iteration(mcdc)
         # source_iteration(mcdc)
+
         # reset counter for inner iteration
         mcdc["technique"]["iqmc_itt"] = 0
 
         # update k_eff
-        kernel.UpdateK(
-            mcdc["k_eff"],
-            mcdc["technique"]["iqmc_flux_outter"],
-            mcdc["technique"]["iqmc_flux"],
-            mcdc,
+        mcdc["k_eff"] *= (
+            mcdc["technique"]["iqmc_nuSigmaF"].sum()
+            / mcdc["technique"]["iqmc_nuSigmaF_outter"].sum()
         )
 
         # calculate diff in flux
         mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
         k_old = mcdc["k_eff"]
         mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
+        mcdc["technique"]["iqmc_nuSigmaF_outter"] = mcdc["technique"][
+            "iqmc_nuSigmaF"
+        ].copy()
         mcdc["technique"]["iqmc_itt_outter"] += 1
 
         if mcdc["setting"]["progress_bar"]:
@@ -475,6 +480,7 @@ def davidson(mcdc):
     mcdc["setting"]["progress_bar"] = True
     mcdc["technique"]["iqmc_maxitt"] = maxit
     mcdc["technique"]["iqmc_itt_outter"] = 0
+    kernel.prepare_qmc_source(mcdc)
 
     # resulting guess
     phi0 = mcdc["technique"]["iqmc_flux"].copy()
