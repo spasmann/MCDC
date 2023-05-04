@@ -290,54 +290,11 @@ def loop_iqmc(mcdc):
         if mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration":
             power_iteration(mcdc)
     else:
-        # source_iteration(mcdc)
-        effective_source_iteration(mcdc)
+        source_iteration(mcdc)
 
 
 @njit
 def source_iteration(mcdc):
-    simulation_end = False
-
-    while not simulation_end:
-        # reset particle bank size
-        mcdc["bank_source"]["size"] = 0
-        mcdc["technique"]["iqmc_source"] = np.zeros_like(
-            mcdc["technique"]["iqmc_source"]
-        )
-
-        # set bank source
-        kernel.prepare_qmc_source(mcdc)
-        # initialize particles with LDS
-        kernel.prepare_qmc_particles(mcdc)
-        # zero source for next iteration
-        mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
-        # sweep particles
-        loop_source(mcdc)
-        # sum resultant flux on all processors
-        kernel.iqmc_distribute_flux(mcdc)
-        mcdc["technique"]["iqmc_itt"] += 1
-
-        # calculate norm of flux iterations
-        mcdc["technique"]["iqmc_res"] = kernel.qmc_res(
-            mcdc["technique"]["iqmc_flux"], mcdc["technique"]["iqmc_flux_old"]
-        )
-
-        # iQMC convergence criteria
-        if (mcdc["technique"]["iqmc_itt"] == mcdc["technique"]["iqmc_maxitt"]) or (
-            mcdc["technique"]["iqmc_res"] <= mcdc["technique"]["iqmc_tol"]
-        ):
-            simulation_end = True
-
-        # Print progres
-        if not mcdc["setting"]["mode_eigenvalue"]:
-            print_progress_iqmc(mcdc)
-
-        # set flux_old = current flux
-        mcdc["technique"]["iqmc_flux_old"] = mcdc["technique"]["iqmc_flux"].copy()
-
-
-@njit
-def effective_source_iteration(mcdc):
     simulation_end = False
     # set bank source
     if not mcdc["setting"]["mode_eigenvalue"]:
@@ -347,36 +304,15 @@ def effective_source_iteration(mcdc):
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
 
-        # calculate new source
-        mcdc["technique"]["iqmc_source"] = (
-            mcdc["technique"]["iqmc_fixed_source"]
-            + mcdc["technique"]["iqmc_effective_scattering"]
-        )
-        if mcdc["setting"]["mode_eigenvalue"]:
-            mcdc["technique"]["iqmc_source"] += mcdc["technique"][
-                "iqmc_effective_fission_outter"
-            ]
-        else:
-            mcdc["technique"]["iqmc_source"] += mcdc["technique"][
-                "iqmc_effective_fission"
-            ]
+        # update source
+        kernel.iqmc_update_source(mcdc)
         # initialize particles with LDS
         kernel.prepare_qmc_particles(mcdc)
-        # zero flux for next iteration
-        mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
-        # zero source for next iteration
-        mcdc["technique"]["iqmc_effective_scattering"] = np.zeros_like(
-            mcdc["technique"]["iqmc_effective_scattering"]
-        )
-        mcdc["technique"]["iqmc_effective_fission"] = np.zeros_like(
-            mcdc["technique"]["iqmc_effective_fission"]
-        )
-        mcdc["technique"]["iqmc_nuSigmaF"] = np.zeros_like(
-            mcdc["technique"]["iqmc_nuSigmaF"]
-        )
+        # reset tallies for next loop
+        kernel.iqmc_reset_tallies(mcdc)
         # sweep particles
         loop_source(mcdc)
-        # sum resultant flux on all processors
+        # sum resultant tallies on all processors
         kernel.iqmc_distribute_tallies(mcdc)
         mcdc["technique"]["iqmc_itt"] += 1
 
@@ -390,10 +326,6 @@ def effective_source_iteration(mcdc):
             mcdc["technique"]["iqmc_res"] <= mcdc["technique"]["iqmc_tol"]
         ):
             simulation_end = True
-            if mcdc["setting"]["mode_eigenvalue"]:
-                mcdc["technique"]["iqmc_effective_fission_outter"] = mcdc["technique"][
-                    "iqmc_effective_fission"
-                ].copy()
 
         # Print progres
         if not mcdc["setting"]["mode_eigenvalue"]:
@@ -419,9 +351,7 @@ def power_iteration(mcdc):
 
     while not simulation_end:
         # iterate over scattering source
-        effective_source_iteration(mcdc)
-        # source_iteration(mcdc)
-
+        source_iteration(mcdc)
         # reset counter for inner iteration
         mcdc["technique"]["iqmc_itt"] = 0
 
@@ -431,10 +361,14 @@ def power_iteration(mcdc):
             / mcdc["technique"]["iqmc_nuSigmaF_outter"].sum()
         )
 
-        # calculate diff in flux
+        # calculate diff in keff
         mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
         k_old = mcdc["k_eff"]
+        # store outter iteration values
         mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
+        mcdc["technique"]["iqmc_effective_fission_outter"] = mcdc["technique"][
+            "iqmc_effective_fission"
+        ].copy()
         mcdc["technique"]["iqmc_nuSigmaF_outter"] = mcdc["technique"][
             "iqmc_nuSigmaF"
         ].copy()

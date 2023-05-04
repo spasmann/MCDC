@@ -2421,28 +2421,6 @@ def continuous_weight_reduction(w, distance, SigmaT):
 
 
 @njit
-def UpdateK(keff, phi_outter, phi_inner, mcdc):
-    mesh = mcdc["technique"]["iqmc_mesh"]
-    Nx = len(mesh["x"]) - 1
-    Ny = len(mesh["y"]) - 1
-    Nz = len(mesh["z"]) - 1
-    nuSigmaF = np.zeros_like(phi_outter)
-    # calculate nu*SigmaF for every cell
-    for i in range(Nx):
-        for j in range(Ny):
-            for k in range(Nz):
-                t = 0
-                mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
-                material = mcdc["materials"][mat_idx]
-                nu_f = material["nu_f"]
-                SigmaF = material["fission"]
-                nuSigmaF[:, t, i, j, k] = nu_f * SigmaF
-
-    keff *= np.sum(nuSigmaF * phi_inner) / np.sum(nuSigmaF * phi_outter)
-    mcdc["k_eff"] = keff
-
-
-@njit
 def prepare_nuSigmaF(mcdc):
     mesh = mcdc["technique"]["iqmc_mesh"]
     flux = mcdc["technique"]["iqmc_flux"]
@@ -2481,8 +2459,6 @@ def prepare_qmc_source(mcdc):
     None.
 
     """
-    Q = mcdc["technique"]["iqmc_source"]
-    fixed_source = mcdc["technique"]["iqmc_fixed_source"]
     flux_scatter = mcdc["technique"]["iqmc_flux"]
     flux_fission = mcdc["technique"]["iqmc_flux"]
     if mcdc["setting"]["mode_eigenvalue"]:
@@ -2492,8 +2468,8 @@ def prepare_qmc_source(mcdc):
     Ny = len(mesh["y"]) - 1
     Nz = len(mesh["z"]) - 1
 
-    fission = np.zeros_like(Q)
-    scatter = np.zeros_like(Q)
+    fission = np.zeros_like(mcdc["technique"]["iqmc_source"])
+    scatter = np.zeros_like(mcdc["technique"]["iqmc_source"])
 
     # calculate source for every cell and group in the iqmc_mesh
     for i in range(Nx):
@@ -2508,14 +2484,9 @@ def prepare_qmc_source(mcdc):
                 scatter[:, t, i, j, k] = scattering_source(
                     flux_scatter[:, t, i, j, k], mat_idx, mcdc
                 )
-                Q[:, t, i, j, k] = (
-                    fission[:, t, i, j, k]
-                    + scatter[:, t, i, j, k]
-                    + fixed_source[:, t, i, j, k]
-                )
-    if mcdc["setting"]["mode_eigenvalue"]:
-        mcdc["technique"]["iqmc_effective_fission_outter"] = fission
-        mcdc["technique"]["iqmc_effective_scattering"] = scatter
+    mcdc["technique"]["iqmc_effective_fission_outter"] = fission
+    mcdc["technique"]["iqmc_effective_fission"] = fission
+    mcdc["technique"]["iqmc_effective_scattering"] = scatter
 
 
 @njit
@@ -2691,14 +2662,9 @@ def fission_source(phi, mat_id, mcdc):
     nu_p = material["nu_p"]
     nu_d = material["nu_d"]
     J = material["J"]
-    if mcdc["technique"]["iqmc_eigenmode_solver"] == "davidson":
-        keff = 1.0
-    else:
-        keff = mcdc["k_eff"]
-
     SigmaF = material["fission"]
-    F_p = np.dot(chi_p.T, nu_p / keff * SigmaF * phi)
-    F_d = np.dot(chi_d.T, (nu_d.T / keff * SigmaF * phi).sum(axis=1))
+    F_p = np.dot(chi_p.T, nu_p * SigmaF * phi)
+    F_d = np.dot(chi_d.T, (nu_d.T * SigmaF * phi).sum(axis=1))
     F = F_p + F_d
 
     return F
@@ -2790,8 +2756,6 @@ def score_iqmc_flux(P, distance, mcdc):
     dV = iqmc_cell_volume(x, y, z, mesh)
     # mat_id = mcdc["technique"]["iqmc_material_idx"][t, x, y, z]
     mat_id = P["material_ID"]
-    # print(mat_id, mat_id2)
-    # assert mat_id == mat_id2
 
     # Score
     if SigmaT.all() > 0.0:
@@ -2988,6 +2952,34 @@ def iqmc_distribute_tallies(mcdc):
     mcdc["technique"]["iqmc_effective_scattering"] = scatter_total
     mcdc["technique"]["iqmc_effective_fission"] = fission_total
     mcdc["technique"]["iqmc_nuSigmaF"] = nuSigmaF_total
+
+
+@njit
+def iqmc_reset_tallies(mcdc):
+    # zero flux for next iteration
+    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    # zero source for next iteration
+    mcdc["technique"]["iqmc_effective_scattering"] = np.zeros_like(
+        mcdc["technique"]["iqmc_effective_scattering"]
+    )
+    mcdc["technique"]["iqmc_effective_fission"] = np.zeros_like(
+        mcdc["technique"]["iqmc_effective_fission"]
+    )
+    mcdc["technique"]["iqmc_nuSigmaF"] = np.zeros_like(
+        mcdc["technique"]["iqmc_nuSigmaF"]
+    )
+
+
+@njit
+def iqmc_update_source(mcdc):
+    keff = mcdc["k_eff"]
+    scatter = mcdc["technique"]["iqmc_effective_scattering"]
+    fixed = mcdc["technique"]["iqmc_fixed_source"]
+    if mcdc["setting"]["mode_eigenvalue"]:
+        fission = mcdc["technique"]["iqmc_effective_fission_outter"]
+    else:
+        fission = mcdc["technique"]["iqmc_effective_fission"]
+    mcdc["technique"]["iqmc_source"] = scatter + fission / keff + fixed
 
 
 # =============================================================================
