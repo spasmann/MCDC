@@ -265,6 +265,9 @@ def prepare():
             "iqmc_res",
             "iqmc_generator",
             "iqmc_sweep_counter",
+            "iqmc_source_x",
+            "iqmc_source_y",
+            "iqmc_source_z",
             "wr_chance",
             "wr_threshold",
         ]:

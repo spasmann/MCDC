@@ -2625,7 +2625,31 @@ def prepare_qmc_particles(mcdc):
         # TODO: Bug where if x = 0.0 the x-index is -1
         dV = iqmc_cell_volume(x, y, z, mesh)
         # Set weight
-        P_new["iqmc_w"] = Q[:, t, x, y, z] * dV * Nt / N_particle
+        if mcdc["technique"]["iqmc_source_tilt"] and mcdc["technique"]["iqmc_itt"] >= 1:
+            # linear x-component
+            if Nx > 1:
+                dx = mesh["x"][x + 1] - mesh["x"][x]
+                x_mid = mesh["x"][x] + 0.5 * dx
+                mcdc["technique"]["iqmc_source"][:, t, x, y, z] += mcdc["technique"][
+                    "iqmc_source_x"
+                ][:, t, x] * (P_new["x"] - x_mid)
+            # linear y-component
+            if Ny > 1:
+                dy = mesh["y"][y + 1] - mesh["y"][y]
+                y_mid = mesh["y"][y] + 0.5 * dy
+                mcdc["technique"]["iqmc_source"][:, t, x, y, z] += mcdc["technique"][
+                    "iqmc_source_y"
+                ][:, t, y] * (P_new["y"] - y_mid)
+            # linear z-component
+            if Nz > 1:
+                dz = mesh["z"][z + 1] - mesh["z"][z]
+                z_mid = mesh["z"][z] + 0.5 * dz
+                mcdc["technique"]["iqmc_source"][:, t, x, y, z] += mcdc["technique"][
+                    "iqmc_source_z"
+                ][:, t, z] * (P_new["z"] - z_mid)
+        P_new["iqmc_w"] = (
+            mcdc["technique"]["iqmc_source"][:, t, x, y, z] * dV * Nt / N_particle
+        )
         P_new["w"] = (P_new["iqmc_w"]).sum()
         # add to source bank
         add_particle(P_new, mcdc["bank_source"])
@@ -2760,10 +2784,32 @@ def score_iqmc_flux(P, distance, mcdc):
     else:
         flux = distance * w / dV
     mcdc["technique"]["iqmc_flux"][:, t, x, y, z] += flux
-    # mcdc["technique"]["iqmc_effective_scattering"][:, t, x, y, z] += (
-    #     flux * SigmaS
-    # )  # chi_s.T, SigmaS * phi
-    # mcdc["technique"]["iqmc_effective_fission"][:, t, x, y, z] += flux * SigmaF
+
+    # source tilt
+    if mcdc["technique"]["iqmc_source_tilt"] == 1:
+        # linear x-component
+        dx = mesh["x"][x + 1] - mesh["x"][x]
+        x_mid = mesh["x"][x] + 0.5 * dx
+        mcdc["technique"]["iqmc_source_x"][:, t, x] += Q11(
+            P["ux"], P["x"], dx, x_mid, w, distance, SigmaT
+        )
+        # linear y-component
+        dy = mesh["y"][y + 1] - mesh["y"][y]
+        y_mid = mesh["y"][y] + 0.5 * dy
+        mcdc["technique"]["iqmc_source_y"][:, t, y] += Q11(
+            P["uy"], P["y"], dy, y_mid, w, distance, SigmaT
+        )
+        # linear z-component
+        dz = mesh["z"][z + 1] - mesh["z"][z]
+        z_mid = mesh["z"][z] + 0.5 * dz
+        mcdc["technique"]["iqmc_source_z"][:, t, z] += Q11(
+            P["uz"], P["z"], dz, z_mid, w, distance, SigmaT
+        )
+        # TODO:
+        # linear xy component
+        # linear xz component
+        # linear yz component
+        # linear xyz component
 
 
 @njit
@@ -2923,6 +2969,25 @@ def iqmc_distribute_flux(mcdc):
     with objmode():
         MPI.COMM_WORLD.Allreduce(flux_local, flux_total, op=MPI.SUM)
     mcdc["technique"]["iqmc_flux"] = flux_total.copy()
+
+
+# =============================================================================
+# iQMC Source Tilting
+# =============================================================================
+
+
+@njit
+def Q11(mu, x, dx, x_mid, w, distance, SigmaT):
+    if SigmaT.all() > 1e-12:
+        a = mu * (
+            w * (1 - (1 + distance * SigmaT) * np.exp(-SigmaT * distance)) / SigmaT**2
+        )
+        b = (x - x_mid) * (w * (1 - np.exp(-SigmaT * distance)) / SigmaT)
+        Q11 = 12 * (a + b) / dx**3
+    else:
+        Q11 = mu * w * distance ** (2) / 2 + w * (x - x_mid) * distance
+
+    return Q11
 
 
 # =============================================================================

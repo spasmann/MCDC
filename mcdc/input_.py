@@ -1173,6 +1173,7 @@ def iQMC(
     N_dim=6,
     seed=12345,
     preconditioner_sweeps=5,
+    source_tilt=0,
     generator="halton",
     fixed_source_solver="source_iteration",
     eigenmode_solver="power_iteration",
@@ -1185,6 +1186,7 @@ def iQMC(
     card["iqmc_N_dim"] = N_dim
     card["iqmc_scramble"] = scramble
     card["iqmc_seed"] = seed
+    card["iqmc_source_tilt"] = source_tilt
 
     # Set mesh
     if g is not None:

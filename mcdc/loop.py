@@ -309,6 +309,16 @@ def source_iteration(mcdc):
         # initialize particles with LDS
         kernel.prepare_qmc_particles(mcdc)
 
+        mcdc["technique"]["iqmc_source_x"] = np.zeros_like(
+            mcdc["technique"]["iqmc_source_x"]
+        )
+        mcdc["technique"]["iqmc_source_y"] = np.zeros_like(
+            mcdc["technique"]["iqmc_source_y"]
+        )
+        mcdc["technique"]["iqmc_source_z"] = np.zeros_like(
+            mcdc["technique"]["iqmc_source_z"]
+        )
+
         # prepare source for next iteration
         mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
 

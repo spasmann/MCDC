@@ -137,6 +137,7 @@ class InputCard:
             "iqmc_maxitt": 5,
             "iqmc_N_dim": 6,
             "iqmc_seed": 12345,
+            "iqmc_source_tilt": 0,
             "iqmc_scramble": False,
             "iqmc_fixed_source": np.ones([1, 1, 1, 1]),
             "iqmc_material_idx": np.ones([1, 1, 1, 1]),
