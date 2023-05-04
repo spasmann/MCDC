@@ -389,9 +389,9 @@ def power_iteration(mcdc):
 
 @njit
 def davidson(mcdc):
-    # TODO: find a cleaner way to make all matrices contiguous arrays for
-    # dot products
     # TODO: handle imaginary eigenvalues
+    # TODO: add fixed source solve at the end to give better approximation
+    #       of the scalar flux
 
     # Davidson parameters
     simulation_end = False
@@ -422,7 +422,7 @@ def davidson(mcdc):
     phi0 = np.reshape(phi0, (Nt,))
 
     # Krylov subspace matrices
-    # we allocate memory then use slice indexing in loop
+    # allocate memory then use slice indexing in loop
     V = np.zeros((Nt, maxit), dtype=np.float64)
     HV = np.zeros((Nt, maxit), dtype=np.float64)
     FV = np.zeros((Nt, maxit), dtype=np.float64)

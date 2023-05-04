@@ -2754,7 +2754,6 @@ def score_iqmc_flux(P, distance, mcdc):
     if outside:
         return
     dV = iqmc_cell_volume(x, y, z, mesh)
-    # mat_id = mcdc["technique"]["iqmc_material_idx"][t, x, y, z]
     mat_id = P["material_ID"]
 
     # Score
