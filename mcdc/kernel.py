@@ -2964,10 +2964,19 @@ def generate_iqmc_material_idx(mcdc):
 @njit
 def iqmc_distribute_flux(mcdc):
     flux_local = mcdc["technique"]["iqmc_flux"].copy()
+    sourceX_local = mcdc["technique"]["iqmc_source_x"].copy()
+    sourceY_local = mcdc["technique"]["iqmc_source_y"].copy()
+    sourceZ_local = mcdc["technique"]["iqmc_source_z"].copy()
     # TODO: is there a way to do this without creating a new matrix ?
     flux_total = np.zeros_like(flux_local, np.float64)
+    sourceX_total = np.zeros_like(sourceX_local, np.float64)
+    sourceY_total = np.zeros_like(sourceY_local, np.float64)
+    sourceZ_total = np.zeros_like(sourceZ_local, np.float64)
     with objmode():
         MPI.COMM_WORLD.Allreduce(flux_local, flux_total, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(sourceX_local, sourceX_total, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(sourceY_local, sourceY_total, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(sourceZ_local, sourceZ_total, op=MPI.SUM)
     mcdc["technique"]["iqmc_flux"] = flux_total.copy()
 
 
