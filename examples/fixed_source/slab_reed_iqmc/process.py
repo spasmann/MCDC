@@ -88,10 +88,18 @@ def f_phi_x(x):
 
 
 with h5py.File("output.h5", "r") as f:
+    phi = f["iqmc/flux"][:]
+    q = f["iqmc/source"][:][0,0,:,0,0]
+    qdot = f["iqmc/Q11/x"][:][0,0,:]
     x = f["iqmc/grid/x"][:]
+    mesh = f["iqmc/grid/x"][:]
     dx = x[1] - x[0]
     x_mid = 0.5 * (x[:-1] + x[1:])
-
+    lowX = x[:-1]
+    highX = x[1:]
+    Nx = x_mid.size
+    f.close()
+    
 phi_ref = np.zeros_like(x_mid)
 phi_x_ref = np.zeros_like(x)
 
@@ -105,15 +113,35 @@ for i in range(len(x_mid)):
 # Plot
 # =============================================================================
 
-# Load output
-with h5py.File("output.h5", "r") as f:
-    # Note the spatial (dx) and source strength (100+1) normalization
-    phi_mcdc = f["tally/iqmc_flux"][:]
-
 # Flux - spatial average
 plt.figure(dpi=300, figsize=(8, 5))
 # plt.plot(x_mid,phi_ref,label='Sol')
-plt.plot(x_mid, phi_mcdc, label="iQMC")
+plt.plot(x_mid, phi, label="iQMC")
 plt.ylabel(r"$\phi(x)$")
 plt.xlabel(r"$x$")
 plt.grid()
+
+# =============================================================================
+# Plot piecewise source
+# =============================================================================
+source_tilt = True
+
+plt.figure(figsize=(6,4),dpi=300)
+plt.title('MCDC')
+x    = np.linspace(4, 8, num=1000)
+n    = len(x)
+conditions = [(mesh[i] <= x) & (x <= mesh[i+1]) for i in range(48,Nx)]
+y1 = np.piecewise(x, conditions, q[48:Nx])
+plt.plot(x,y1, label=r'$a_j$')
+if (source_tilt):
+    y2          = np.zeros_like(x)
+    for i in range(n):
+        zone = np.argmax((x[i] > lowX) * (x[i] <= highX))
+        mid = x_mid[zone]
+        y2[i] = q[zone] + qdot[zone]*(x[i] - mid)
+    plt.plot(x,y2,label=r'$a_j + b_j(x)$')
+for i in range(48,Nx):
+    plt.axvline(mesh[i],linestyle='--',color='black')
+plt.legend()
+plt.tight_layout()
+plt.ylim((-0.1,3.0))

@@ -446,6 +446,10 @@ def generate_hdf5():
                 f.create_dataset("iqmc/material_idx", data=T["iqmc_material_idx"])
                 # dump x,y,z scalar flux across all groups
                 f.create_dataset("iqmc/flux", data=np.squeeze(T["iqmc_flux"]))
+                f.create_dataset("iqmc/source", data=T["iqmc_source"])
+                f.create_dataset("iqmc/Q11/x", data=T["iqmc_source_x"])
+                f.create_dataset("iqmc/Q11/y", data=T["iqmc_source_y"])
+                f.create_dataset("iqmc/Q11/z", data=T["iqmc_source_z"])
                 # iteration data
                 f.create_dataset("iqmc/itteration_count", data=T["iqmc_itt"])
                 f.create_dataset("iqmc/final_residual", data=T["iqmc_res"])

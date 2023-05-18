@@ -298,17 +298,20 @@ def source_iteration(mcdc):
     simulation_end = False
 
     while not simulation_end:
+
+        # prepare source for next iteration
+        kernel.prepare_qmc_source(mcdc)
+        if mcdc["technique"]["iqmc_source_tilt"]:
+            kernel.prepare_qmc_tilt_source(mcdc)
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
+        # initialize particles with LDS
+        kernel.prepare_qmc_particles(mcdc)
+        
+        # zero out tallies
         mcdc["technique"]["iqmc_source"] = np.zeros_like(
             mcdc["technique"]["iqmc_source"]
         )
-
-        # set bank source
-        kernel.prepare_qmc_source(mcdc)
-        # initialize particles with LDS
-        kernel.prepare_qmc_particles(mcdc)
-
         mcdc["technique"]["iqmc_source_x"] = np.zeros_like(
             mcdc["technique"]["iqmc_source_x"]
         )
@@ -318,8 +321,6 @@ def source_iteration(mcdc):
         mcdc["technique"]["iqmc_source_z"] = np.zeros_like(
             mcdc["technique"]["iqmc_source_z"]
         )
-
-        # prepare source for next iteration
         mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
 
         # sweep particles
@@ -346,7 +347,10 @@ def source_iteration(mcdc):
         # set flux_old = current flux
         mcdc["technique"]["iqmc_flux_old"] = mcdc["technique"]["iqmc_flux"].copy()
 
-
+    kernel.prepare_qmc_source(mcdc)
+    if mcdc["technique"]["iqmc_source_tilt"]:
+        kernel.prepare_qmc_tilt_source(mcdc)
+        
 @njit
 def power_iteration(mcdc):
     simulation_end = False
