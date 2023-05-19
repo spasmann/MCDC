@@ -2587,14 +2587,14 @@ def prepare_qmc_tilt_source(mcdc):
             for k in range(Nz):
                 mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
                 if Nx > 1:
-                    source_x[:, t, i] = (scattering_source(source_x[:, t, i], mat_idx, mcdc)
-                                        + fission_source(source_x[:, t, i], mat_idx, mcdc))
+                    source_x[:,t,i,j,k] = (scattering_source(source_x[:,t,i,j,k], mat_idx, mcdc)
+                                        + fission_source(source_x[:,t,i,j,k], mat_idx, mcdc))
                 if Ny > 1:
-                    source_y[:, t, j] = (scattering_source(source_y[:, t, j], mat_idx, mcdc)
-                                        + fission_source(source_y[:, t, j], mat_idx, mcdc))
+                    source_y[:,t,i,j,k]= (scattering_source(source_y[:,t,i,j,k], mat_idx, mcdc)
+                                        + fission_source(source_y[:,t,i,j,k], mat_idx, mcdc))
                 if Nz > 1:
-                    source_z[:, t, k] = (scattering_source(source_z[:, t, k], mat_idx, mcdc)
-                                        + fission_source(source_z[:, t, k], mat_idx, mcdc))
+                    source_z[:,t,i,j,k] = (scattering_source(source_z[:,t,i,j,k], mat_idx, mcdc)
+                                        + fission_source(source_z[:,t,i,j,k], mat_idx, mcdc))
 
 @njit
 def prepare_qmc_particles(mcdc):
@@ -2667,21 +2667,21 @@ def prepare_qmc_particles(mcdc):
                 x_mid = mesh["x"][x] + (0.5 * dx)
                 Q[:, t, x, y, z] += mcdc["technique"][
                     "iqmc_source_x"
-                ][:, t, x] * (P_new["x"] - x_mid)
+                ][:, t, x, y, z] * (P_new["x"] - x_mid)
             # linear y-component
             if Ny > 1:
                 dy = mesh["y"][y + 1] - mesh["y"][y]
                 y_mid = mesh["y"][y] + (0.5 * dy)
                 Q[:, t, x, y, z] += mcdc["technique"][
                     "iqmc_source_y"
-                ][:, t, y] * (P_new["y"] - y_mid)
+                ][:, t, x, y, z] * (P_new["y"] - y_mid)
             # linear z-component
             if Nz > 1:
                 dz = mesh["z"][z + 1] - mesh["z"][z]
                 z_mid = mesh["z"][z] + (0.5 * dz)
                 Q[:, t, x, y, z] += mcdc["technique"][
                     "iqmc_source_z"
-                ][:, t, z] * (P_new["z"] - z_mid)
+                ][:, t, x, y, z] * (P_new["z"] - z_mid)
         # set particle weight
         P_new["iqmc_w"] = (
             Q[:, t, x, y, z] * dV * Nt / N_particle
@@ -2830,21 +2830,21 @@ def score_iqmc_flux(P, distance, mcdc):
         if Nx > 1:
             dx = mesh["x"][x + 1] - mesh["x"][x]
             x_mid = mesh["x"][x] + (dx * 0.5)
-            mcdc["technique"]["iqmc_source_x"][:, t, x] += Q11(
+            mcdc["technique"]["iqmc_source_x"][:, t, x, y, z] += Q11(
                 P["ux"], P["x"], dx, x_mid, w, distance, SigmaT
             )
         # linear y-component
         if Ny > 1:
             dy = mesh["y"][y + 1] - mesh["y"][y]
             y_mid = mesh["y"][y] + (dy * 0.5)
-            mcdc["technique"]["iqmc_source_y"][:, t, y] += Q11(
+            mcdc["technique"]["iqmc_source_y"][:, t, x, y, z]+= Q11(
                 P["uy"], P["y"], dy, y_mid, w, distance, SigmaT
             )
         # linear z-component
         if Nz > 1:
             dz = mesh["z"][z + 1] - mesh["z"][z]
             z_mid = mesh["z"][z] + (dz * 0.5)
-            mcdc["technique"]["iqmc_source_z"][:, t, z] += Q11(
+            mcdc["technique"]["iqmc_source_z"][:, t, x, y, z] += Q11(
                 P["uz"], P["z"], dz, z_mid, w, distance, SigmaT
             )
         # TODO:

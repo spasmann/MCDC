@@ -539,9 +539,9 @@ def make_type_technique(card):
     struct += [("iqmc_flux_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
 
     # source tilting tallies
-    struct += [(("iqmc_source_x"), float64, (Ng, Nt, Nx))]
-    struct += [(("iqmc_source_y"), float64, (Ng, Nt, Ny))]
-    struct += [(("iqmc_source_z"), float64, (Ng, Nt, Nz))]
+    struct += [(("iqmc_source_x"), float64, (Ng, Nt, Nx, Ny, Nz))]
+    struct += [(("iqmc_source_y"), float64, (Ng, Nt, Nx, Ny, Nz))]
+    struct += [(("iqmc_source_z"), float64, (Ng, Nt, Nx, Ny, Nz))]
 
     # Constants
     struct += [
