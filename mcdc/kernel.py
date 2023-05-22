@@ -2929,6 +2929,62 @@ def iqmc_distribute_flux(mcdc):
 # iQMC Iterative Mapping Functions
 # =============================================================================
 
+@njit
+def AxV(phi, b, mcdc):
+    """
+    Linear operator to be used with Scipy's Krylov Solvers.
+    To use them, the scalar flux can be the only input.
+    """
+    matrix_shape = mcdc["technique"]["iqmc_flux"].shape
+    vector_size = mcdc["technique"]["iqmc_flux"].size
+    
+    mcdc["technique"]["iqmc_flux"] = np.reshape(phi,matrix_shape)
+
+    # reset bank size
+    mcdc["bank_source"]["size"] = 0
+    mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
+
+    # QMC Sweep
+    prepare_qmc_source(mcdc)
+    prepare_qmc_particles(mcdc)
+    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    loop_source(mcdc)
+    # sum resultant flux on all processors
+    iqmc_distribute_flux(mcdc)
+
+    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,))
+    axv = phi - (v_out - b)
+    
+    return axv
+
+@njit
+def RHS(mcdc):
+    """
+    RHS(mcdc)
+    -------------
+    We solve A x = b with a Krylov method. This function extracts
+    b from Sam's qmc_data structure by doing a transport sweep with
+    zero scattering term.
+    """
+    # reshape v and assign to iqmc_flux
+    Nt = mcdc["technique"]["iqmc_flux"].size
+    mcdc["technique"]["iqmc_flux"] = 0
+
+    # reset bank size
+    mcdc["bank_source"]["size"] = 0
+    mcdc["technique"]["iqmc_source"] = 0
+
+    # QMC Sweep
+    prepare_qmc_source(mcdc)
+    prepare_qmc_particles(mcdc)
+    mcdc["technique"]["iqmc_flux"] = 0
+    loop_source(mcdc)
+    # sum resultant flux on all processors
+    iqmc_distribute_flux(mcdc)
+
+    b = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (Nt,))
+    
+    return b
 
 @njit
 def HxV(V, mcdc):
