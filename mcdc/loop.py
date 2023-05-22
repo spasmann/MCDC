@@ -387,7 +387,7 @@ def gmres(mcdc):
     b = kernel.RHS(mcdc)
     # Defining xtype as dtype of the problem, to decide which BLAS functions
     # import.
-    xtype = upcast(X.dtype, b.dtype)
+    xtype = np.float64 #upcast(X.dtype, b.dtype)
 
     # Get fast access to underlying BLAS routines
     # dotc is the conjugate dot, dotu does no conjugation
@@ -428,7 +428,7 @@ def gmres(mcdc):
  
     max_outer = int(np.ceil(max_iter/max_inner))
 
-    # Prep for method
+    # initial residual
     r = b - kernel.AxV(X, b, mcdc)
     normr = norm(r)
 
@@ -529,20 +529,6 @@ def gmres(mcdc):
 
                 if rel_resid < tol:
                     break
-
-            # if iteration%1==0:
-            #     print('Iteration: {}, relative residual: {}'.format(iteration,rel_resid))
-
-            # if (inner + 1 == R):
-            #     print('Residual: {}. Restart...'.format(rel_resid))
-
-            # if iteration==max_iter:
-            #     print('Warning!!!!'
-            #     'You have reached the maximum number of iterations : {}.'.format(iteration))
-            #     print('The run will stop. Check the residual behaviour you might have a bug.'
-            #     'For future runs you might consider changing the tolerance or'
-            #     ' increasing the number of max_iter.')
-            #     break
             
             mcdc["technique"]["iqmc_itt"] += 1
             mcdc["technique"]["iqmc_res"] = rel_resid
@@ -562,52 +548,10 @@ def gmres(mcdc):
             
         # test for convergence
         if rel_resid < tol:
-            print('GMRES solve')
-            print('Converged after {} iterations to a residual of {}'.format(iteration,rel_resid))
+            # print('GMRES solve')
+            # print('Converged after {} iterations to a residual of {}'.format(iteration,rel_resid))
             mcdc["technique"]["iqmc_flux"] = np.reshape(X, mcdc["technique"]["iqmc_flux"].shape)
-            return 
-
     #end outer loop
-
-    return
-
-# @njit
-# def gmres(mcdc):
-    # # based on algorithm outline
-    
-#     # gmres parameters
-#     simulation_end = False
-#     maxit = mcdc["technique"]["iqmc_maxitt"]
-#     tol = mcdc["technique"]["iqmc_tol"]
-#     # m : restart parameter
-#     m = mcdc["technique"]["iqmc_krylov_restart"]
-#     # initial size of Krylov subspace
-#     Vsize = 1
-
-#     # compute initial residual
-#     phi0 = mcdc["technique"]["iqmc_flux"].copy()
-#     Nt = phi0.size
-#     b = kernel.RHS(mcdc)
-#     r = b - kernel.AxV(phi0, mcdc)
-    
-#     # Krylov subspace matrices
-#     # we allocate memory then use slice indexing in loop
-#     V = np.zeros((Nt, maxit), dtype=np.float64)
-#     H = np.zeros((Nt, maxit), dtype=np.float64)
-#     AV = np.zeros((Nt, maxit), dtype=np.float64)
-    
-#     V0 = r / np.linalg.norm(r)
-#     V[:, 0] = V0
-#     Vsize = 1
-    
-#     if m is None:
-#         # unless specified there is no restart parameter
-#         m = maxit + 1
-    
-#     while not simulation_end:
-#         AV = kernel.AxV(V[:,:Vsize], mcdc)
-#         H[:,:Vsize] = np.dot(AV, V[:,:Vsize])
-#         v = AV[:,:Vsize] - np.sum(np.dot(H[:,:Vsize],V[:,:Vsize]))
 
 
 @njit
@@ -620,12 +564,14 @@ def power_iteration(mcdc):
     maxit = mcdc["technique"]["iqmc_maxitt"]
     mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
     k_old = mcdc["k_eff"]
-    # assign function call from specified solvers
-    # inner_iteration = globals()[mcdc["technique"]["iqmc_fixed_source_solver"]]
+    solver = mcdc["technique"]["iqmc_fixed_source_solver"]
 
     while not simulation_end:
         # iterate over scattering source
-        source_iteration(mcdc)
+        if solver == "source_iteration":
+            source_iteration(mcdc)
+        if solver == "gmres":
+            gmres(mcdc)
         # reset counter for inner iteration
         mcdc["technique"]["iqmc_itt"] = 0
 
