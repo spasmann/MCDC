@@ -295,6 +295,7 @@ def loop_iqmc(mcdc):
         if mcdc["technique"]["iqmc_fixed_source_solver"] == "gmres":
             gmres(mcdc)
 
+
 @njit
 def source_iteration(mcdc):
     simulation_end = False
@@ -339,33 +340,6 @@ def source_iteration(mcdc):
         mcdc["technique"]["iqmc_flux_old"] = mcdc["technique"]["iqmc_flux"].copy()
 
 
-
-from scipy.linalg import get_blas_funcs, get_lapack_funcs
-from scipy.sparse.sputils import upcast
-import scipy
-from warnings import warn
-
-def apply_givens(Q, v, k):
-    """
-    Apply the first k Givens rotations in Q to the vector v.
-
-    Arguments
-    ---------
-        Q: list, list of consecutive 2x2 Givens rotations
-        v: array, vector to apply the rotations to
-        k: int, number of rotations to apply
-
-    Returns
-    -------
-        v: array, that is changed in place.
-
-    """
-
-    for j in range(k):
-        Qloc = Q[j]
-        v[j:j+2] = scipy.dot(Qloc, v[j:j+2])
-
-
 @njit
 def gmres(mcdc):
     """
@@ -378,158 +352,120 @@ def gmres(mcdc):
        Second Edition", SIAM, pp. 151-172, pp. 272-275, 2003
        http://www-users.cs.umn.edu/~saad/books.html
     .. [2] C. T. Kelley, http://www4.ncsu.edu/~ctk/matlab_roots.html
-    
+
     code adapted from: https://github.com/pygbe/pygbe/blob/master/pygbe/gmres.py
-    
+
     """
-    vector_size = mcdc["technique"]["iqmc_flux"].size
-    X = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), vector_size)
-    b = kernel.RHS(mcdc)
-    # Defining xtype as dtype of the problem, to decide which BLAS functions
-    # import.
-    xtype = np.float64 #upcast(X.dtype, b.dtype)
-
-    # Get fast access to underlying BLAS routines
-    # dotc is the conjugate dot, dotu does no conjugation
-
-    [lartg] = get_lapack_funcs(['lartg'], [X] )
-    if np.iscomplexobj(np.zeros((1,), dtype=xtype)):
-        [axpy, dotu, dotc, scal] =\
-            get_blas_funcs(['axpy', 'dotu', 'dotc', 'scal'], [X])
-    else:
-        # real type
-        [axpy, dotu, dotc, scal] =\
-            get_blas_funcs(['axpy', 'dot', 'dot', 'scal'], [X])
-
-    # Make full use of direct access to BLAS by defining own norm
-    def norm(z):
-        return np.sqrt(np.real(dotc(z, z)))
-
-    # Defining dimension
-    dimen = X.size
-
     max_iter = mcdc["technique"]["iqmc_maxitt"]
     R = mcdc["technique"]["iqmc_krylov_restart"]
     tol = mcdc["technique"]["iqmc_tol"]
-
+    vector_size = mcdc["technique"]["iqmc_flux"].size
+    X = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), vector_size)
+    # Defining dimension
+    dimen = X.size
     # Set number of outer and inner iterations
-    
     if R > dimen:
-        warn('Setting number of inner iterations (restrt) to maximum\
-              allowed, which is A.shape[0] ')
+        # set number of outter iterations to max allowable (A.shape[0])
         R = dimen
-
     max_inner = R
+    xtype = np.float64
 
-    #max_outer should be max_iter/max_inner but this might not be an integer
-    #so we get the ceil of the division.
-    #In the inner loop there is a if statement to break in case max_iter is
-    #reached. 
- 
-    max_outer = int(np.ceil(max_iter/max_inner))
+    # max_outer should be max_iter/max_inner but this might not be an integer
+    # so we get the ceil of the division.
+    # In the inner loop there is a if statement to break in case max_iter is
+    # reached.
+    max_outer = int(np.ceil(max_iter / max_inner))
 
     # initial residual
+    b = kernel.RHS(mcdc)
     r = b - kernel.AxV(X, b, mcdc)
-    normr = norm(r)
+    normr = np.linalg.norm(r)
 
     # Check initial guess ( scaling by b, if b != 0, must account for
     # case when norm(b) is very small)
-    normb = norm(b)
+    normb = np.linalg.norm(b)
     if normb == 0.0:
         normb = 1.0
-    if normr < tol*normb:
+    if normr < tol * normb:
         return X, 0
 
     iteration = 0
 
-    # Here start the GMRES
+    # GMRES starts here
     for outer in range(max_outer):
-
         # Preallocate for Givens Rotations, Hessenberg matrix and Krylov Space
-        # Space required is O(dimen*max_inner).
-        # NOTE:  We are dealing with row-major matrices, so we traverse in a
-        #        row-major fashion,
-        #        i.e., H and V's transpose is what we store.
-
-        Q = []  # Initialzing Givens Rotations
-        # Upper Hessenberg matrix, which is then
-        # converted to upper triagonal with Givens Rotations
-
-        H = np.zeros((max_inner+1, max_inner+1), dtype=xtype)
-        V = np.zeros((max_inner+1, dimen), dtype=xtype)  # Krylov space
+        Q = []
+        H = np.zeros((max_inner + 1, max_inner + 1), dtype=xtype)
+        V = np.zeros((max_inner + 1, dimen), dtype=xtype)
 
         # vs store the pointers to each column of V.
         # This saves a considerable amount of time.
         vs = []
-
-        # v = r/normr
-        V[0, :] = scal(1.0/normr, r)  # scal wrapper of dscal --> x = a*x
+        V[0, :] = (1.0 / normr) * r
         vs.append(V[0, :])
 
-        #Saving initial residual to be used to calculate the rel_resid
-        if iteration==0:
+        # Saving initial residual to be used to calculate the rel_resid
+        if iteration == 0:
             res_0 = normb
 
-        #RHS vector in the Krylov space
-        g = np.zeros((dimen, ), dtype=xtype)
+        # RHS vector in the Krylov space
+        g = np.zeros((dimen,), dtype=xtype)
         g[0] = normr
 
         for inner in range(max_inner):
-            #New search direction
-            v= V[inner+1, :]
+            # New search direction
+            v = V[inner + 1, :]
             v[:] = kernel.AxV(vs[-1], b, mcdc)
             vs.append(v)
 
-            #Modified Gram Schmidt
-            for k in range(inner+1):
+            # Modified Gram Schmidt
+            for k in range(inner + 1):
                 vk = vs[k]
-                alpha = dotc(vk, v)
+                alpha = np.dot(vk, v)
                 H[inner, k] = alpha
-                v[:] = axpy(vk, v, dimen, -alpha)  # y := a*x + y
-                #axpy is a wrapper for daxpy (blas function)
+                v[:] = vk * (-alpha) + v[:]
 
-            normv = norm(v)
-            H[inner, inner+1] = normv
+            normv = np.linalg.norm(v)
+            H[inner, inner + 1] = normv
 
+            # Check for breakdown
+            if H[inner, inner + 1] != 0.0:
+                v[:] = (1.0 / H[inner, inner + 1]) * v
 
-            #Check for breakdown
-            if H[inner, inner+1] != 0.0:
-                v[:] = scal(1.0/H[inner, inner+1], v)
-
-            #Apply for Givens rotations to H
+            # Apply for Givens rotations to H
             if inner > 0:
-                apply_givens(Q, H[inner, :], inner)
+                for j in range(inner):
+                    Qloc = Q[j]
+                    H[inner, :][j : j + 2] = np.dot(Qloc, H[inner, :][j : j + 2])
 
-            #Calculate and apply next complex-valued Givens rotations
+            # Calculate and apply next complex-valued Givens rotations
 
-            #If max_inner = dimen, we don't need to calculate, this
-            #is unnecessary for the last inner iteration when inner = dimen -1
-
+            # If max_inner = dimen, we don't need to calculate, this
+            # is unnecessary for the last inner iteration when inner = dimen -1
             if inner != dimen - 1:
-                if H[inner, inner+1] != 0:
-                    #lartg is a lapack function that computes the parameters
-                    #for a Givens rotation
-                    [c, s, _] = lartg(H[inner, inner], H[inner, inner+1])
-                    Qblock = np.array([[c, s], [-np.conjugate(s),c]], dtype=xtype)
+                if H[inner, inner + 1] != 0:
+                    # Caclulate matrix rotations
+                    c, s, _ = kernel.lartg(H[inner, inner], H[inner, inner + 1])
+                    Qblock = np.array([[c, s], [-np.conjugate(s), c]], dtype=xtype)
                     Q.append(Qblock)
 
-                    #Apply Givens Rotations to RHS for the linear system in
+                    # Apply Givens Rotations to RHS for the linear system in
                     # the krylov space.
-                    g[inner:inner+2] = scipy.dot(Qblock, g[inner:inner+2])
+                    g[inner : inner + 2] = np.dot(Qblock, g[inner : inner + 2])
 
-                    #Apply Givens rotations to H
-                    H[inner, inner] = dotu(Qblock[0,:], H[inner, inner:inner+2])
-                    H[inner, inner+1] = 0.0
+                    # Apply Givens rotations to H
+                    H[inner, inner] = np.dot(Qblock[0, :], H[inner, inner : inner + 2])
+                    H[inner, inner + 1] = 0.0
 
-            iteration+= 1
+            iteration += 1
 
-            if inner < max_inner-1:
-                normr = abs(g[inner+1])
-                rel_resid = normr/res_0
+            if inner < max_inner - 1:
+                normr = abs(g[inner + 1])
+                rel_resid = normr / res_0
 
                 if rel_resid < tol:
                     break
-            
+
             mcdc["technique"]["iqmc_itt"] += 1
             mcdc["technique"]["iqmc_res"] = rel_resid
             if not mcdc["setting"]["mode_eigenvalue"]:
@@ -537,21 +473,21 @@ def gmres(mcdc):
         # end inner loop, back to outer loop
 
         # Find best update to X in Krylov Space V.  Solve inner X inner system.
-        y = scipy.linalg.solve (H[0:inner+1, 0:inner+1].T, g[0:inner+1])
-        update = np.ravel(scipy.mat(V[:inner+1, :]).T * y.reshape(-1,1))
-        X= X + update
+        y = np.linalg.solve(H[0 : inner + 1, 0 : inner + 1].T, g[0 : inner + 1])
+        update = np.ravel(np.dot(cga(V[: inner + 1, :].T), y.reshape(-1, 1)))
+        X = X + update
         aux = kernel.AxV(X, b, mcdc)
         r = b - aux
 
-        normr = norm(r)
-        rel_resid = normr/res_0
-            
-        # test for convergence
-        if rel_resid < tol:
-            # print('GMRES solve')
-            # print('Converged after {} iterations to a residual of {}'.format(iteration,rel_resid))
-            mcdc["technique"]["iqmc_flux"] = np.reshape(X, mcdc["technique"]["iqmc_flux"].shape)
-    #end outer loop
+        normr = np.linalg.norm(r)
+        rel_resid = normr / res_0
+
+        mcdc["technique"]["iqmc_itt"] += 1
+        mcdc["technique"]["iqmc_res"] = rel_resid
+        if not mcdc["setting"]["mode_eigenvalue"]:
+            print_progress_iqmc(mcdc)
+
+    # end outer loop
 
 
 @njit

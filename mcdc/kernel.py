@@ -2925,9 +2925,60 @@ def iqmc_distribute_flux(mcdc):
     mcdc["technique"]["iqmc_flux"] = flux_total.copy()
 
 
+@njit
+def lartg(f, g):
+    """
+    Originally a Lapack routine to generate a plane rotation with
+    real cosine and real sine.
+
+    Reference
+    ----------
+    https://netlib.org/lapack/explore-html/df/dd1/group___o_t_h_e_rauxiliary_ga86f8f877eaea0386cdc2c3c175d9ea88.html#:~:text=DLARTG%20generates%20a%20plane%20rotation%20with%20real%20cosine,%3D%20G%20%2F%20R%20Hence%20C%20%3E%3D%200.
+
+    Parameters
+    ----------
+    f :  The first component of vector to be rotated.
+    g :  The second component of vector to be rotated.
+
+    Returns
+    -------
+    c : The cosine of the rotation.
+    s : The sine of the rotation.
+    r : The nonzero component of the rotated vector.
+
+    """
+    r = np.sign(f) * np.sqrt(f * f + g * g)
+    c = f / r
+    s = g / r
+    return c, s, r
+
+
+@njit
+def modified_gram_schmidt(V, u):
+    """
+    Modified Gram Schmidt routine
+
+    """
+    V = np.ascontiguousarray(V)
+    w1 = u - np.dot(V, np.dot(V.T, u))
+    v1 = w1 / np.linalg.norm(w1)
+    w2 = v1 - np.dot(V, np.dot(V.T, v1))
+    v2 = w2 / np.linalg.norm(w2)
+    V = np.append(V, v2, axis=1)
+    # TODO: unit test that each column of V.dot(v2) == 0
+    # for i in range(V.shape[1]):
+    #     temp = V[:,i].dot(v2)
+    #     try:
+    #         assert np.isclose(temp, 0.0)
+    #     except:
+    #         print(temp)
+    return V
+
+
 # =============================================================================
 # iQMC Iterative Mapping Functions
 # =============================================================================
+
 
 @njit
 def AxV(phi, b, mcdc):
@@ -2937,8 +2988,8 @@ def AxV(phi, b, mcdc):
     """
     matrix_shape = mcdc["technique"]["iqmc_flux"].shape
     vector_size = mcdc["technique"]["iqmc_flux"].size
-    
-    mcdc["technique"]["iqmc_flux"] = np.reshape(phi,matrix_shape)
+
+    mcdc["technique"]["iqmc_flux"] = np.reshape(phi, matrix_shape)
 
     # reset bank size
     mcdc["bank_source"]["size"] = 0
@@ -2954,8 +3005,9 @@ def AxV(phi, b, mcdc):
 
     v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,))
     axv = phi - (v_out - b)
-    
+
     return axv
+
 
 @njit
 def RHS(mcdc):
@@ -2968,23 +3020,24 @@ def RHS(mcdc):
     """
     # reshape v and assign to iqmc_flux
     Nt = mcdc["technique"]["iqmc_flux"].size
-    mcdc["technique"]["iqmc_flux"] = 0
+    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
 
     # reset bank size
     mcdc["bank_source"]["size"] = 0
-    mcdc["technique"]["iqmc_source"] = 0
+    mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
 
     # QMC Sweep
     prepare_qmc_source(mcdc)
     prepare_qmc_particles(mcdc)
-    mcdc["technique"]["iqmc_flux"] = 0
+    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
     loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_flux(mcdc)
 
     b = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (Nt,))
-    
+
     return b
+
 
 @njit
 def HxV(V, mcdc):
@@ -3080,28 +3133,6 @@ def preconditioner(V, mcdc, num_sweeps=3):
     v_out = np.reshape(v_out, (vector_size, 1))
 
     return v_out
-
-
-@njit
-def modified_gram_schmidt(V, u):
-    """
-    Modified Gram Schmidt routine
-
-    """
-    V = np.ascontiguousarray(V)
-    w1 = u - np.dot(V, np.dot(V.T, u))
-    v1 = w1 / np.linalg.norm(w1)
-    w2 = v1 - np.dot(V, np.dot(V.T, v1))
-    v2 = w2 / np.linalg.norm(w2)
-    V = np.append(V, v2, axis=1)
-    # TODO: unit test that each column of V.dot(v2) == 0
-    # for i in range(V.shape[1]):
-    #     temp = V[:,i].dot(v2)
-    #     try:
-    #         assert np.isclose(temp, 0.0)
-    #     except:
-    #         print(temp)
-    return V
 
 
 # =============================================================================
