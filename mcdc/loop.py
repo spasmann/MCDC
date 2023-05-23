@@ -290,7 +290,10 @@ def loop_iqmc(mcdc):
         if mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration":
             power_iteration(mcdc)
     else:
-        source_iteration(mcdc)
+        if mcdc["technique"]["iqmc_fixed_source_solver"] == "source_iteration":
+            source_iteration(mcdc)
+        if mcdc["technique"]["iqmc_fixed_source_solver"] == "gmres":
+            gmres(mcdc)
 
 
 @njit
@@ -352,6 +355,156 @@ def source_iteration(mcdc):
         kernel.prepare_qmc_tilt_source(mcdc)
         
 @njit
+def gmres(mcdc):
+    """
+    GMRES solver.
+    ----------
+
+    References
+    ----------
+    .. [1] Yousef Saad, "Iterative Methods for Sparse Linear Systems,
+       Second Edition", SIAM, pp. 151-172, pp. 272-275, 2003
+       http://www-users.cs.umn.edu/~saad/books.html
+    .. [2] C. T. Kelley, http://www4.ncsu.edu/~ctk/matlab_roots.html
+
+    code adapted from: https://github.com/pygbe/pygbe/blob/master/pygbe/gmres.py
+
+    """
+    max_iter = mcdc["technique"]["iqmc_maxitt"]
+    R = mcdc["technique"]["iqmc_krylov_restart"]
+    tol = mcdc["technique"]["iqmc_tol"]
+    vector_size = mcdc["technique"]["iqmc_flux"].size
+    X = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), vector_size)
+    # Defining dimension
+    dimen = X.size
+    # Set number of outer and inner iterations
+    if R > dimen:
+        # set number of outter iterations to max allowable (A.shape[0])
+        R = dimen
+    max_inner = R
+    xtype = np.float64
+
+    # max_outer should be max_iter/max_inner but this might not be an integer
+    # so we get the ceil of the division.
+    # In the inner loop there is a if statement to break in case max_iter is
+    # reached.
+    max_outer = int(np.ceil(max_iter / max_inner))
+
+    # initial residual
+    b = kernel.RHS(mcdc)
+    r = b - kernel.AxV(X, b, mcdc)
+    normr = np.linalg.norm(r)
+
+    # Check initial guess ( scaling by b, if b != 0, must account for
+    # case when norm(b) is very small)
+    normb = np.linalg.norm(b)
+    if normb == 0.0:
+        normb = 1.0
+    if normr < tol * normb:
+        return X, 0
+
+    iteration = 0
+
+    # GMRES starts here
+    for outer in range(max_outer):
+        # Preallocate for Givens Rotations, Hessenberg matrix and Krylov Space
+        Q = []
+        H = np.zeros((max_inner + 1, max_inner + 1), dtype=xtype)
+        V = np.zeros((max_inner + 1, dimen), dtype=xtype)
+
+        # vs store the pointers to each column of V.
+        # This saves a considerable amount of time.
+        vs = []
+        V[0, :] = (1.0 / normr) * r
+        vs.append(V[0, :])
+
+        # Saving initial residual to be used to calculate the rel_resid
+        if iteration == 0:
+            res_0 = normb
+
+        # RHS vector in the Krylov space
+        g = np.zeros((dimen,), dtype=xtype)
+        g[0] = normr
+
+        for inner in range(max_inner):
+            # New search direction
+            v = V[inner + 1, :]
+            v[:] = kernel.AxV(vs[-1], b, mcdc)
+            vs.append(v)
+
+            # Modified Gram Schmidt
+            for k in range(inner + 1):
+                vk = vs[k]
+                alpha = np.dot(vk, v)
+                H[inner, k] = alpha
+                v[:] = vk * (-alpha) + v[:]
+
+            normv = np.linalg.norm(v)
+            H[inner, inner + 1] = normv
+
+            # Check for breakdown
+            if H[inner, inner + 1] != 0.0:
+                v[:] = (1.0 / H[inner, inner + 1]) * v
+
+            # Apply for Givens rotations to H
+            if inner > 0:
+                for j in range(inner):
+                    Qloc = Q[j]
+                    H[inner, :][j : j + 2] = np.dot(Qloc, H[inner, :][j : j + 2])
+
+            # Calculate and apply next complex-valued Givens rotations
+
+            # If max_inner = dimen, we don't need to calculate, this
+            # is unnecessary for the last inner iteration when inner = dimen -1
+            if inner != dimen - 1:
+                if H[inner, inner + 1] != 0:
+                    # Caclulate matrix rotations
+                    c, s, _ = kernel.lartg(H[inner, inner], H[inner, inner + 1])
+                    Qblock = np.array([[c, s], [-np.conjugate(s), c]], dtype=xtype)
+                    Q.append(Qblock)
+
+                    # Apply Givens Rotations to RHS for the linear system in
+                    # the krylov space.
+                    g[inner : inner + 2] = np.dot(Qblock, g[inner : inner + 2])
+
+                    # Apply Givens rotations to H
+                    H[inner, inner] = np.dot(Qblock[0, :], H[inner, inner : inner + 2])
+                    H[inner, inner + 1] = 0.0
+
+            iteration += 1
+
+            if inner < max_inner - 1:
+                normr = abs(g[inner + 1])
+                rel_resid = normr / res_0
+
+                if rel_resid < tol:
+                    break
+
+            mcdc["technique"]["iqmc_itt"] += 1
+            mcdc["technique"]["iqmc_res"] = rel_resid
+            if not mcdc["setting"]["mode_eigenvalue"]:
+                print_progress_iqmc(mcdc)
+        # end inner loop, back to outer loop
+
+        # Find best update to X in Krylov Space V.  Solve inner X inner system.
+        y = np.linalg.solve(H[0 : inner + 1, 0 : inner + 1].T, g[0 : inner + 1])
+        update = np.ravel(np.dot(cga(V[: inner + 1, :].T), y.reshape(-1, 1)))
+        X = X + update
+        aux = kernel.AxV(X, b, mcdc)
+        r = b - aux
+
+        normr = np.linalg.norm(r)
+        rel_resid = normr / res_0
+
+        mcdc["technique"]["iqmc_itt"] += 1
+        mcdc["technique"]["iqmc_res"] = rel_resid
+        if not mcdc["setting"]["mode_eigenvalue"]:
+            print_progress_iqmc(mcdc)
+
+    # end outer loop
+
+
+@njit
 def power_iteration(mcdc):
     simulation_end = False
 
@@ -361,12 +514,14 @@ def power_iteration(mcdc):
     maxit = mcdc["technique"]["iqmc_maxitt"]
     mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
     k_old = mcdc["k_eff"]
-    # assign function call from specified solvers
-    # inner_iteration = globals()[mcdc["technique"]["iqmc_fixed_source_solver"]]
+    solver = mcdc["technique"]["iqmc_fixed_source_solver"]
 
     while not simulation_end:
         # iterate over scattering source
-        source_iteration(mcdc)
+        if solver == "source_iteration":
+            source_iteration(mcdc)
+        if solver == "gmres":
+            gmres(mcdc)
         # reset counter for inner iteration
         mcdc["technique"]["iqmc_itt"] = 0
 
