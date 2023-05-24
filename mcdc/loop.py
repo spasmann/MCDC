@@ -301,7 +301,6 @@ def source_iteration(mcdc):
     simulation_end = False
 
     while not simulation_end:
-
         # prepare source for next iteration
         kernel.prepare_qmc_source(mcdc)
         if mcdc["technique"]["iqmc_source_tilt"]:
@@ -310,7 +309,7 @@ def source_iteration(mcdc):
         mcdc["bank_source"]["size"] = 0
         # initialize particles with LDS
         kernel.prepare_qmc_particles(mcdc)
-        
+
         # zero out tallies
         kernel.iqmc_reset_tallies(mcdc)
 
@@ -341,7 +340,8 @@ def source_iteration(mcdc):
     kernel.prepare_qmc_source(mcdc)
     if mcdc["technique"]["iqmc_source_tilt"]:
         kernel.prepare_qmc_tilt_source(mcdc)
-        
+
+
 @njit
 def gmres(mcdc):
     """

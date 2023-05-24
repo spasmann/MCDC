@@ -539,9 +539,40 @@ def make_type_technique(card):
     struct += [("iqmc_flux_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
 
     # source tilting tallies
-    struct += [(("iqmc_source_x"), float64, (Ng, Nt, Nx, Ny, Nz))]
-    struct += [(("iqmc_source_y"), float64, (Ng, Nt, Nx, Ny, Nz))]
-    struct += [(("iqmc_source_z"), float64, (Ng, Nt, Nx, Ny, Nz))]
+    # This logic structure ensures we don't allocate arrays for source tilting
+    # unless the user has requested them. Even if source tilting is off, all
+    # arrays must exist for Numba -> arrays are of size of 1 if not needed
+    x = [(("iqmc_source_x"), float64, (0, 0, 0, 0, 0))]
+    y = [(("iqmc_source_y"), float64, (0, 0, 0, 0, 0))]
+    z = [(("iqmc_source_z"), float64, (0, 0, 0, 0, 0))]
+    xy = [(("iqmc_source_xy"), float64, (0, 0, 0, 0, 0))]
+    yz = [(("iqmc_source_yz"), float64, (0, 0, 0, 0, 0))]
+    xz = [(("iqmc_source_xz"), float64, (0, 0, 0, 0, 0))]
+    xyz = [(("iqmc_source_xyz"), float64, (0, 0, 0, 0, 0))]
+    if card.technique["iqmc_source_tilt"] > 0:
+        if Nx > 1:
+            x = [(("iqmc_source_x"), float64, (Ng, Nt, Nx, Ny, Nz))]
+        if Ny > 1:
+            y = [(("iqmc_source_y"), float64, (Ng, Nt, Nx, Ny, Nz))]
+        if Nz > 1:
+            z = [(("iqmc_source_z"), float64, (Ng, Nt, Nx, Ny, Nz))]
+        if card.technique["iqmc_source_tilt"] > 1:
+            if Nx > 1 and Ny > 1:
+                xy = [(("iqmc_source_xy"), float64, (Ng, Nt, Nx, Ny, Nz))]
+            if Nx > 1 and Nz > 1:
+                xz = [(("iqmc_source_xz"), float64, (Ng, Nt, Nx, Ny, Nz))]
+            if Ny > 1 and Nz > 1:
+                yz = [(("iqmc_source_yz"), float64, (Ng, Nt, Nx, Ny, Nz))]
+            if card.technique["iqmc_source_tilt"] > 2:
+                if Nx > 1 and Ny > 1 and Nz > 1:
+                    xyz = [(("iqmc_source_xyz"), float64, (Ng, Nt, Nx, Ny, Nz))]
+    struct += x
+    struct += y
+    struct += z
+    struct += xy
+    struct += yz
+    struct += xz
+    struct += xyz
 
     # Constants
     struct += [

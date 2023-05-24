@@ -2560,41 +2560,6 @@ def prepare_qmc_fission_source(mcdc):
                     + fixed_source[:, t, i, j, k]
                 )
 
-@njit
-def prepare_qmc_tilt_source(mcdc):
-    """
-    Parameters
-    ----------
-    mcdc : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    None.
-
-    """
-    source_x = mcdc["technique"]["iqmc_source_x"]
-    source_y = mcdc["technique"]["iqmc_source_y"]
-    source_z = mcdc["technique"]["iqmc_source_z"]
-    mesh = mcdc["technique"]["iqmc_mesh"]
-    Nx = len(mesh["x"]) - 1
-    Ny = len(mesh["y"]) - 1
-    Nz = len(mesh["z"]) - 1
-    t = 0
-    # calculate source for every cell and group in the iqmc_mesh
-    for i in range(Nx):
-        for j in range(Ny):
-            for k in range(Nz):
-                mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
-                if Nx > 1:
-                    source_x[:,t,i,j,k] = (scattering_source(source_x[:,t,i,j,k], mat_idx, mcdc)
-                                        + fission_source(source_x[:,t,i,j,k], mat_idx, mcdc))
-                if Ny > 1:
-                    source_y[:,t,i,j,k]= (scattering_source(source_y[:,t,i,j,k], mat_idx, mcdc)
-                                        + fission_source(source_y[:,t,i,j,k], mat_idx, mcdc))
-                if Nz > 1:
-                    source_z[:,t,i,j,k] = (scattering_source(source_z[:,t,i,j,k], mat_idx, mcdc)
-                                        + fission_source(source_z[:,t,i,j,k], mat_idx, mcdc))
 
 @njit
 def prepare_qmc_particles(mcdc):
@@ -2661,31 +2626,9 @@ def prepare_qmc_particles(mcdc):
         dV = iqmc_cell_volume(x, y, z, mesh)
         # Source tilt
         if mcdc["technique"]["iqmc_source_tilt"]:
-            # linear x-component
-            if Nx > 1:
-                dx = mesh["x"][x + 1] - mesh["x"][x]
-                x_mid = mesh["x"][x] + (0.5 * dx)
-                Q[:, t, x, y, z] += mcdc["technique"][
-                    "iqmc_source_x"
-                ][:, t, x, y, z] * (P_new["x"] - x_mid)
-            # linear y-component
-            if Ny > 1:
-                dy = mesh["y"][y + 1] - mesh["y"][y]
-                y_mid = mesh["y"][y] + (0.5 * dy)
-                Q[:, t, x, y, z] += mcdc["technique"][
-                    "iqmc_source_y"
-                ][:, t, x, y, z] * (P_new["y"] - y_mid)
-            # linear z-component
-            if Nz > 1:
-                dz = mesh["z"][z + 1] - mesh["z"][z]
-                z_mid = mesh["z"][z] + (0.5 * dz)
-                Q[:, t, x, y, z] += mcdc["technique"][
-                    "iqmc_source_z"
-                ][:, t, x, y, z] * (P_new["z"] - z_mid)
+            iqmc_tilt_source(x, y, z, t, P_new, Q, mcdc)
         # set particle weight
-        P_new["iqmc_w"] = (
-            Q[:, t, x, y, z] * dV * Nt / N_particle
-        )
+        P_new["iqmc_w"] = Q[:, t, x, y, z] * dV * Nt / N_particle
         P_new["w"] = (P_new["iqmc_w"]).sum()
         # add to source bank
         add_particle(P_new, mcdc["bank_source"])
@@ -2823,9 +2766,9 @@ def score_iqmc_flux(P, distance, mcdc):
     Nx = mesh["x"].size - 1
     Ny = mesh["y"].size - 1
     Nz = mesh["z"].size - 1
-    
+
     # source tilt
-    if mcdc["technique"]["iqmc_source_tilt"] >= 1:
+    if mcdc["technique"]["iqmc_source_tilt"] > 0:
         # linear x-component
         if Nx > 1:
             dx = mesh["x"][x + 1] - mesh["x"][x]
@@ -2837,7 +2780,7 @@ def score_iqmc_flux(P, distance, mcdc):
         if Ny > 1:
             dy = mesh["y"][y + 1] - mesh["y"][y]
             y_mid = mesh["y"][y] + (dy * 0.5)
-            mcdc["technique"]["iqmc_source_y"][:, t, x, y, z]+= Q11(
+            mcdc["technique"]["iqmc_source_y"][:, t, x, y, z] += Q11(
                 P["uy"], P["y"], dy, y_mid, w, distance, SigmaT
             )
         # linear z-component
@@ -2847,13 +2790,28 @@ def score_iqmc_flux(P, distance, mcdc):
             mcdc["technique"]["iqmc_source_z"][:, t, x, y, z] += Q11(
                 P["uz"], P["z"], dz, z_mid, w, distance, SigmaT
             )
+        if mcdc["technique"]["iqmc_source_tilt"] > 1:
+            if Nx > 1 and Ny > 1:
+                mcdc["technique"]["iqmc_source_xy"][:, t, x, y, z] += Q12(
+                    P["ux"],
+                    P["x"],
+                    dx,
+                    x_mid,
+                    P["uy"],
+                    P["y"],
+                    dy,
+                    y_mid,
+                    w,
+                    distance,
+                    SigmaT,
+                )
         # TODO:
         # if mcdc["technique"]["iqmc_source_tilt"] >= 2
-            # linear xy component (Q12)
-            # linear xz component (Q12)
-            # linear yz component (Q12)
+        # linear xy component (Q12)
+        # linear xz component (Q12)
+        # linear yz component (Q12)
         # if mcdc["technique"]["iqmc_source_tilt"] >= 3
-            # linear xyz component (Q13)
+        # linear xyz component (Q13)
 
 
 @njit
@@ -3007,19 +2965,21 @@ def generate_iqmc_material_idx(mcdc):
 
 @njit
 def iqmc_reset_tallies(mcdc):
-        mcdc["technique"]["iqmc_source"] = np.zeros_like(
-            mcdc["technique"]["iqmc_source"]
-        )
-        mcdc["technique"]["iqmc_source_x"] = np.zeros_like(
-            mcdc["technique"]["iqmc_source_x"]
-        )
-        mcdc["technique"]["iqmc_source_y"] = np.zeros_like(
-            mcdc["technique"]["iqmc_source_y"]
-        )
-        mcdc["technique"]["iqmc_source_z"] = np.zeros_like(
-            mcdc["technique"]["iqmc_source_z"]
-        )
-        mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
+    mcdc["technique"]["iqmc_source_x"] = np.zeros_like(
+        mcdc["technique"]["iqmc_source_x"]
+    )
+    mcdc["technique"]["iqmc_source_y"] = np.zeros_like(
+        mcdc["technique"]["iqmc_source_y"]
+    )
+    mcdc["technique"]["iqmc_source_z"] = np.zeros_like(
+        mcdc["technique"]["iqmc_source_z"]
+    )
+    mcdc["technique"]["iqmc_source_xy"] = np.zeros_like(
+        mcdc["technique"]["iqmc_source_xy"]
+    )
+    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+
 
 @njit
 def iqmc_distribute_flux(mcdc):
@@ -3027,20 +2987,25 @@ def iqmc_distribute_flux(mcdc):
     sourceX_local = mcdc["technique"]["iqmc_source_x"].copy()
     sourceY_local = mcdc["technique"]["iqmc_source_y"].copy()
     sourceZ_local = mcdc["technique"]["iqmc_source_z"].copy()
+    sourceXY_local = mcdc["technique"]["iqmc_source_xy"].copy()
     # TODO: is there a way to do this without creating a new matrix ?
     flux_total = np.zeros_like(flux_local, np.float64)
     sourceX_total = np.zeros_like(sourceX_local, np.float64)
     sourceY_total = np.zeros_like(sourceY_local, np.float64)
     sourceZ_total = np.zeros_like(sourceZ_local, np.float64)
+    sourceXY_total = np.zeros_like(sourceXY_local, np.float64)
     with objmode():
         MPI.COMM_WORLD.Allreduce(flux_local, flux_total, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(sourceX_local, sourceX_total, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(sourceY_local, sourceY_total, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(sourceZ_local, sourceZ_total, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(sourceXY_local, sourceXY_total, op=MPI.SUM)
     mcdc["technique"]["iqmc_flux"] = flux_total.copy()
     mcdc["technique"]["iqmc_source_x"] = sourceX_total.copy()
     mcdc["technique"]["iqmc_source_y"] = sourceY_total.copy()
     mcdc["technique"]["iqmc_source_z"] = sourceZ_total.copy()
+    mcdc["technique"]["iqmc_source_xy"] = sourceXY_total.copy()
+
 
 @njit
 def lartg(f, g):
@@ -3110,6 +3075,116 @@ def Q11(mu, x, dx, x_mid, w, distance, SigmaT):
 
     return Q11
 
+
+@njit
+def Q12(ux, x, dx, x_mid, uy, y, dy, y_mid, w, distance, SigmaT):
+    # TODO: integral incase of SigmaT = 0
+    S = distance
+    exp = np.exp(SigmaT * S)
+    xdiff = x - x_mid
+    ydiff = y - y_mid
+    tmp = (1 / SigmaT**3) * np.exp(-SigmaT * S) * w
+    Q12 = tmp * (
+        xdiff * SigmaT * ((-1 + exp) * ydiff * SigmaT + uy * (-1 + exp - S * SigmaT))
+        + ux
+        * (
+            -(ydiff * SigmaT * (1 - exp + S * SigmaT))
+            + uy * (-2 + 2 * exp - S * SigmaT * (2 + S * SigmaT))
+        )
+    )
+
+    Q12 *= 144 / (x_mid**3 * y_mid**3)
+
+    return Q12
+
+
+@njit
+def prepare_qmc_tilt_source(mcdc):
+    """
+    Parameters
+    ----------
+    mcdc : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    mesh = mcdc["technique"]["iqmc_mesh"]
+    Nx = len(mesh["x"]) - 1
+    Ny = len(mesh["y"]) - 1
+    Nz = len(mesh["z"]) - 1
+    t = 0
+    source_x = mcdc["technique"]["iqmc_source_x"]
+    source_y = mcdc["technique"]["iqmc_source_y"]
+    source_z = mcdc["technique"]["iqmc_source_z"]
+    source_xy = mcdc["technique"]["iqmc_source_xy"]
+
+    # calculate source for every cell and group in the iqmc_mesh
+    for i in range(Nx):
+        for j in range(Ny):
+            for k in range(Nz):
+                mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
+                if Nx > 1:
+                    source_x[:, t, i, j, k] = scattering_source(
+                        source_x[:, t, i, j, k], mat_idx, mcdc
+                    ) + fission_source(source_x[:, t, i, j, k], mat_idx, mcdc)
+                if Ny > 1:
+                    source_y[:, t, i, j, k] = scattering_source(
+                        source_y[:, t, i, j, k], mat_idx, mcdc
+                    ) + fission_source(source_y[:, t, i, j, k], mat_idx, mcdc)
+                if Nz > 1:
+                    source_z[:, t, i, j, k] = scattering_source(
+                        source_z[:, t, i, j, k], mat_idx, mcdc
+                    ) + fission_source(source_z[:, t, i, j, k], mat_idx, mcdc)
+                if mcdc["technique"]["iqmc_source_tilt"] > 1:
+                    if Nx > 1 and Ny > 1:
+                        source_xy[:, t, i, j, k] = scattering_source(
+                            source_xy[:, t, i, j, k], mat_idx, mcdc
+                        ) + fission_source(source_xy[:, t, i, j, k], mat_idx, mcdc)
+
+
+@njit
+def iqmc_tilt_source(x, y, z, t, P, Q, mcdc):
+    mesh = mcdc["technique"]["iqmc_mesh"]
+    Nx = len(mesh["x"]) - 1
+    Ny = len(mesh["y"]) - 1
+    Nz = len(mesh["z"]) - 1
+    # linear x-component
+    if Nx > 1:
+        dx = mesh["x"][x + 1] - mesh["x"][x]
+        x_mid = mesh["x"][x] + (0.5 * dx)
+        Q[:, t, x, y, z] += mcdc["technique"]["iqmc_source_x"][:, t, x, y, z] * (
+            P["x"] - x_mid
+        )
+    # linear y-component
+    if Ny > 1:
+        dy = mesh["y"][y + 1] - mesh["y"][y]
+        y_mid = mesh["y"][y] + (0.5 * dy)
+        Q[:, t, x, y, z] += mcdc["technique"]["iqmc_source_y"][:, t, x, y, z] * (
+            P["y"] - y_mid
+        )
+    # linear z-component
+    if Nz > 1:
+        dz = mesh["z"][z + 1] - mesh["z"][z]
+        z_mid = mesh["z"][z] + (0.5 * dz)
+        Q[:, t, x, y, z] += mcdc["technique"]["iqmc_source_z"][:, t, x, y, z] * (
+            P["z"] - z_mid
+        )
+
+    if mcdc["technique"]["iqmc_source_tilt"] > 1:
+        if Nx > 1 and Ny > 1:
+            dx = mesh["x"][x + 1] - mesh["x"][x]
+            dy = mesh["y"][y + 1] - mesh["y"][y]
+            x_mid = mesh["x"][x] + (0.5 * dx)
+            y_mid = mesh["y"][y] + (0.5 * dy)
+
+            Q[:, t, x, y, z] += (
+                mcdc["technique"]["iqmc_source_xy"][:, t, x, y, z]
+                * (P["x"] - x_mid)
+                * (P["y"] - y_mid)
+            )
 
 
 # =============================================================================

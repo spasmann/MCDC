@@ -268,6 +268,10 @@ def prepare():
             "iqmc_source_x",
             "iqmc_source_y",
             "iqmc_source_z",
+            "iqmc_source_xy",
+            "iqmc_source_yz",
+            "iqmc_source_xz",
+            "iqmc_source_xyz",
             "wr_chance",
             "wr_threshold",
         ]:
