@@ -3006,6 +3006,22 @@ def generate_iqmc_material_idx(mcdc):
 
 
 @njit
+def iqmc_reset_tallies(mcdc):
+        mcdc["technique"]["iqmc_source"] = np.zeros_like(
+            mcdc["technique"]["iqmc_source"]
+        )
+        mcdc["technique"]["iqmc_source_x"] = np.zeros_like(
+            mcdc["technique"]["iqmc_source_x"]
+        )
+        mcdc["technique"]["iqmc_source_y"] = np.zeros_like(
+            mcdc["technique"]["iqmc_source_y"]
+        )
+        mcdc["technique"]["iqmc_source_z"] = np.zeros_like(
+            mcdc["technique"]["iqmc_source_z"]
+        )
+        mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+
+@njit
 def iqmc_distribute_flux(mcdc):
     flux_local = mcdc["technique"]["iqmc_flux"].copy()
     sourceX_local = mcdc["technique"]["iqmc_source_x"].copy()
@@ -3025,26 +3041,6 @@ def iqmc_distribute_flux(mcdc):
     mcdc["technique"]["iqmc_source_x"] = sourceX_total.copy()
     mcdc["technique"]["iqmc_source_y"] = sourceY_total.copy()
     mcdc["technique"]["iqmc_source_z"] = sourceZ_total.copy()
-
-
-# =============================================================================
-# iQMC Source Tilting
-# =============================================================================
-
-
-@njit
-def Q11(mu, x, dx, x_mid, w, distance, SigmaT):
-    if SigmaT.all() > 1e-12:
-        a = mu * (
-            w * (1 - (1 + distance * SigmaT) * np.exp(-SigmaT * distance)) / SigmaT**2
-        )
-        b = (x - x_mid) * (w * (1 - np.exp(-SigmaT * distance)) / SigmaT)
-        Q11 = 12 * (a + b) / dx**3
-    else:
-        Q11 = mu * w * distance ** (2) / 2 + w * (x - x_mid) * distance
-
-    return Q11
-
 
 @njit
 def lartg(f, g):
@@ -3097,6 +3093,26 @@ def modified_gram_schmidt(V, u):
 
 
 # =============================================================================
+# iQMC Source Tilting
+# =============================================================================
+
+
+@njit
+def Q11(mu, x, dx, x_mid, w, distance, SigmaT):
+    if SigmaT.all() > 1e-12:
+        a = mu * (
+            w * (1 - (1 + distance * SigmaT) * np.exp(-SigmaT * distance)) / SigmaT**2
+        )
+        b = (x - x_mid) * (w * (1 - np.exp(-SigmaT * distance)) / SigmaT)
+        Q11 = 12 * (a + b) / dx**3
+    else:
+        Q11 = mu * w * distance ** (2) / 2 + w * (x - x_mid) * distance
+
+    return Q11
+
+
+
+# =============================================================================
 # iQMC Iterative Mapping Functions
 # =============================================================================
 
@@ -3118,8 +3134,10 @@ def AxV(phi, b, mcdc):
 
     # QMC Sweep
     prepare_qmc_source(mcdc)
+    if mcdc["technique"]["iqmc_source_tilt"]:
+        prepare_qmc_tilt_source(mcdc)
     prepare_qmc_particles(mcdc)
-    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_flux(mcdc)
@@ -3149,8 +3167,10 @@ def RHS(mcdc):
 
     # QMC Sweep
     prepare_qmc_source(mcdc)
+    if mcdc["technique"]["iqmc_source_tilt"]:
+        prepare_qmc_tilt_source(mcdc)
     prepare_qmc_particles(mcdc)
-    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_flux(mcdc)

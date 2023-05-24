@@ -312,19 +312,7 @@ def source_iteration(mcdc):
         kernel.prepare_qmc_particles(mcdc)
         
         # zero out tallies
-        mcdc["technique"]["iqmc_source"] = np.zeros_like(
-            mcdc["technique"]["iqmc_source"]
-        )
-        mcdc["technique"]["iqmc_source_x"] = np.zeros_like(
-            mcdc["technique"]["iqmc_source_x"]
-        )
-        mcdc["technique"]["iqmc_source_y"] = np.zeros_like(
-            mcdc["technique"]["iqmc_source_y"]
-        )
-        mcdc["technique"]["iqmc_source_z"] = np.zeros_like(
-            mcdc["technique"]["iqmc_source_z"]
-        )
-        mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+        kernel.iqmc_reset_tallies(mcdc)
 
         # sweep particles
         loop_source(mcdc)
