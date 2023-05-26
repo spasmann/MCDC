@@ -299,6 +299,8 @@ def loop_iqmc(mcdc):
 @njit
 def source_iteration(mcdc):
     simulation_end = False
+    kernel.iqmc_consolidate_sources(mcdc)
+    total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
 
     while not simulation_end:
         # prepare source for next iteration
@@ -319,9 +321,10 @@ def source_iteration(mcdc):
         kernel.iqmc_distribute_flux(mcdc)
         mcdc["technique"]["iqmc_itt"] += 1
 
-        # calculate norm of flux iterations
+        # calculate norm of sources
+        kernel.iqmc_consolidate_sources(mcdc)
         mcdc["technique"]["iqmc_res"] = kernel.qmc_res(
-            mcdc["technique"]["iqmc_flux"], mcdc["technique"]["iqmc_flux_old"]
+            mcdc["technique"]["iqmc_total_source"], total_source_old
         )
 
         # iQMC convergence criteria
@@ -335,7 +338,8 @@ def source_iteration(mcdc):
             print_progress_iqmc(mcdc)
 
         # set flux_old = current flux
-        mcdc["technique"]["iqmc_flux_old"] = mcdc["technique"]["iqmc_flux"].copy()
+        # mcdc["technique"]["iqmc_flux_old"] = mcdc["technique"]["iqmc_flux"].copy()
+        total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
 
     kernel.prepare_qmc_source(mcdc)
     if mcdc["technique"]["iqmc_source_tilt"]:
@@ -361,8 +365,8 @@ def gmres(mcdc):
     max_iter = mcdc["technique"]["iqmc_maxitt"]
     R = mcdc["technique"]["iqmc_krylov_restart"]
     tol = mcdc["technique"]["iqmc_tol"]
-    vector_size = mcdc["technique"]["iqmc_flux"].size
-    X = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), vector_size)
+    kernel.iqmc_consolidate_sources(mcdc)
+    X = mcdc["technique"]["iqmc_total_source"].copy()
     # Defining dimension
     dimen = X.size
     # Set number of outer and inner iterations
@@ -490,6 +494,9 @@ def gmres(mcdc):
             print_progress_iqmc(mcdc)
 
     # end outer loop
+    kernel.prepare_qmc_source(mcdc)
+    if mcdc["technique"]["iqmc_source_tilt"]:
+        kernel.prepare_qmc_tilt_source(mcdc)
 
 
 @njit

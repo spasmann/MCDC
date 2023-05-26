@@ -549,23 +549,34 @@ def make_type_technique(card):
     yz = [(("iqmc_source_yz"), float64, (0, 0, 0, 0, 0))]
     xz = [(("iqmc_source_xz"), float64, (0, 0, 0, 0, 0))]
     xyz = [(("iqmc_source_xyz"), float64, (0, 0, 0, 0, 0))]
+    # also need to determine the total size of the source to be iterated,
+    # this is the original source matrix + all tilted sources
+    vector_size = Ng * Nt * Nx * Ny * Nz
+    total_size = vector_size
     if card.technique["iqmc_source_tilt"] > 0:
         if Nx > 1:
             x = [(("iqmc_source_x"), float64, (Ng, Nt, Nx, Ny, Nz))]
+            total_size += vector_size
         if Ny > 1:
             y = [(("iqmc_source_y"), float64, (Ng, Nt, Nx, Ny, Nz))]
+            total_size += vector_size
         if Nz > 1:
             z = [(("iqmc_source_z"), float64, (Ng, Nt, Nx, Ny, Nz))]
+            total_size += vector_size
         if card.technique["iqmc_source_tilt"] > 1:
             if Nx > 1 and Ny > 1:
                 xy = [(("iqmc_source_xy"), float64, (Ng, Nt, Nx, Ny, Nz))]
+                total_size += vector_size
             if Nx > 1 and Nz > 1:
                 xz = [(("iqmc_source_xz"), float64, (Ng, Nt, Nx, Ny, Nz))]
+                total_size += vector_size
             if Ny > 1 and Nz > 1:
                 yz = [(("iqmc_source_yz"), float64, (Ng, Nt, Nx, Ny, Nz))]
+                total_size += vector_size
             if card.technique["iqmc_source_tilt"] > 2:
                 if Nx > 1 and Ny > 1 and Nz > 1:
                     xyz = [(("iqmc_source_xyz"), float64, (Ng, Nt, Nx, Ny, Nz))]
+                    total_size += vector_size
     struct += x
     struct += y
     struct += z
@@ -573,6 +584,7 @@ def make_type_technique(card):
     struct += yz
     struct += xz
     struct += xyz
+    struct += [(("iqmc_total_source"), float64, (total_size,))]
 
     # Constants
     struct += [

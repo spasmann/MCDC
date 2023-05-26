@@ -3187,21 +3187,162 @@ def iqmc_tilt_source(x, y, z, t, P, Q, mcdc):
             )
 
 
+@njit
+def iqmc_distribute_sources(mcdc):
+    """
+    This function is meant to distribute iqmc_total_source to the relevant
+    invidual source contributions, e.x. source, source-x, source-y,
+    source-z, source-xy, etc. -> source_total
+
+    Parameters
+    ----------
+    mcdc : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    total_source = mcdc["technique"]["iqmc_total_source"].copy()
+    matrix_shape = mcdc["technique"]["iqmc_flux"].shape
+    vector_size = mcdc["technique"]["iqmc_flux"].size
+
+    mesh = mcdc["technique"]["iqmc_mesh"]
+    Nx = len(mesh["x"]) - 1
+    Ny = len(mesh["y"]) - 1
+    Nz = len(mesh["z"]) - 1
+    Vsize = 0
+
+    mcdc["technique"]["iqmc_flux"] = np.reshape(
+        total_source[Vsize:vector_size].copy(), matrix_shape
+    )
+    Vsize += vector_size
+
+    if mcdc["technique"]["iqmc_source_tilt"] > 0:
+        if Nx > 1:
+            mcdc["technique"]["iqmc_source_x"] = np.reshape(
+                total_source[Vsize : (Vsize + vector_size)], matrix_shape
+            )
+            Vsize += vector_size
+        if Ny > 1:
+            mcdc["technique"]["iqmc_source_y"] = np.reshape(
+                total_source[Vsize : (Vsize + vector_size)], matrix_shape
+            )
+            Vsize += vector_size
+        if Nz > 1:
+            mcdc["technique"]["iqmc_source_z"] = np.reshape(
+                total_source[Vsize : (Vsize + vector_size)], matrix_shape
+            )
+            Vsize += vector_size
+        if mcdc["technique"]["iqmc_source_tilt"] > 1:
+            if Nx > 1 and Ny > 1:
+                mcdc["technique"]["iqmc_source_xy"] = np.reshape(
+                    total_source[Vsize : (Vsize + vector_size)], matrix_shape
+                )
+                Vsize += vector_size
+            if Nx > 1 and Nz > 1:
+                mcdc["technique"]["iqmc_source_yz"] = np.reshape(
+                    total_source[Vsize : (Vsize + vector_size)], matrix_shape
+                )
+                Vsize += vector_size
+            if Ny > 1 and Nz > 1:
+                mcdc["technique"]["iqmc_source_xz"] = np.reshape(
+                    total_source[Vsize : (Vsize + vector_size)], matrix_shape
+                )
+                Vsize += vector_size
+            if mcdc["technique"]["iqmc_source_tilt"] > 2:
+                if Nx > 1 and Ny > 1 and Nz > 1:
+                    mcdc["technique"]["iqmc_source_xyz"] = np.reshape(
+                        total_source[Vsize : (Vsize + vector_size)], matrix_shape
+                    )
+                    Vsize += vector_size
+
+
+@njit
+def iqmc_consolidate_sources(mcdc):
+    """
+    This function is meant to collect the relevant invidual source
+    contributions, e.x. source, source-x, source-y, source-z, source-xy, etc.
+    and combine them into one vector (source_total)
+
+    Parameters
+    ----------
+    mcdc : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    total_source = mcdc["technique"]["iqmc_total_source"]
+    matrix_shape = mcdc["technique"]["iqmc_flux"].shape
+    vector_size = mcdc["technique"]["iqmc_flux"].size
+    mesh = mcdc["technique"]["iqmc_mesh"]
+    Nx = len(mesh["x"]) - 1
+    Ny = len(mesh["y"]) - 1
+    Nz = len(mesh["z"]) - 1
+    Vsize = 0
+
+    total_source[Vsize:vector_size] = np.reshape(
+        mcdc["technique"]["iqmc_flux"].copy(), vector_size
+    )
+    Vsize += vector_size
+
+    if mcdc["technique"]["iqmc_source_tilt"] > 0:
+        if Nx > 1:
+            total_source[Vsize : (Vsize + vector_size)] = np.reshape(
+                mcdc["technique"]["iqmc_source_x"], vector_size
+            )
+            Vsize += vector_size
+        if Ny > 1:
+            total_source[Vsize : (Vsize + vector_size)] = np.reshape(
+                mcdc["technique"]["iqmc_source_y"], vector_size
+            )
+            Vsize += vector_size
+        if Nz > 1:
+            total_source[Vsize : (Vsize + vector_size)] = np.reshape(
+                mcdc["technique"]["iqmc_source_z"], vector_size
+            )
+            Vsize += vector_size
+        if mcdc["technique"]["iqmc_source_tilt"] > 1:
+            if Nx > 1 and Ny > 1:
+                total_source[Vsize : (Vsize + vector_size)] = np.reshape(
+                    mcdc["technique"]["iqmc_source_xy"], vector_size
+                )
+                Vsize += vector_size
+            if Nx > 1 and Nz > 1:
+                total_source[Vsize : (Vsize + vector_size)] = np.reshape(
+                    mcdc["technique"]["iqmc_source_yz"], vector_size
+                )
+                Vsize += vector_size
+            if Ny > 1 and Nz > 1:
+                total_source[Vsize : (Vsize + vector_size)] = np.reshape(
+                    mcdc["technique"]["iqmc_source_xz"], vector_size
+                )
+                Vsize += vector_size
+            if mcdc["technique"]["iqmc_source_tilt"] > 2:
+                if Nx > 1 and Ny > 1 and Nz > 1:
+                    total_source[Vsize : (Vsize + vector_size)] = np.reshape(
+                        mcdc["technique"]["iqmc_source_xyz"], vector_size
+                    )
+                    Vsize += vector_size
+
+
 # =============================================================================
 # iQMC Iterative Mapping Functions
 # =============================================================================
 
 
 @njit
-def AxV(phi, b, mcdc):
+def AxV(V, b, mcdc):
     """
     Linear operator to be used with Scipy's Krylov Solvers.
     To use them, the scalar flux can be the only input.
     """
-    matrix_shape = mcdc["technique"]["iqmc_flux"].shape
-    vector_size = mcdc["technique"]["iqmc_flux"].size
-
-    mcdc["technique"]["iqmc_flux"] = np.reshape(phi, matrix_shape)
+    mcdc["technique"]["iqmc_total_source"] = V.copy()
+    iqmc_distribute_sources(mcdc)
 
     # reset bank size
     mcdc["bank_source"]["size"] = 0
@@ -3217,8 +3358,9 @@ def AxV(phi, b, mcdc):
     # sum resultant flux on all processors
     iqmc_distribute_flux(mcdc)
 
-    v_out = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (vector_size,))
-    axv = phi - (v_out - b)
+    iqmc_consolidate_sources(mcdc)
+    v_out = mcdc["technique"]["iqmc_total_source"].copy()
+    axv = V - (v_out - b)
 
     return axv
 
@@ -3250,7 +3392,8 @@ def RHS(mcdc):
     # sum resultant flux on all processors
     iqmc_distribute_flux(mcdc)
 
-    b = np.reshape(mcdc["technique"]["iqmc_flux"].copy(), (Nt,))
+    iqmc_consolidate_sources(mcdc)
+    b = mcdc["technique"]["iqmc_total_source"].copy()
 
     return b
 
