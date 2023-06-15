@@ -3077,24 +3077,16 @@ def Q11(mu, x, dx, x_mid, w, distance, SigmaT):
 
 
 @njit
-def Q12(ux, x, dx, x_mid, uy, y, dy, y_mid, w, distance, SigmaT):
+def Q12(ux, x, dx, x_mid, uy, y, dy, y_mid, w, S, SigmaT):
     # TODO: integral incase of SigmaT = 0
-    S = distance
-    exp = np.exp(SigmaT * S)
-    xdiff = x - x_mid
-    ydiff = y - y_mid
-    tmp = (1 / SigmaT**3) * np.exp(-SigmaT * S) * w
-    Q12 = tmp * (
-        xdiff * SigmaT * ((-1 + exp) * ydiff * SigmaT + uy * (-1 + exp - S * SigmaT))
-        + ux
-        * (
-            -(ydiff * SigmaT * (1 - exp + S * SigmaT))
-            + uy * (-2 + 2 * exp - S * SigmaT * (2 + S * SigmaT))
-        )
-    )
+    Q12 = ( (1/SigmaT**3)*w * ((x-x_mid)*SigmaT*(uy+(y-y_mid)*SigmaT) 
+             + ux*(2*uy + (y-y_mid)*SigmaT) + np.exp(-S*SigmaT)*(-2*ux*uy + 
+               ((-x+x_mid)*uy + ux*(-y+y_mid-2*S*uy))*SigmaT - (x-x_mid + S*ux)*(y-y_mid + S*uy)*SigmaT**2)) )
 
     Q12 *= 144 / (x_mid**3 * y_mid**3)
-
+    assert ~np.isnan(Q12).all()
+    assert ~np.isinf(Q12).all()
+    
     return Q12
 
 
