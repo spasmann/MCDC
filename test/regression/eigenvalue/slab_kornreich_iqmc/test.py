@@ -73,10 +73,6 @@ def pi_test():
     # =========================================================================
     # Check output
     # =========================================================================
-    if rank == 0:
-        output = h5py.File("output.h5", "r")
-        answer = h5py.File("answer.h5", "r")
-
     output = h5py.File("pi_output.h5", "r")
     answer = h5py.File("pi_answer.h5", "r")
 

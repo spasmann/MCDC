@@ -547,7 +547,7 @@ def make_type_technique(N_particle, G, card):
     struct += [("iqmc_flux_old", float64, (Ng, Nt, Nx, Ny, Nz))]
     # TODO: make outter flux size zero if not eigenmode
     struct += [("iqmc_flux_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
-    # if card.setting["mode_eigenvalue"]:
+    # if card["mode_eigenvalue"]:
     #     struct += [("iqmc_flux_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
     # else:
     #     struct += [("iqmc_flux_outter", float64, (0, 0, 0, 0, 0))]
@@ -567,7 +567,7 @@ def make_type_technique(N_particle, G, card):
     # this is the original source matrix + all tilted sources
     vector_size = Ng * Nt * Nx * Ny * Nz
     total_size = vector_size
-    if card.technique["iqmc_source_tilt"] > 0:
+    if card["iqmc_source_tilt"] > 0:
         if Nx > 1:
             x = [(("iqmc_source_x"), float64, (Ng, Nt, Nx, Ny, Nz))]
             total_size += vector_size
@@ -577,7 +577,7 @@ def make_type_technique(N_particle, G, card):
         if Nz > 1:
             z = [(("iqmc_source_z"), float64, (Ng, Nt, Nx, Ny, Nz))]
             total_size += vector_size
-        if card.technique["iqmc_source_tilt"] > 1:
+        if card["iqmc_source_tilt"] > 1:
             if Nx > 1 and Ny > 1:
                 xy = [(("iqmc_source_xy"), float64, (Ng, Nt, Nx, Ny, Nz))]
                 total_size += vector_size
@@ -587,7 +587,7 @@ def make_type_technique(N_particle, G, card):
             if Ny > 1 and Nz > 1:
                 yz = [(("iqmc_source_yz"), float64, (Ng, Nt, Nx, Ny, Nz))]
                 total_size += vector_size
-            if card.technique["iqmc_source_tilt"] > 2:
+            if card["iqmc_source_tilt"] > 2:
                 if Nx > 1 and Ny > 1 and Nz > 1:
                     xyz = [(("iqmc_source_xyz"), float64, (Ng, Nt, Nx, Ny, Nz))]
                     total_size += vector_size

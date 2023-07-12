@@ -314,6 +314,14 @@ def prepare():
                 "iqmc_lds",
                 "iqmc_generator",
                 "iqmc_sweep_counter",
+                "iqmc_source_x",
+                "iqmc_source_y",
+                "iqmc_source_z",
+                "iqmc_source_xy",
+                "iqmc_source_xz",
+                "iqmc_source_yz",
+                "iqmc_source_xyz",
+                "iqmc_total_source",
             ]:
                 mcdc["technique"][name] = input_card.technique[name]
 
