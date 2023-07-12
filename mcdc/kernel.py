@@ -2758,7 +2758,9 @@ def score_iqmc_flux(P, distance, mcdc):
             )
         if mcdc["technique"]["iqmc_source_tilt"] > 1:
             if Nx > 1 and Ny > 1:
-                mcdc["technique"]["iqmc_source_xy"][:, t, x, y, z] += iqmc_bilinear_tally(
+                mcdc["technique"]["iqmc_source_xy"][
+                    :, t, x, y, z
+                ] += iqmc_bilinear_tally(
                     P["ux"],
                     P["x"],
                     dx,
@@ -2773,7 +2775,9 @@ def score_iqmc_flux(P, distance, mcdc):
                     SigmaT,
                 )
             if Nx > 1 and Nz > 1:
-                mcdc["technique"]["iqmc_source_xz"][:, t, x, y, z] += iqmc_bilinear_tally(
+                mcdc["technique"]["iqmc_source_xz"][
+                    :, t, x, y, z
+                ] += iqmc_bilinear_tally(
                     P["ux"],
                     P["x"],
                     dx,
@@ -2788,7 +2792,9 @@ def score_iqmc_flux(P, distance, mcdc):
                     SigmaT,
                 )
             if Ny > 1 and Nz > 1:
-                mcdc["technique"]["iqmc_source_yz"][:, t, x, y, z] += iqmc_bilinear_tally(
+                mcdc["technique"]["iqmc_source_yz"][
+                    :, t, x, y, z
+                ] += iqmc_bilinear_tally(
                     P["uy"],
                     P["y"],
                     dy,
@@ -2803,7 +2809,9 @@ def score_iqmc_flux(P, distance, mcdc):
                     SigmaT,
                 )
             if mcdc["technique"]["iqmc_source_tilt"] > 2:
-                mcdc["technique"]["iqmc_source_xy"][:, t, x, y, z] += iqmc_trilinear_tally(
+                mcdc["technique"]["iqmc_source_xy"][
+                    :, t, x, y, z
+                ] += iqmc_trilinear_tally(
                     P["ux"],
                     P["x"],
                     dx,
@@ -3091,6 +3099,7 @@ def modified_gram_schmidt(V, u):
 # =============================================================================
 # TODO: Not all ST tallies have been built for case where SigmaT = 0.0
 
+
 @njit
 def iqmc_linear_tally(mu, x, dx, x_mid, dy, dz, w, distance, SigmaT):
     if SigmaT.all() > 1e-12:
@@ -3103,27 +3112,82 @@ def iqmc_linear_tally(mu, x, dx, x_mid, dy, dz, w, distance, SigmaT):
         Q = mu * w * distance ** (2) / 2 + w * (x - x_mid) * distance
     return Q
 
+
 @njit
 def iqmc_bilinear_tally(ux, x, dx, x_mid, uy, y, dy, y_mid, dz, w, S, SigmaT):
     # TODO: integral incase of SigmaT = 0
-    Q = ( (1/SigmaT**3)*w * ((x-x_mid)*SigmaT*(uy+(y-y_mid)*SigmaT) 
-             + ux*(2*uy + (y-y_mid)*SigmaT) + np.exp(-S*SigmaT)*(-2*ux*uy + 
-               ((-x+x_mid)*uy + ux*(-y+y_mid-2*S*uy))*SigmaT - (x-x_mid + S*ux)*(y-y_mid + S*uy)*SigmaT**2)) )
+    Q = (
+        (1 / SigmaT**3)
+        * w
+        * (
+            (x - x_mid) * SigmaT * (uy + (y - y_mid) * SigmaT)
+            + ux * (2 * uy + (y - y_mid) * SigmaT)
+            + np.exp(-S * SigmaT)
+            * (
+                -2 * ux * uy
+                + ((-x + x_mid) * uy + ux * (-y + y_mid - 2 * S * uy)) * SigmaT
+                - (x - x_mid + S * ux) * (y - y_mid + S * uy) * SigmaT**2
+            )
+        )
+    )
 
     Q *= 144 / (dx**3 * dy**3 * dz)
     return Q
 
+
 @njit
-def iqmc_trilinear_tally(ux, x, dx, x_mid, uy, y, dy, y_mid, uz, z, dz, z_mid, w, S, SigmaT):
+def iqmc_trilinear_tally(
+    ux, x, dx, x_mid, uy, y, dy, y_mid, uz, z, dz, z_mid, w, S, SigmaT
+):
     # TODO: precompute some variables like (x-x_mid) and SigmaT*S
-    Q = (1/SigmaT**4)*w*((x-x_mid)*SigmaT*((y-y_mid)*SigmaT*(uz+(z-z_mid)*SigmaT)
-        + uy*(2*uz+(z-z_mid)*SigmaT))+ux*((y-y_mid)*SigmaT*(2*uz+(z-z_mid)*SigmaT)
-        + 2*uy*(3*uz+(z-z_mid)*SigmaT)) + np.exp(-SigmaT*S)*(-((x-x_mid)*SigmaT*((y-y_mid)*SigmaT*((z-z_mid)*SigmaT+uz*(1+S*SigmaT))
-        + uy*((z-z_mid)*SigmaT*(1+SigmaT*S)+uz*(2+SigmaT*S*(2+SigmaT*S))))) 
-        - ux*((y-y_mid)*SigmaT*((z-z_mid)*SigmaT*(1+SigmaT*S)+uz*(2+SigmaT*S*(2+SigmaT*S)))
-        + uy*((z-z_mid)*SigmaT*(2+SigmaT*S))+uz*(6+SigmaT*S*(6+SigmaT*S*(3+SigmaT*S))))))
+    Q = (
+        (1 / SigmaT**4)
+        * w
+        * (
+            (x - x_mid)
+            * SigmaT
+            * (
+                (y - y_mid) * SigmaT * (uz + (z - z_mid) * SigmaT)
+                + uy * (2 * uz + (z - z_mid) * SigmaT)
+            )
+            + ux
+            * (
+                (y - y_mid) * SigmaT * (2 * uz + (z - z_mid) * SigmaT)
+                + 2 * uy * (3 * uz + (z - z_mid) * SigmaT)
+            )
+            + np.exp(-SigmaT * S)
+            * (
+                -(
+                    (x - x_mid)
+                    * SigmaT
+                    * (
+                        (y - y_mid)
+                        * SigmaT
+                        * ((z - z_mid) * SigmaT + uz * (1 + S * SigmaT))
+                        + uy
+                        * (
+                            (z - z_mid) * SigmaT * (1 + SigmaT * S)
+                            + uz * (2 + SigmaT * S * (2 + SigmaT * S))
+                        )
+                    )
+                )
+                - ux
+                * (
+                    (y - y_mid)
+                    * SigmaT
+                    * (
+                        (z - z_mid) * SigmaT * (1 + SigmaT * S)
+                        + uz * (2 + SigmaT * S * (2 + SigmaT * S))
+                    )
+                    + uy * ((z - z_mid) * SigmaT * (2 + SigmaT * S))
+                    + uz * (6 + SigmaT * S * (6 + SigmaT * S * (3 + SigmaT * S)))
+                )
+            )
+        )
+    )
     Q *= 1278 / (dx**3 * dy**3 * dz**3)
     return Q
+
 
 @njit
 def prepare_qmc_tilt_source(mcdc):
@@ -3185,7 +3249,6 @@ def prepare_qmc_tilt_source(mcdc):
                         source_xyz[:, t, i, j, k] = scattering_source(
                             source_xyz[:, t, i, j, k], mat_idx, mcdc
                         ) + fission_source(source_xyz[:, t, i, j, k], mat_idx, mcdc)
-                    
 
 
 @njit
@@ -3242,6 +3305,8 @@ def iqmc_tilt_source(x, y, z, t, P, Q, mcdc):
                 * (P["y"] - y_mid)
                 * (P["z"] - z_mid)
             )
+
+
 @njit
 def iqmc_distribute_sources(mcdc):
     """

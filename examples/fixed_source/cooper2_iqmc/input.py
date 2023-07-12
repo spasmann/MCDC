@@ -58,7 +58,7 @@ mcdc.iQMC(
     tol=tol,
     generator=generator,
     source_tilt=tilt,
-    fixed_source_solver=solver
+    fixed_source_solver=solver,
 )
 
 # =============================================================================
