@@ -290,21 +290,18 @@ def loop_iqmc(mcdc):
 @njit
 def source_iteration(mcdc):
     simulation_end = False
-        # set bank source
+    # set bank source
     if not mcdc["setting"]["mode_eigenvalue"]:
         kernel.prepare_qmc_source(mcdc)
         if mcdc["technique"]["iqmc_source_tilt"]:
             kernel.prepare_qmc_tilt_source(mcdc)
+
     kernel.iqmc_consolidate_sources(mcdc)
     total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
 
     while not simulation_end:
-        # prepare source for next iteration
-        # kernel.prepare_qmc_source(mcdc)
-
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
-
         # update source
         kernel.iqmc_update_source(mcdc)
         # initialize particles with LDS

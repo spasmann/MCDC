@@ -322,6 +322,11 @@ def prepare():
                 "iqmc_source_yz",
                 "iqmc_source_xyz",
                 "iqmc_total_source",
+                "iqmc_effective_scattering",
+                "iqmc_effective_fission",
+                "iqmc_effective_fission_outter",
+                "iqmc_nuSigmaF",
+                "iqmc_nuSigmaF_outter",
             ]:
                 mcdc["technique"][name] = input_card.technique[name]
 

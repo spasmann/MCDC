@@ -601,10 +601,8 @@ def make_type_technique(N_particle, G, card):
     struct += [(("iqmc_total_source"), float64, (total_size,))]
     struct += [("iqmc_effective_scattering", float64, (Ng, Nt, Nx, Ny, Nz))]
     struct += [("iqmc_effective_fission", float64, (Ng, Nt, Nx, Ny, Nz))]
-    # TODO: make outter flux size zero if not eigenmode
-    struct += [("iqmc_flux_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
+    # TODO: make outter size zero if not eigenmode
     struct += [("iqmc_effective_fission_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
-
     struct += [("iqmc_nuSigmaF", float64, (Ng, Nt, Nx, Ny, Nz))]
     struct += [("iqmc_nuSigmaF_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
 

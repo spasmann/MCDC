@@ -2727,7 +2727,7 @@ def score_iqmc_flux(P, distance, mcdc):
     else:
         flux = distance * w / dV
     mcdc["technique"]["iqmc_flux"][:, t, x, y, z] += flux
-    
+
     # effective source tallies
     mcdc["technique"]["iqmc_effective_scattering"][:, t, x, y, z] += scattering_source(
         flux, mat_id, mcdc
@@ -3015,10 +3015,20 @@ def iqmc_reset_tallies(mcdc):
         mcdc["technique"]["iqmc_source_xyz"]
     )
     mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    mcdc["technique"]["iqmc_effective_scattering"] = np.zeros_like(
+        mcdc["technique"]["iqmc_effective_scattering"]
+    )
+    mcdc["technique"]["iqmc_effective_fission"] = np.zeros_like(
+        mcdc["technique"]["iqmc_effective_fission"]
+    )
+    mcdc["technique"]["iqmc_nuSigmaF"] = np.zeros_like(
+        mcdc["technique"]["iqmc_nuSigmaF"]
+    )
 
 
 @njit
-def iqmc_distribute_flux(mcdc):
+def iqmc_distribute_tallies(mcdc):
+    # TODO: is there a way to do this without creating a new matrix ?
     flux_local = mcdc["technique"]["iqmc_flux"].copy()
     sourceX_local = mcdc["technique"]["iqmc_source_x"].copy()
     sourceY_local = mcdc["technique"]["iqmc_source_y"].copy()
@@ -3027,7 +3037,9 @@ def iqmc_distribute_flux(mcdc):
     sourceXZ_local = mcdc["technique"]["iqmc_source_xz"].copy()
     sourceYZ_local = mcdc["technique"]["iqmc_source_yz"].copy()
     sourceXYZ_local = mcdc["technique"]["iqmc_source_xyz"].copy()
-    # TODO: is there a way to do this without creating a new matrix ?
+    scatter_local = mcdc["technique"]["iqmc_effective_scattering"].copy()
+    fission_local = mcdc["technique"]["iqmc_effective_fission"].copy()
+    nuSigmaF_local = mcdc["technique"]["iqmc_nuSigmaF"].copy()
     flux_total = np.zeros_like(flux_local, np.float64)
     sourceX_total = np.zeros_like(sourceX_local, np.float64)
     sourceY_total = np.zeros_like(sourceY_local, np.float64)
@@ -3036,6 +3048,9 @@ def iqmc_distribute_flux(mcdc):
     sourceXZ_total = np.zeros_like(sourceXZ_local, np.float64)
     sourceYZ_total = np.zeros_like(sourceYZ_local, np.float64)
     sourceXYZ_total = np.zeros_like(sourceXYZ_local, np.float64)
+    scatter_total = np.zeros_like(scatter_local, np.float64)
+    fission_total = np.zeros_like(fission_local, np.float64)
+    nuSigmaF_total = np.zeros_like(nuSigmaF_local, np.float64)
     with objmode():
         MPI.COMM_WORLD.Allreduce(flux_local, flux_total, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(sourceX_local, sourceX_total, op=MPI.SUM)
@@ -3045,6 +3060,9 @@ def iqmc_distribute_flux(mcdc):
         MPI.COMM_WORLD.Allreduce(sourceXZ_local, sourceXZ_total, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(sourceYZ_local, sourceYZ_total, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(sourceXYZ_local, sourceXYZ_total, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(scatter_local, scatter_total, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(fission_local, fission_total, op=MPI.SUM)
+        MPI.COMM_WORLD.Allreduce(nuSigmaF_local, nuSigmaF_total, op=MPI.SUM)
     mcdc["technique"]["iqmc_flux"] = flux_total.copy()
     mcdc["technique"]["iqmc_source_x"] = sourceX_total.copy()
     mcdc["technique"]["iqmc_source_y"] = sourceY_total.copy()
@@ -3053,6 +3071,9 @@ def iqmc_distribute_flux(mcdc):
     mcdc["technique"]["iqmc_source_xz"] = sourceXZ_total.copy()
     mcdc["technique"]["iqmc_source_yz"] = sourceYZ_total.copy()
     mcdc["technique"]["iqmc_source_xyz"] = sourceXYZ_total.copy()
+    mcdc["technique"]["iqmc_effective_scattering"] = scatter_total.copy()
+    mcdc["technique"]["iqmc_effective_fission"] = fission_total.copy()
+    mcdc["technique"]["iqmc_nuSigmaF"] = nuSigmaF_total.copy()
 
 
 @njit
@@ -3103,44 +3124,6 @@ def modified_gram_schmidt(V, u):
     #     except:
     #         print(temp)
     return V
-
-
-@njit
-def iqmc_distribute_tallies(mcdc):
-    # TODO: is there a way to do this without creating a new matrix ?
-    flux_local = mcdc["technique"]["iqmc_flux"].copy()
-    scatter_local = mcdc["technique"]["iqmc_effective_scattering"].copy()
-    fission_local = mcdc["technique"]["iqmc_effective_fission"].copy()
-    nuSigmaF_local = mcdc["technique"]["iqmc_nuSigmaF"].copy()
-    flux_total = np.zeros_like(flux_local)
-    scatter_total = np.zeros_like(scatter_local)
-    fission_total = np.zeros_like(fission_local)
-    nuSigmaF_total = np.zeros_like(nuSigmaF_local)
-    with objmode():
-        MPI.COMM_WORLD.Allreduce(flux_local, flux_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(scatter_local, scatter_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(fission_local, fission_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(nuSigmaF_local, nuSigmaF_total, op=MPI.SUM)
-    mcdc["technique"]["iqmc_flux"] = flux_total
-    mcdc["technique"]["iqmc_effective_scattering"] = scatter_total
-    mcdc["technique"]["iqmc_effective_fission"] = fission_total
-    mcdc["technique"]["iqmc_nuSigmaF"] = nuSigmaF_total
-
-
-@njit
-def iqmc_reset_tallies(mcdc):
-    # zero flux for next iteration
-    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
-    # zero source for next iteration
-    mcdc["technique"]["iqmc_effective_scattering"] = np.zeros_like(
-        mcdc["technique"]["iqmc_effective_scattering"]
-    )
-    mcdc["technique"]["iqmc_effective_fission"] = np.zeros_like(
-        mcdc["technique"]["iqmc_effective_fission"]
-    )
-    mcdc["technique"]["iqmc_nuSigmaF"] = np.zeros_like(
-        mcdc["technique"]["iqmc_nuSigmaF"]
-    )
 
 
 @njit
@@ -3537,7 +3520,7 @@ def AxV(V, b, mcdc):
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
     # sum resultant flux on all processors
-    iqmc_distribute_flux(mcdc)
+    iqmc_distribute_tallies(mcdc)
 
     iqmc_consolidate_sources(mcdc)
     v_out = mcdc["technique"]["iqmc_total_source"].copy()
@@ -3568,7 +3551,7 @@ def RHS(mcdc):
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
     # sum resultant flux on all processors
-    iqmc_distribute_flux(mcdc)
+    iqmc_distribute_tallies(mcdc)
 
     iqmc_consolidate_sources(mcdc)
     b = mcdc["technique"]["iqmc_total_source"].copy()
