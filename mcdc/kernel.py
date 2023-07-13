@@ -3506,22 +3506,20 @@ def AxV(V, b, mcdc):
     To use them, the scalar flux can be the only input.
     """
     mcdc["technique"]["iqmc_total_source"] = V.copy()
+    # distribute segments of V to appropriate sources
     iqmc_distribute_sources(mcdc)
-
     # reset bank size
     mcdc["bank_source"]["size"] = 0
-    mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
-
+    # combine effective scattering + fission
+    iqmc_update_source(mcdc)
     # QMC Sweep
-    prepare_qmc_source(mcdc)
-    if mcdc["technique"]["iqmc_source_tilt"]:
-        prepare_qmc_tilt_source(mcdc)
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_tallies(mcdc)
-
+    iqmc_update_source(mcdc)
+    # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
     v_out = mcdc["technique"]["iqmc_total_source"].copy()
     axv = V - (v_out - b)
@@ -3541,18 +3539,16 @@ def RHS(mcdc):
 
     # reset bank size
     mcdc["bank_source"]["size"] = 0
-    mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
-
+    # combine effective scattering + fission
+    iqmc_update_source(mcdc)
     # QMC Sweep
-    prepare_qmc_source(mcdc)
-    if mcdc["technique"]["iqmc_source_tilt"]:
-        prepare_qmc_tilt_source(mcdc)
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_tallies(mcdc)
-
+    iqmc_update_source(mcdc)
+    # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
     b = mcdc["technique"]["iqmc_total_source"].copy()
 

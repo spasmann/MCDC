@@ -330,8 +330,7 @@ def source_iteration(mcdc):
         if not mcdc["setting"]["mode_eigenvalue"]:
             print_progress_iqmc(mcdc)
 
-        # set flux_old = current flux
-        # mcdc["technique"]["iqmc_flux_old"] = mcdc["technique"]["iqmc_flux"].copy()
+        # set  source_old = current source
         total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
 
     kernel.prepare_qmc_source(mcdc)
@@ -358,6 +357,7 @@ def gmres(mcdc):
     max_iter = mcdc["technique"]["iqmc_maxitt"]
     R = mcdc["technique"]["iqmc_krylov_restart"]
     tol = mcdc["technique"]["iqmc_tol"]
+    
     if not mcdc["setting"]["mode_eigenvalue"]:
         kernel.prepare_qmc_source(mcdc)
         if mcdc["technique"]["iqmc_source_tilt"]:
