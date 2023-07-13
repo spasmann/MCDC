@@ -290,26 +290,31 @@ def loop_iqmc(mcdc):
 @njit
 def source_iteration(mcdc):
     simulation_end = False
+        # set bank source
+    if not mcdc["setting"]["mode_eigenvalue"]:
+        kernel.prepare_qmc_source(mcdc)
+        if mcdc["technique"]["iqmc_source_tilt"]:
+            kernel.prepare_qmc_tilt_source(mcdc)
     kernel.iqmc_consolidate_sources(mcdc)
     total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
 
     while not simulation_end:
         # prepare source for next iteration
-        kernel.prepare_qmc_source(mcdc)
-        if mcdc["technique"]["iqmc_source_tilt"]:
-            kernel.prepare_qmc_tilt_source(mcdc)
+        # kernel.prepare_qmc_source(mcdc)
+
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
+
+        # update source
+        kernel.iqmc_update_source(mcdc)
         # initialize particles with LDS
         kernel.prepare_qmc_particles(mcdc)
-
-        # zero out tallies
+        # reset tallies for next loop
         kernel.iqmc_reset_tallies(mcdc)
-
         # sweep particles
         loop_source(mcdc)
-        # sum resultant flux on all processors
-        kernel.iqmc_distribute_flux(mcdc)
+        # sum resultant tallies on all processors
+        kernel.iqmc_distribute_tallies(mcdc)
         mcdc["technique"]["iqmc_itt"] += 1
 
         # calculate norm of sources
@@ -502,6 +507,9 @@ def power_iteration(mcdc):
     k_old = mcdc["k_eff"]
     solver = mcdc["technique"]["iqmc_fixed_source_solver"]
 
+    kernel.prepare_qmc_source(mcdc)
+    kernel.prepare_nuSigmaF(mcdc)
+
     while not simulation_end:
         # iterate over scattering source
         if solver == "source_iteration":
@@ -512,17 +520,22 @@ def power_iteration(mcdc):
         mcdc["technique"]["iqmc_itt"] = 0
 
         # update k_eff
-        kernel.UpdateK(
-            mcdc["k_eff"],
-            mcdc["technique"]["iqmc_flux_outter"],
-            mcdc["technique"]["iqmc_flux"],
-            mcdc,
+        mcdc["k_eff"] *= (
+            mcdc["technique"]["iqmc_nuSigmaF"].sum()
+            / mcdc["technique"]["iqmc_nuSigmaF_outter"].sum()
         )
 
-        # calculate diff in flux
+        # calculate diff in keff
         mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
         k_old = mcdc["k_eff"]
+        # store outter iteration values
         mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
+        mcdc["technique"]["iqmc_effective_fission_outter"] = mcdc["technique"][
+            "iqmc_effective_fission"
+        ].copy()
+        mcdc["technique"]["iqmc_nuSigmaF_outter"] = mcdc["technique"][
+            "iqmc_nuSigmaF"
+        ].copy()
         mcdc["technique"]["iqmc_itt_outter"] += 1
 
         if mcdc["setting"]["progress_bar"]:
@@ -551,6 +564,8 @@ def davidson(mcdc):
 
     """
     # TODO: handle imaginary eigenvalues
+    # TODO: add fixed source solve at the end to give better approximation
+    #       of the scalar flux
 
     # Davidson parameters
     simulation_end = False
@@ -573,6 +588,7 @@ def davidson(mcdc):
     mcdc["setting"]["progress_bar"] = True
     mcdc["technique"]["iqmc_maxitt"] = maxit
     mcdc["technique"]["iqmc_itt_outter"] = 0
+    kernel.prepare_qmc_source(mcdc)
 
     # resulting guess
     phi0 = mcdc["technique"]["iqmc_flux"].copy()
@@ -580,7 +596,7 @@ def davidson(mcdc):
     phi0 = np.reshape(phi0, (Nt,))
 
     # Krylov subspace matrices
-    # we allocate memory then use slice indexing in loop
+    # allocate memory then use slice indexing in loop
     V = np.zeros((Nt, maxit), dtype=np.float64)
     HV = np.zeros((Nt, maxit), dtype=np.float64)
     FV = np.zeros((Nt, maxit), dtype=np.float64)
