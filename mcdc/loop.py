@@ -567,7 +567,7 @@ def davidson(mcdc):
     """
     # TODO: handle imaginary eigenvalues
     # TODO: add fixed source solve at the end to give better approximation
-    #       of the scalar flux
+    #       of the scalar flux ?
 
     # Davidson parameters
     simulation_end = False

@@ -362,7 +362,7 @@ def gmres_st_test():
 
 
 if __name__ == "__main__":
-    # si_test()
-    # gmres_test()
-    si_st_test()
-    gmres_st_test()
+    si_test()
+    gmres_test()
+    # si_st_test()
+    # gmres_st_test()

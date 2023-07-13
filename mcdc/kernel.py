@@ -2735,6 +2735,7 @@ def score_iqmc_flux(P, distance, mcdc):
     mcdc["technique"]["iqmc_effective_fission"][:, t, x, y, z] += fission_source(
         flux, mat_id, mcdc
     )
+    # TODO: only tally if PI
     mcdc["technique"]["iqmc_nuSigmaF"][:, t, x, y, z] += nu_f * SigmaF * flux
 
     # source tilt tallies
