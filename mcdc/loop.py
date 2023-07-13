@@ -358,6 +358,11 @@ def gmres(mcdc):
     max_iter = mcdc["technique"]["iqmc_maxitt"]
     R = mcdc["technique"]["iqmc_krylov_restart"]
     tol = mcdc["technique"]["iqmc_tol"]
+    if not mcdc["setting"]["mode_eigenvalue"]:
+        kernel.prepare_qmc_source(mcdc)
+        if mcdc["technique"]["iqmc_source_tilt"]:
+            kernel.prepare_qmc_tilt_source(mcdc)
+            
     kernel.iqmc_consolidate_sources(mcdc)
     X = mcdc["technique"]["iqmc_total_source"].copy()
     # Defining dimension
