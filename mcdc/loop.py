@@ -364,9 +364,9 @@ def gmres(mcdc):
     
     kernel.iqmc_consolidate_sources(mcdc)
     X = mcdc["technique"]["iqmc_total_source"].copy()
-    print('Source = ', mcdc["technique"]["iqmc_source"])
+    print('1. Source = ', mcdc["technique"]["iqmc_source"])
     r = b - kernel.AxV(X, b, mcdc)
-    print('Source = ', mcdc["technique"]["iqmc_source"])
+    print('3. Source = ', mcdc["technique"]["iqmc_source"])
     normr = np.linalg.norm(r)
     
     # Defining dimension

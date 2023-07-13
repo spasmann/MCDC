@@ -3514,7 +3514,7 @@ def AxV(V, b, mcdc):
     # combine effective scattering + fission
     iqmc_update_source(mcdc)
     # QMC Sweep
-    print('Source = ', mcdc["technique"]["iqmc_source"])
+    print('2. Source = ', mcdc["technique"]["iqmc_source"])
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
