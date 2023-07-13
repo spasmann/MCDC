@@ -76,13 +76,6 @@ def si_test():
     # =========================================================================
     # Check output
     # =========================================================================
-    if rank == 0:
-        output = h5py.File("output.h5", "r")
-        answer = h5py.File("answer.h5", "r")
-        a = answer["tally/iqmc_flux"][:]
-        b = output["iqmc/flux"][:]
-        output.close()
-        answer.close()
 
     output = h5py.File("si_output.h5", "r")
     answer = h5py.File("si_answer.h5", "r")

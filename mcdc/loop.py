@@ -303,7 +303,7 @@ def source_iteration(mcdc):
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
         # update source
-        kernel.iqmc_update_source(mcdc)
+        # kernel.iqmc_update_source(mcdc)
         # initialize particles with LDS
         kernel.prepare_qmc_particles(mcdc)
         # reset tallies for next loop
@@ -313,7 +313,6 @@ def source_iteration(mcdc):
         # sum resultant tallies on all processors
         kernel.iqmc_distribute_tallies(mcdc)
         mcdc["technique"]["iqmc_itt"] += 1
-
         # calculate norm of sources
         kernel.iqmc_consolidate_sources(mcdc)
         mcdc["technique"]["iqmc_res"] = kernel.qmc_res(

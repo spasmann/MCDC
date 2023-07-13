@@ -2543,6 +2543,8 @@ def prepare_qmc_particles(mcdc):
     QMC Low-Discrepency Sequence. Particles are added to the bank_source.
 
     """
+    # update source from effective tallies 
+    iqmc_update_source(mcdc)
     # determine which portion of particles to loop through
     N_particle = mcdc["setting"]["N_particle"]
     N_work = mcdc["mpi_work_size"]
@@ -2566,7 +2568,7 @@ def prepare_qmc_particles(mcdc):
     yb = mesh["y"][-1]
     za = mesh["z"][0]
     zb = mesh["z"][-1]
-
+    
     for n in range(start, stop):
         # Create new particle
         P_new = np.zeros(1, dtype=type_.particle_record)[0]
@@ -3512,14 +3514,13 @@ def AxV(V, b, mcdc):
     # reset bank size
     mcdc["bank_source"]["size"] = 0
     # combine effective scattering + fission
-    iqmc_update_source(mcdc)
+    # iqmc_update_source(mcdc)
     # QMC Sweep
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_tallies(mcdc)
-    iqmc_update_source(mcdc)
     # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
     v_out = mcdc["technique"]["iqmc_total_source"].copy()
@@ -3541,14 +3542,13 @@ def RHS(mcdc):
     # reset bank size
     mcdc["bank_source"]["size"] = 0
     # combine effective scattering + fission
-    iqmc_update_source(mcdc)
+    # iqmc_update_source(mcdc)
     # QMC Sweep
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_tallies(mcdc)
-    iqmc_update_source(mcdc)
     # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
     b = mcdc["technique"]["iqmc_total_source"].copy()
