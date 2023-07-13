@@ -43,6 +43,8 @@ maxit = 100
 tol = 1e-4
 x = np.linspace(-8, 8, num=Nx + 1)
 generator = "halton"
+solver = "source_iteration"
+tilt = 0
 
 
 def reeds_source(Nx, LB=-8.0, RB=8.0):
@@ -84,7 +86,8 @@ mcdc.iQMC(
     maxitt=maxit,
     tol=tol,
     generator=generator,
-    source_tilt=1,
+    fixed_source_solver=solver,
+    source_tilt=tilt,
 )
 
 # =============================================================================
