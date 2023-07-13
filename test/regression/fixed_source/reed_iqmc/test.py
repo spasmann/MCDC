@@ -167,5 +167,5 @@ def gmres_test():
 
 
 if __name__ == "__main__":
-    si_test()
+    # si_test()
     gmres_test()

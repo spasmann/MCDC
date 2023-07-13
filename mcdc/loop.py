@@ -353,14 +353,22 @@ def gmres(mcdc):
     max_iter = mcdc["technique"]["iqmc_maxitt"]
     R = mcdc["technique"]["iqmc_krylov_restart"]
     tol = mcdc["technique"]["iqmc_tol"]
-    
+
+    # initial residual
+    b = kernel.RHS(mcdc)
+    print('b = ', b)
     if not mcdc["setting"]["mode_eigenvalue"]:
         kernel.prepare_qmc_source(mcdc)
         if mcdc["technique"]["iqmc_source_tilt"]:
             kernel.prepare_qmc_tilt_source(mcdc)
-            
+    
     kernel.iqmc_consolidate_sources(mcdc)
     X = mcdc["technique"]["iqmc_total_source"].copy()
+    print('Source = ', mcdc["technique"]["iqmc_source"])
+    r = b - kernel.AxV(X, b, mcdc)
+    print('Source = ', mcdc["technique"]["iqmc_source"])
+    normr = np.linalg.norm(r)
+    
     # Defining dimension
     dimen = X.size
     # Set number of outer and inner iterations
@@ -375,11 +383,6 @@ def gmres(mcdc):
     # In the inner loop there is a if statement to break in case max_iter is
     # reached.
     max_outer = int(np.ceil(max_iter / max_inner))
-
-    # initial residual
-    b = kernel.RHS(mcdc)
-    r = b - kernel.AxV(X, b, mcdc)
-    normr = np.linalg.norm(r)
 
     # Check initial guess ( scaling by b, if b != 0, must account for
     # case when norm(b) is very small)

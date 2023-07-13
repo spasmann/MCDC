@@ -3514,6 +3514,7 @@ def AxV(V, b, mcdc):
     # combine effective scattering + fission
     iqmc_update_source(mcdc)
     # QMC Sweep
+    print('Source = ', mcdc["technique"]["iqmc_source"])
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
@@ -3540,7 +3541,8 @@ def RHS(mcdc):
     # reset bank size
     mcdc["bank_source"]["size"] = 0
     # combine effective scattering + fission
-    iqmc_update_source(mcdc)
+    # iqmc_update_source(mcdc)
+    mcdc["technique"]["iqmc_source"] = mcdc["technique"]["iqmc_fixed_source"].copy()
     # QMC Sweep
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
