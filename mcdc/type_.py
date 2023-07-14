@@ -566,7 +566,9 @@ def make_type_technique(N_particle, G, card):
     # also need to determine the total size of the source to be iterated,
     # this is the original source matrix + all tilted sources
     vector_size = Ng * Nt * Nx * Ny * Nz
-    total_size = vector_size
+    # total array size >= 2 * vector size b/c
+    #  effective scattering + fission arrays + any source tilting arrays
+    total_size = 2 * vector_size
     if card["iqmc_source_tilt"] > 0:
         if Nx > 1:
             x = [(("iqmc_source_x"), float64, (Ng, Nt, Nx, Ny, Nz))]

@@ -3370,20 +3370,25 @@ def iqmc_distribute_sources(mcdc):
 
     """
     total_source = mcdc["technique"]["iqmc_total_source"].copy()
-    matrix_shape = mcdc["technique"]["iqmc_flux"].shape
-    vector_size = mcdc["technique"]["iqmc_flux"].size
+    matrix_shape = mcdc["technique"]["iqmc_effective_scattering"].shape
+    vector_size = mcdc["technique"]["iqmc_effective_scattering"].size
 
     mesh = mcdc["technique"]["iqmc_mesh"]
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
     Nz = len(mesh["z"]) - 1
     Vsize = 0
-
-    mcdc["technique"]["iqmc_flux"] = np.reshape(
-        total_source[Vsize:vector_size].copy(), matrix_shape
+    # effective scattering
+    mcdc["technique"]["iqmc_effective_scattering"] = np.reshape(
+        total_source[Vsize:(Vsize + vector_size)].copy(), matrix_shape
     )
     Vsize += vector_size
-
+    # effective fission
+    mcdc["technique"]["iqmc_effective_fission"] = np.reshape(
+        total_source[Vsize:(Vsize + vector_size)].copy(), matrix_shape
+    )
+    Vsize += vector_size
+    # source tilting arrays
     if mcdc["technique"]["iqmc_source_tilt"] > 0:
         if Nx > 1:
             mcdc["technique"]["iqmc_source_x"] = np.reshape(
@@ -3442,19 +3447,23 @@ def iqmc_consolidate_sources(mcdc):
 
     """
     total_source = mcdc["technique"]["iqmc_total_source"]
-    matrix_shape = mcdc["technique"]["iqmc_flux"].shape
-    vector_size = mcdc["technique"]["iqmc_flux"].size
+    vector_size = mcdc["technique"]["iqmc_effective_scattering"].size
     mesh = mcdc["technique"]["iqmc_mesh"]
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
     Nz = len(mesh["z"]) - 1
     Vsize = 0
-
-    total_source[Vsize:vector_size] = np.reshape(
-        mcdc["technique"]["iqmc_flux"].copy(), vector_size
+    # effective scattering array
+    total_source[Vsize:(Vsize + vector_size)] = np.reshape(
+        mcdc["technique"]["iqmc_effective_scattering"].copy(), vector_size
     )
     Vsize += vector_size
-
+    # effective fission array
+    total_source[Vsize:(Vsize + vector_size)] = np.reshape(
+        mcdc["technique"]["iqmc_effective_fission"].copy(), vector_size
+    )
+    Vsize += vector_size
+    # source tilting arrays
     if mcdc["technique"]["iqmc_source_tilt"] > 0:
         if Nx > 1:
             total_source[Vsize : (Vsize + vector_size)] = np.reshape(
