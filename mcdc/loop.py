@@ -353,6 +353,12 @@ def gmres(mcdc):
     max_iter = mcdc["technique"]["iqmc_maxitt"]
     R = mcdc["technique"]["iqmc_krylov_restart"]
     tol = mcdc["technique"]["iqmc_tol"]
+    phi0 = mcdc["technique"]["iqmc_flux"].copy()
+    b = kernel.RHS(mcdc)
+    print('b = ', b)
+    print('Flux = ', mcdc["technique"]["iqmc_flux"])
+    kernel.iqmc_reset_tallies(mcdc)
+    mcdc["technique"]["iqmc_flux"] =  phi0
     if not mcdc["setting"]["mode_eigenvalue"]:
         kernel.prepare_qmc_source(mcdc)
         if mcdc["technique"]["iqmc_source_tilt"]:
@@ -360,9 +366,6 @@ def gmres(mcdc):
     kernel.iqmc_consolidate_sources(mcdc)
     X = mcdc["technique"]["iqmc_total_source"].copy()
     # initial residual
-    b = kernel.RHS(mcdc)
-    print('b = ', b)
-    
     print('1. Source = ', mcdc["technique"]["iqmc_source"])
     r = b - kernel.AxV(X, b, mcdc)
     print('3. Source = ', mcdc["technique"]["iqmc_source"])

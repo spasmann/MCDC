@@ -3524,7 +3524,7 @@ def AxV(V, b, mcdc):
     iqmc_consolidate_sources(mcdc)
     v_out = mcdc["technique"]["iqmc_total_source"].copy()
     axv = V - (v_out - b)
-
+    
     return axv
 
 
@@ -3552,7 +3552,8 @@ def RHS(mcdc):
     # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
     b = mcdc["technique"]["iqmc_total_source"].copy()
-
+    # iqmc_reset_tallies(mcdc)
+    
     return b
 
 
