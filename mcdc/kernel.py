@@ -3523,7 +3523,7 @@ def AxV(V, b, mcdc):
     # combine effective scattering + fission
     iqmc_update_source(mcdc)
     # QMC Sweep
-    print('2. Source = ', mcdc["technique"]["iqmc_source"])
+    print('Source = ', mcdc["technique"]["iqmc_source"])
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
@@ -3531,6 +3531,7 @@ def AxV(V, b, mcdc):
     iqmc_distribute_tallies(mcdc)
     # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
+    print('Flux = ', mcdc["technique"]["iqmc_Flux"])
     v_out = mcdc["technique"]["iqmc_total_source"].copy()
     axv = V - (v_out - b)
     
@@ -3553,6 +3554,7 @@ def RHS(mcdc):
     # iqmc_update_source(mcdc)
     mcdc["technique"]["iqmc_source"] = mcdc["technique"]["iqmc_fixed_source"].copy()
     # QMC Sweep
+    print('Source = ', mcdc["technique"]["iqmc_source"])
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
@@ -3560,6 +3562,7 @@ def RHS(mcdc):
     iqmc_distribute_tallies(mcdc)
     # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
+    print('Flux = ', mcdc["technique"]["iqmc_Flux"])
     b = mcdc["technique"]["iqmc_total_source"].copy()
     # iqmc_reset_tallies(mcdc)
     

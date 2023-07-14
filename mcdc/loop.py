@@ -355,8 +355,8 @@ def gmres(mcdc):
     tol = mcdc["technique"]["iqmc_tol"]
     phi0 = mcdc["technique"]["iqmc_flux"].copy()
     b = kernel.RHS(mcdc)
-    print('b = ', b)
-    print('Flux = ', mcdc["technique"]["iqmc_flux"])
+    # print('b = ', b)
+    # print('Flux = ', mcdc["technique"]["iqmc_flux"])
     kernel.iqmc_reset_tallies(mcdc)
     mcdc["technique"]["iqmc_flux"] =  phi0
     if not mcdc["setting"]["mode_eigenvalue"]:
@@ -366,9 +366,9 @@ def gmres(mcdc):
     kernel.iqmc_consolidate_sources(mcdc)
     X = mcdc["technique"]["iqmc_total_source"].copy()
     # initial residual
-    print('1. Source = ', mcdc["technique"]["iqmc_source"])
+    # print('1. Source = ', mcdc["technique"]["iqmc_source"])
     r = b - kernel.AxV(X, b, mcdc)
-    print('3. Source = ', mcdc["technique"]["iqmc_source"])
+    # print('3. Source = ', mcdc["technique"]["iqmc_source"])
     normr = np.linalg.norm(r)
     
     # Defining dimension
