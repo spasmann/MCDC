@@ -3531,7 +3531,7 @@ def AxV(V, b, mcdc):
     iqmc_distribute_tallies(mcdc)
     # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
-    print('Flux = ', mcdc["technique"]["iqmc_Flux"])
+    print('Flux = ', mcdc["technique"]["iqmc_flux"])
     v_out = mcdc["technique"]["iqmc_total_source"].copy()
     axv = V - (v_out - b)
     
@@ -3562,7 +3562,7 @@ def RHS(mcdc):
     iqmc_distribute_tallies(mcdc)
     # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
-    print('Flux = ', mcdc["technique"]["iqmc_Flux"])
+    print('Flux = ', mcdc["technique"]["iqmc_flux"])
     b = mcdc["technique"]["iqmc_total_source"].copy()
     # iqmc_reset_tallies(mcdc)
     
