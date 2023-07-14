@@ -3534,6 +3534,7 @@ def AxV(V, b, mcdc):
     print('Flux = ', mcdc["technique"]["iqmc_flux"])
     v_out = mcdc["technique"]["iqmc_total_source"].copy()
     axv = V - (v_out - b)
+    # iqmc_reset_tallies(mcdc)
     
     return axv
 
@@ -3550,8 +3551,7 @@ def RHS(mcdc):
 
     # reset bank size
     mcdc["bank_source"]["size"] = 0
-    # combine effective scattering + fission
-    # iqmc_update_source(mcdc)
+    # source = fixed_source 
     mcdc["technique"]["iqmc_source"] = mcdc["technique"]["iqmc_fixed_source"].copy()
     # QMC Sweep
     print('Source = ', mcdc["technique"]["iqmc_source"])
