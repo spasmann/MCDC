@@ -568,7 +568,7 @@ def make_type_technique(N_particle, G, card):
     vector_size = Ng * Nt * Nx * Ny * Nz
     # total array size >= 2 * vector size b/c
     #  effective scattering + fission arrays + any source tilting arrays
-    total_size = 2 * vector_size
+    total_size = vector_size
     # total_size = vector_size
     if card["iqmc_source_tilt"] > 0:
         if Nx > 1:

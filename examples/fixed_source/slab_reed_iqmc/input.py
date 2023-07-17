@@ -40,7 +40,7 @@ mcdc.cell([+s7, -s8], m4)
 N = 10000
 Nx = 64
 maxit = 100
-tol = 1e-6
+tol = 1e-12
 x = np.linspace(-8, 8, num=Nx + 1)
 generator = "halton"
 solver = "gmres"

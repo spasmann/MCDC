@@ -2476,7 +2476,7 @@ def prepare_qmc_source(mcdc):
     mcdc["technique"]["iqmc_effective_fission_outter"] = fission
     mcdc["technique"]["iqmc_effective_fission"] = fission
     mcdc["technique"]["iqmc_effective_scattering"] = scatter
-
+    iqmc_update_source(mcdc)
 
 @njit
 def prepare_qmc_scattering_source(mcdc):
@@ -3370,8 +3370,8 @@ def iqmc_distribute_sources(mcdc):
 
     """
     total_source = mcdc["technique"]["iqmc_total_source"].copy()
-    matrix_shape = mcdc["technique"]["iqmc_effective_scattering"].shape
-    vector_size = mcdc["technique"]["iqmc_effective_scattering"].size
+    matrix_shape = mcdc["technique"]["iqmc_source"].shape
+    vector_size = mcdc["technique"]["iqmc_source"].size
 
     mesh = mcdc["technique"]["iqmc_mesh"]
     Nx = len(mesh["x"]) - 1
@@ -3380,15 +3380,11 @@ def iqmc_distribute_sources(mcdc):
     Vsize = 0
     
     # effective scattering
-    mcdc["technique"]["iqmc_effective_scattering"] = np.reshape(
+    mcdc["technique"]["iqmc_source"] = np.reshape(
         total_source[Vsize:(Vsize + vector_size)].copy(), matrix_shape
     )
     Vsize += vector_size
-    # effective fission
-    mcdc["technique"]["iqmc_effective_fission"] = np.reshape(
-        total_source[Vsize:(Vsize + vector_size)].copy(), matrix_shape
-    )
-    Vsize += vector_size
+
     # source tilting arrays
     if mcdc["technique"]["iqmc_source_tilt"] > 0:
         if Nx > 1:
@@ -3448,7 +3444,7 @@ def iqmc_consolidate_sources(mcdc):
 
     """
     total_source = mcdc["technique"]["iqmc_total_source"]
-    vector_size = mcdc["technique"]["iqmc_effective_scattering"].size
+    vector_size = mcdc["technique"]["iqmc_source"].size
     mesh = mcdc["technique"]["iqmc_mesh"]
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
@@ -3457,14 +3453,10 @@ def iqmc_consolidate_sources(mcdc):
     
     # effective scattering array
     total_source[Vsize:(Vsize + vector_size)] = np.reshape(
-        mcdc["technique"]["iqmc_effective_scattering"].copy(), vector_size
+        mcdc["technique"]["iqmc_source"].copy(), vector_size
     )
     Vsize += vector_size
-    # effective fission array
-    total_source[Vsize:(Vsize + vector_size)] = np.reshape(
-        mcdc["technique"]["iqmc_effective_fission"].copy(), vector_size
-    )
-    Vsize += vector_size
+    
     # source tilting arrays
     if mcdc["technique"]["iqmc_source_tilt"] > 0:
         if Nx > 1:
@@ -3522,8 +3514,6 @@ def AxV(V, b, mcdc):
     iqmc_distribute_sources(mcdc)
     # reset bank size
     mcdc["bank_source"]["size"] = 0
-    # combine effective scattering + fission
-    iqmc_update_source(mcdc)
     # QMC Sweep
     # print('Source = ', mcdc["technique"]["iqmc_source"])
     prepare_qmc_particles(mcdc)
@@ -3531,12 +3521,12 @@ def AxV(V, b, mcdc):
     loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_tallies(mcdc)
+    iqmc_update_source(mcdc)
     # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
     # print('Flux = ', mcdc["technique"]["iqmc_flux"])
     v_out = mcdc["technique"]["iqmc_total_source"].copy()
     axv = V - (v_out - b)
-    # iqmc_reset_tallies(mcdc)
     
     return axv
 
@@ -3553,17 +3543,19 @@ def RHS(mcdc):
     # reset bank size
     mcdc["bank_source"]["size"] = 0
     # source = fixed_source 
-    # mcdc["technique"]["iqmc_source"] = mcdc["technique"]["iqmc_fixed_source"].copy()
     iqmc_reset_tallies(mcdc)
     iqmc_update_source(mcdc)
     # QMC Sweep
+    # print('Source = ', mcdc["technique"]["iqmc_source"])
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_tallies(mcdc)
+    iqmc_update_source(mcdc)
     # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
+    # print('Flux = ', mcdc["technique"]["iqmc_flux"])
     b = mcdc["technique"]["iqmc_total_source"].copy()
     iqmc_reset_tallies(mcdc)
     

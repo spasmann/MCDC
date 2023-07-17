@@ -353,10 +353,8 @@ def gmres(mcdc):
     max_iter = mcdc["technique"]["iqmc_maxitt"]
     R = mcdc["technique"]["iqmc_krylov_restart"]
     tol = mcdc["technique"]["iqmc_tol"]
-    phi0 = mcdc["technique"]["iqmc_flux"].copy()
-    b = kernel.RHS(mcdc)
-
-    mcdc["technique"]["iqmc_flux"] =  phi0
+    b = np.reshape(mcdc["technique"]["iqmc_fixed_source"], mcdc["technique"]["iqmc_fixed_source"].size)#kernel.RHS(mcdc)
+    
     if not mcdc["setting"]["mode_eigenvalue"]:
         kernel.prepare_qmc_source(mcdc)
         if mcdc["technique"]["iqmc_source_tilt"]:
