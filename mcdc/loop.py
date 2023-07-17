@@ -356,7 +356,6 @@ def gmres(mcdc):
     phi0 = mcdc["technique"]["iqmc_flux"].copy()
     b = kernel.RHS(mcdc)
 
-    kernel.iqmc_reset_tallies(mcdc)
     mcdc["technique"]["iqmc_flux"] =  phi0
     if not mcdc["setting"]["mode_eigenvalue"]:
         kernel.prepare_qmc_source(mcdc)
@@ -495,9 +494,9 @@ def gmres(mcdc):
     # mcdc["technique"]["iqmc_flux"] = phi_f
     # mcdc["technique"]["iqmc_source"] = source_f
     # end outer loop
-    # kernel.prepare_qmc_source(mcdc)
-    # if mcdc["technique"]["iqmc_source_tilt"]:
-    #     kernel.prepare_qmc_tilt_source(mcdc)
+    kernel.prepare_qmc_source(mcdc)
+    if mcdc["technique"]["iqmc_source_tilt"]:
+        kernel.prepare_qmc_tilt_source(mcdc)
 
 
 @njit

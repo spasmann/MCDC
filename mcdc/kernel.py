@@ -3548,12 +3548,14 @@ def RHS(mcdc):
     b by doing a transport sweep of the fixed-source.
     """
     # reshape v and assign to iqmc_flux
-    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    # mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
 
     # reset bank size
     mcdc["bank_source"]["size"] = 0
     # source = fixed_source 
-    mcdc["technique"]["iqmc_source"] = mcdc["technique"]["iqmc_fixed_source"].copy()
+    # mcdc["technique"]["iqmc_source"] = mcdc["technique"]["iqmc_fixed_source"].copy()
+    iqmc_reset_tallies(mcdc)
+    iqmc_update_source(mcdc)
     # QMC Sweep
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
@@ -3563,7 +3565,7 @@ def RHS(mcdc):
     # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
     b = mcdc["technique"]["iqmc_total_source"].copy()
-    # iqmc_reset_tallies(mcdc)
+    iqmc_reset_tallies(mcdc)
     
     return b
 
