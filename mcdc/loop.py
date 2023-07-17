@@ -466,6 +466,9 @@ def gmres(mcdc):
                 rel_resid = normr / res_0
 
                 if rel_resid < tol:
+                    # phi_f = mcdc["technique"]["iqmc_flux"]
+                    # kernel.iqmc_update_source(mcdc)
+                    # source_f = mcdc["tehcnique"]["iqmc_source"]
                     break
 
             mcdc["technique"]["iqmc_itt"] += 1
@@ -489,10 +492,12 @@ def gmres(mcdc):
         if not mcdc["setting"]["mode_eigenvalue"]:
             print_progress_iqmc(mcdc)
 
+    # mcdc["technique"]["iqmc_flux"] = phi_f
+    # mcdc["technique"]["iqmc_source"] = source_f
     # end outer loop
-    kernel.prepare_qmc_source(mcdc)
-    if mcdc["technique"]["iqmc_source_tilt"]:
-        kernel.prepare_qmc_tilt_source(mcdc)
+    # kernel.prepare_qmc_source(mcdc)
+    # if mcdc["technique"]["iqmc_source_tilt"]:
+    #     kernel.prepare_qmc_tilt_source(mcdc)
 
 
 @njit

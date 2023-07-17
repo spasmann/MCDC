@@ -3378,6 +3378,7 @@ def iqmc_distribute_sources(mcdc):
     Ny = len(mesh["y"]) - 1
     Nz = len(mesh["z"]) - 1
     Vsize = 0
+    
     # effective scattering
     mcdc["technique"]["iqmc_effective_scattering"] = np.reshape(
         total_source[Vsize:(Vsize + vector_size)].copy(), matrix_shape
@@ -3453,6 +3454,7 @@ def iqmc_consolidate_sources(mcdc):
     Ny = len(mesh["y"]) - 1
     Nz = len(mesh["z"]) - 1
     Vsize = 0
+    
     # effective scattering array
     total_source[Vsize:(Vsize + vector_size)] = np.reshape(
         mcdc["technique"]["iqmc_effective_scattering"].copy(), vector_size
@@ -3523,7 +3525,7 @@ def AxV(V, b, mcdc):
     # combine effective scattering + fission
     iqmc_update_source(mcdc)
     # QMC Sweep
-    print('Source = ', mcdc["technique"]["iqmc_source"])
+    # print('Source = ', mcdc["technique"]["iqmc_source"])
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
@@ -3531,7 +3533,7 @@ def AxV(V, b, mcdc):
     iqmc_distribute_tallies(mcdc)
     # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
-    print('Flux = ', mcdc["technique"]["iqmc_flux"])
+    # print('Flux = ', mcdc["technique"]["iqmc_flux"])
     v_out = mcdc["technique"]["iqmc_total_source"].copy()
     axv = V - (v_out - b)
     # iqmc_reset_tallies(mcdc)
@@ -3546,7 +3548,6 @@ def RHS(mcdc):
     b by doing a transport sweep of the fixed-source.
     """
     # reshape v and assign to iqmc_flux
-    Nt = mcdc["technique"]["iqmc_flux"].size
     mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
 
     # reset bank size
@@ -3554,7 +3555,6 @@ def RHS(mcdc):
     # source = fixed_source 
     mcdc["technique"]["iqmc_source"] = mcdc["technique"]["iqmc_fixed_source"].copy()
     # QMC Sweep
-    print('Source = ', mcdc["technique"]["iqmc_source"])
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
@@ -3562,7 +3562,6 @@ def RHS(mcdc):
     iqmc_distribute_tallies(mcdc)
     # combine all sources into one vector
     iqmc_consolidate_sources(mcdc)
-    print('Flux = ', mcdc["technique"]["iqmc_flux"])
     b = mcdc["technique"]["iqmc_total_source"].copy()
     # iqmc_reset_tallies(mcdc)
     

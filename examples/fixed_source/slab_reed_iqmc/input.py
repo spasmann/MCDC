@@ -40,10 +40,10 @@ mcdc.cell([+s7, -s8], m4)
 N = 10000
 Nx = 64
 maxit = 100
-tol = 1e-4
+tol = 1e-6
 x = np.linspace(-8, 8, num=Nx + 1)
 generator = "halton"
-solver = "source_iteration"
+solver = "gmres"
 tilt = 0
 
 
@@ -95,7 +95,7 @@ mcdc.iQMC(
 # =============================================================================
 
 # Setting
-mcdc.setting(N_particle=N, progress_bar=True)
+mcdc.setting(N_particle=N, progress_bar=True, output="est_out")
 
 # Run
 mcdc.run()
