@@ -339,6 +339,7 @@ def gmres(mcdc):
     """
     GMRES solver.
     ----------
+    Linear Krylov solver. Solves problem of the form Ax = b.
 
     References
     ----------
@@ -353,8 +354,9 @@ def gmres(mcdc):
     max_iter = mcdc["technique"]["iqmc_maxitt"]
     R = mcdc["technique"]["iqmc_krylov_restart"]
     tol = mcdc["technique"]["iqmc_tol"]
-    b = np.reshape(mcdc["technique"]["iqmc_fixed_source"], mcdc["technique"]["iqmc_fixed_source"].size)#kernel.RHS(mcdc)
-    
+    b = mcdc["technique"]["iqmc_fixed_source"].copy()
+    b = np.reshape(b, b.size)
+    # use piece-wise constant material approximations for the first source guess
     if not mcdc["setting"]["mode_eigenvalue"]:
         kernel.prepare_qmc_source(mcdc)
         if mcdc["technique"]["iqmc_source_tilt"]:
@@ -463,9 +465,6 @@ def gmres(mcdc):
                 rel_resid = normr / res_0
 
                 if rel_resid < tol:
-                    # phi_f = mcdc["technique"]["iqmc_flux"]
-                    # kernel.iqmc_update_source(mcdc)
-                    # source_f = mcdc["tehcnique"]["iqmc_source"]
                     break
 
             mcdc["technique"]["iqmc_itt"] += 1
@@ -488,13 +487,6 @@ def gmres(mcdc):
         mcdc["technique"]["iqmc_res"] = rel_resid
         if not mcdc["setting"]["mode_eigenvalue"]:
             print_progress_iqmc(mcdc)
-
-    # mcdc["technique"]["iqmc_flux"] = phi_f
-    # mcdc["technique"]["iqmc_source"] = source_f
-    # end outer loop
-    kernel.prepare_qmc_source(mcdc)
-    if mcdc["technique"]["iqmc_source_tilt"]:
-        kernel.prepare_qmc_tilt_source(mcdc)
 
 
 @njit
@@ -587,15 +579,15 @@ def davidson(mcdc):
     mcdc["technique"]["iqmc_maxitt"] = 3
     mcdc["setting"]["progress_bar"] = False
     power_iteration(mcdc)
+    # source_iteration(mcdc)
     mcdc["setting"]["progress_bar"] = True
     mcdc["technique"]["iqmc_maxitt"] = maxit
     mcdc["technique"]["iqmc_itt_outter"] = 0
-    kernel.prepare_qmc_source(mcdc)
-
+    kernel.iqmc_update_source(mcdc)
+    kernel.iqmc_consolidate_sources(mcdc)
     # resulting guess
-    phi0 = mcdc["technique"]["iqmc_flux"].copy()
-    Nt = phi0.size
-    phi0 = np.reshape(phi0, (Nt,))
+    V0 = mcdc["technique"]["iqmc_total_source"].copy()
+    Nt = V0.size
 
     # Krylov subspace matrices
     # allocate memory then use slice indexing in loop
@@ -604,7 +596,7 @@ def davidson(mcdc):
     FV = np.zeros((Nt, maxit), dtype=np.float64)
 
     # orthonormalize initial guess
-    V0 = phi0 / np.linalg.norm(phi0)
+    V0 = V0 / np.linalg.norm(V0)
     V[:, 0] = V0
 
     if m is None:

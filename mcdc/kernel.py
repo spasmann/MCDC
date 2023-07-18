@@ -2473,9 +2473,10 @@ def prepare_qmc_source(mcdc):
                 scatter[:, t, i, j, k] = scattering_source(
                     flux_scatter[:, t, i, j, k], mat_idx, mcdc
                 )
-    mcdc["technique"]["iqmc_effective_fission_outter"] = fission
-    mcdc["technique"]["iqmc_effective_fission"] = fission
     mcdc["technique"]["iqmc_effective_scattering"] = scatter
+    mcdc["technique"]["iqmc_effective_fission"] = fission
+    if mcdc["setting"]["mode_eigenvalue"]:
+        mcdc["technique"]["iqmc_effective_fission_outter"] = fission
     iqmc_update_source(mcdc)
 
 @njit
@@ -2736,7 +2737,8 @@ def score_iqmc_flux(P, distance, mcdc):
         flux, mat_id, mcdc
     )
     # TODO: only tally if PI
-    mcdc["technique"]["iqmc_nuSigmaF"][:, t, x, y, z] += nu_f * SigmaF * flux
+    if mcdc["setting"]["mode_eigenvalue"] and mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration":
+        mcdc["technique"]["iqmc_nuSigmaF"][:, t, x, y, z] += nu_f * SigmaF * flux
 
     # source tilt tallies
     if mcdc["technique"]["iqmc_source_tilt"] > 0:
@@ -3506,8 +3508,9 @@ def iqmc_consolidate_sources(mcdc):
 @njit
 def AxV(V, b, mcdc):
     """
-    Linear operator to be used with Scipy's Krylov Solvers.
-    To use them, the scalar flux can be the only input.
+    Linear operator to be used with GMRES.
+    Calculate action of A on input vector V, where A is a transport sweep
+    and V is the total source (constant and tilted).
     """
     mcdc["technique"]["iqmc_total_source"] = V.copy()
     # distribute segments of V to appropriate sources
@@ -3515,51 +3518,19 @@ def AxV(V, b, mcdc):
     # reset bank size
     mcdc["bank_source"]["size"] = 0
     # QMC Sweep
-    # print('Source = ', mcdc["technique"]["iqmc_source"])
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_tallies(mcdc)
+    # update source adds effective scattering + fission + fixed-source
     iqmc_update_source(mcdc)
-    # combine all sources into one vector
+    # combine all sources (constant and tilted) into one vector
     iqmc_consolidate_sources(mcdc)
-    # print('Flux = ', mcdc["technique"]["iqmc_flux"])
     v_out = mcdc["technique"]["iqmc_total_source"].copy()
     axv = V - (v_out - b)
     
     return axv
-
-
-@njit
-def RHS(mcdc):
-    """
-    We solve A x = b with a Krylov method. This function extracts
-    b by doing a transport sweep of the fixed-source.
-    """
-    # reshape v and assign to iqmc_flux
-    # mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
-
-    # reset bank size
-    mcdc["bank_source"]["size"] = 0
-    # source = fixed_source 
-    iqmc_reset_tallies(mcdc)
-    iqmc_update_source(mcdc)
-    # QMC Sweep
-    # print('Source = ', mcdc["technique"]["iqmc_source"])
-    prepare_qmc_particles(mcdc)
-    iqmc_reset_tallies(mcdc)
-    loop_source(mcdc)
-    # sum resultant flux on all processors
-    iqmc_distribute_tallies(mcdc)
-    iqmc_update_source(mcdc)
-    # combine all sources into one vector
-    iqmc_consolidate_sources(mcdc)
-    # print('Flux = ', mcdc["technique"]["iqmc_flux"])
-    b = mcdc["technique"]["iqmc_total_source"].copy()
-    iqmc_reset_tallies(mcdc)
-    
-    return b
 
 
 @njit
@@ -3576,7 +3547,6 @@ def HxV(V, mcdc):
     mcdc["technique"]["iqmc_flux"] = np.reshape(v.copy(), matrix_shape)
     # reset bank size
     mcdc["bank_source"]["size"] = 0
-    mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
 
     # QMC Sweep
     # prepare_qmc_scattering_source(mcdc)
@@ -3584,11 +3554,8 @@ def HxV(V, mcdc):
         mcdc["technique"]["iqmc_fixed_source"]
         + mcdc["technique"]["iqmc_effective_scattering"]
     )
-    mcdc["technique"]["iqmc_effective_scattering"] = np.zeros_like(
-        mcdc["technique"]["iqmc_effective_scattering"]
-    )
     prepare_qmc_particles(mcdc)
-    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
+    iqmc_reset_tallies(mcdc)
     loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_tallies(mcdc)

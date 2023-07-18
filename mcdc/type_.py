@@ -480,6 +480,8 @@ setting = np.dtype(
 
 
 def make_type_technique(N_particle, G, card):
+    setting = card.setting
+    card = card.technique
     global technique
 
     # Technique flags
@@ -533,29 +535,36 @@ def make_type_technique(N_particle, G, card):
         Nx = Ny = Nz = Nt = Nmu = N_azi = N_particle = Ng = N_dim = 0
 
     struct += [("iqmc_mesh", mesh)]
+    
     # Low-discprenecy sequence
-    # TODO: make N_dim an input setting
     struct += [("iqmc_lds", float64, (N_particle, N_dim))]
-
     # Source
     struct += [("iqmc_source", float64, (Ng, Nt, Nx, Ny, Nz))]
     struct += [("iqmc_fixed_source", float64, (Ng, Nt, Nx, Ny, Nz))]
     struct += [("iqmc_material_idx", int64, (Nt, Nx, Ny, Nz))]
+    struct += [("iqmc_effective_scattering", float64, (Ng, Nt, Nx, Ny, Nz))]
+    struct += [("iqmc_effective_fission", float64, (Ng, Nt, Nx, Ny, Nz))]
 
     # flux tallies
     struct += [("iqmc_flux", float64, (Ng, Nt, Nx, Ny, Nz))]
     struct += [("iqmc_flux_old", float64, (Ng, Nt, Nx, Ny, Nz))]
-    # TODO: make outter flux size zero if not eigenmode
+    
+    # TODO: make outter flux size zero if not eigenmode 
+    # (causes problems with numba)
     struct += [("iqmc_flux_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
-    # if card["mode_eigenvalue"]:
-    #     struct += [("iqmc_flux_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
-    # else:
-    #     struct += [("iqmc_flux_outter", float64, (0, 0, 0, 0, 0))]
-
+    struct += [("iqmc_effective_fission_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
+    
+    if setting["mode_eigenvalue"]:
+        struct += [("iqmc_nuSigmaF", float64, (Ng, Nt, Nx, Ny, Nz))]
+        struct += [("iqmc_nuSigmaF_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
+    else:
+        struct += [("iqmc_nuSigmaF", float64, (0, 0, 0, 0, 0))]
+        struct += [("iqmc_nuSigmaF_outter", float64, (0, 0, 0, 0, 0))]
+    
     # source tilting tallies
     # This logic structure ensures we don't allocate arrays for source tilting
     # unless the user has requested them. Even if source tilting is off, all
-    # arrays must exist for Numba -> arrays are of size of 1 if not needed
+    # arrays must exist for Numba -> arrays are of size of 0 if not needed
     x = [(("iqmc_source_x"), float64, (0, 0, 0, 0, 0))]
     y = [(("iqmc_source_y"), float64, (0, 0, 0, 0, 0))]
     z = [(("iqmc_source_z"), float64, (0, 0, 0, 0, 0))]
@@ -566,8 +575,6 @@ def make_type_technique(N_particle, G, card):
     # also need to determine the total size of the source to be iterated,
     # this is the original source matrix + all tilted sources
     vector_size = Ng * Nt * Nx * Ny * Nz
-    # total array size >= 2 * vector size b/c
-    #  effective scattering + fission arrays + any source tilting arrays
     total_size = vector_size
     # total_size = vector_size
     if card["iqmc_source_tilt"] > 0:
@@ -602,12 +609,6 @@ def make_type_technique(N_particle, G, card):
     struct += xz
     struct += xyz
     struct += [(("iqmc_total_source"), float64, (total_size,))]
-    struct += [("iqmc_effective_scattering", float64, (Ng, Nt, Nx, Ny, Nz))]
-    struct += [("iqmc_effective_fission", float64, (Ng, Nt, Nx, Ny, Nz))]
-    # TODO: make outter size zero if not eigenmode
-    struct += [("iqmc_effective_fission_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
-    struct += [("iqmc_nuSigmaF", float64, (Ng, Nt, Nx, Ny, Nz))]
-    struct += [("iqmc_nuSigmaF_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
 
     # Constants
     struct += [

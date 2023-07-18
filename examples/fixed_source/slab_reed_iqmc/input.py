@@ -40,7 +40,7 @@ mcdc.cell([+s7, -s8], m4)
 N = 10000
 Nx = 64
 maxit = 100
-tol = 1e-12
+tol = 1e-6
 x = np.linspace(-8, 8, num=Nx + 1)
 generator = "halton"
 solver = "gmres"
@@ -95,7 +95,7 @@ mcdc.iQMC(
 # =============================================================================
 
 # Setting
-mcdc.setting(N_particle=N, progress_bar=True, output="est_out")
+mcdc.setting(N_particle=N)
 
 # Run
 mcdc.run()

@@ -129,7 +129,7 @@ def prepare():
     type_.make_type_lattice(input_card.lattices)
     type_.make_type_source(G)
     type_.make_type_tally(N_tally_scores, input_card.tally)
-    type_.make_type_technique(N_particle, G, input_card.technique)
+    type_.make_type_technique(N_particle, G, input_card)
     type_.make_type_global(input_card)
 
     # =========================================================================
