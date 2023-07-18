@@ -535,7 +535,7 @@ def make_type_technique(N_particle, G, card):
         Nx = Ny = Nz = Nt = Nmu = N_azi = N_particle = Ng = N_dim = 0
 
     struct += [("iqmc_mesh", mesh)]
-    
+
     # Low-discprenecy sequence
     struct += [("iqmc_lds", float64, (N_particle, N_dim))]
     # Source
@@ -548,19 +548,19 @@ def make_type_technique(N_particle, G, card):
     # flux tallies
     struct += [("iqmc_flux", float64, (Ng, Nt, Nx, Ny, Nz))]
     struct += [("iqmc_flux_old", float64, (Ng, Nt, Nx, Ny, Nz))]
-    
-    # TODO: make outter flux size zero if not eigenmode 
+
+    # TODO: make outter flux size zero if not eigenmode
     # (causes problems with numba)
     struct += [("iqmc_flux_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
     struct += [("iqmc_effective_fission_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
-    
+
     if setting["mode_eigenvalue"]:
         struct += [("iqmc_nuSigmaF", float64, (Ng, Nt, Nx, Ny, Nz))]
         struct += [("iqmc_nuSigmaF_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
     else:
         struct += [("iqmc_nuSigmaF", float64, (0, 0, 0, 0, 0))]
         struct += [("iqmc_nuSigmaF_outter", float64, (0, 0, 0, 0, 0))]
-    
+
     # source tilting tallies
     # This logic structure ensures we don't allocate arrays for source tilting
     # unless the user has requested them. Even if source tilting is off, all
@@ -576,6 +576,9 @@ def make_type_technique(N_particle, G, card):
     # this is the original source matrix + all tilted sources
     vector_size = Ng * Nt * Nx * Ny * Nz
     total_size = vector_size
+    if card["iqmc_eigenmode_solver"] == "davidson":
+        total_size *= 2
+
     # total_size = vector_size
     if card["iqmc_source_tilt"] > 0:
         if Nx > 1:

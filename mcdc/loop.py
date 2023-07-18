@@ -313,6 +313,7 @@ def source_iteration(mcdc):
         # sum resultant tallies on all processors
         kernel.iqmc_distribute_tallies(mcdc)
         mcdc["technique"]["iqmc_itt"] += 1
+        kernel.iqmc_update_source(mcdc)
         # combine source tallies into one vector
         kernel.iqmc_consolidate_sources(mcdc)
         # calculate norm of sources
@@ -366,7 +367,7 @@ def gmres(mcdc):
     # initial residual
     r = b - kernel.AxV(X, b, mcdc)
     normr = np.linalg.norm(r)
-    
+
     # Defining dimension
     dimen = X.size
     # Set number of outer and inner iterations
@@ -558,8 +559,6 @@ def davidson(mcdc):
 
     """
     # TODO: handle imaginary eigenvalues
-    # TODO: add fixed source solve at the end to give better approximation
-    #       of the scalar flux ?
 
     # Davidson parameters
     simulation_end = False
@@ -574,27 +573,19 @@ def davidson(mcdc):
     Vsize = 1
     # l : number of eigenvalues to solve for
     l = 1
-
-    # initial scalar flux guess comes from power iteration
-    mcdc["technique"]["iqmc_maxitt"] = 3
-    mcdc["setting"]["progress_bar"] = False
-    power_iteration(mcdc)
-    # source_iteration(mcdc)
-    mcdc["setting"]["progress_bar"] = True
-    mcdc["technique"]["iqmc_maxitt"] = maxit
-    mcdc["technique"]["iqmc_itt_outter"] = 0
-    kernel.iqmc_update_source(mcdc)
-    kernel.iqmc_consolidate_sources(mcdc)
-    # resulting guess
-    V0 = mcdc["technique"]["iqmc_total_source"].copy()
-    Nt = V0.size
-
-    # Krylov subspace matrices
+    # vector size
+    Nt = mcdc["technique"]["iqmc_total_source"].size
     # allocate memory then use slice indexing in loop
     V = np.zeros((Nt, maxit), dtype=np.float64)
     HV = np.zeros((Nt, maxit), dtype=np.float64)
     FV = np.zeros((Nt, maxit), dtype=np.float64)
-
+    # generate intial guess
+    kernel.prepare_qmc_source(mcdc)
+    if mcdc["technique"]["iqmc_source_tilt"]:
+        kernel.prepare_qmc_tilt_source(mcdc)
+    kernel.iqmc_consolidate_sources(mcdc)
+    V0 = mcdc["technique"]["iqmc_total_source"].copy()
+    V0 = kernel.preconditioner(V0, mcdc, num_sweeps=5)
     # orthonormalize initial guess
     V0 = V0 / np.linalg.norm(V0)
     V[:, 0] = V0
@@ -606,10 +597,10 @@ def davidson(mcdc):
     # Davidson Routine
     while not simulation_end:
         # Calculate V*H*V (HxV is scattering linear operator function)
-        HV[:, Vsize - 1] = kernel.HxV(V[:, :Vsize], mcdc)[:, 0]
+        HV[:, Vsize - 1] = kernel.HxV(V[:, :Vsize], mcdc)  # [:, 0]
         VHV = np.dot(cga(V[:, :Vsize].T), cga(HV[:, :Vsize]))
         # Calculate V*F*V (FxV is fission linear operator function)
-        FV[:, Vsize - 1] = kernel.FxV(V[:, :Vsize], mcdc)[:, 0]
+        FV[:, Vsize - 1] = kernel.FxV(V[:, :Vsize], mcdc)  # [:, 0]
         VFV = np.dot(cga(V[:, :Vsize].T), cga(FV[:, :Vsize]))
         # solve for eigenvalues and vectors
         with objmode(Lambda="complex128[:]", w="complex128[:,:]"):
@@ -617,7 +608,7 @@ def davidson(mcdc):
             Lambda = np.array(Lambda, dtype=np.complex128)
             w = np.array(w, dtype=np.complex128)
 
-        # assert Lambda.imag.all() == 0.0
+        assert Lambda.imag.all() == 0.0
         Lambda = Lambda.real
         w = w.real
         # get indices of eigenvalues from largest to smallest
@@ -661,14 +652,14 @@ def davidson(mcdc):
                 V[:, :Vsize] = kernel.modified_gram_schmidt(u, t)
 
     print_iqmc_eigenvalue_exit_code(mcdc)
-
+    # TODO: verify flux output
     # normalize and save final scalar flux
-    flux = np.reshape(
-        u / np.linalg.norm(u),
-        mcdc["technique"]["iqmc_flux"].shape,
-    )
+    # flux = np.reshape(
+    #     u / np.linalg.norm(u),
+    #     mcdc["technique"]["iqmc_flux"].shape,
+    # )
 
-    mcdc["technique"]["iqmc_flux"] = flux
+    # mcdc["technique"]["iqmc_flux"] = flux
 
 
 # =============================================================================
