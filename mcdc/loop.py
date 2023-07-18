@@ -355,8 +355,17 @@ def gmres(mcdc):
     max_iter = mcdc["technique"]["iqmc_maxitt"]
     R = mcdc["technique"]["iqmc_krylov_restart"]
     tol = mcdc["technique"]["iqmc_tol"]
-    b = mcdc["technique"]["iqmc_fixed_source"].copy()
-    b = np.reshape(b, b.size)
+
+    if mcdc["technique"]["iqmc_source_tilt"]:
+        b = np.zeros_like(mcdc["technique"]["iqmc_total_source"])
+        b[: mcdc["technique"]["iqmc_fixed_source"].size] = np.reshape(
+            mcdc["technique"]["iqmc_fixed_source"],
+            mcdc["technique"]["iqmc_fixed_source"].size,
+        )
+    else:
+        b = mcdc["technique"]["iqmc_fixed_source"].copy()
+        b = np.reshape(b, b.size)
+
     # use piece-wise constant material approximations for the first source guess
     if not mcdc["setting"]["mode_eigenvalue"]:
         kernel.prepare_qmc_source(mcdc)

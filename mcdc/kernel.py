@@ -2739,7 +2739,6 @@ def score_iqmc_flux(P, distance, mcdc):
     mcdc["technique"]["iqmc_effective_fission"][:, t, x, y, z] += fission_source(
         flux, mat_id, mcdc
     )
-    # TODO: only tally if PI
     if (
         mcdc["setting"]["mode_eigenvalue"]
         and mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration"
@@ -2761,26 +2760,36 @@ def score_iqmc_flux(P, distance, mcdc):
         # linear x-component
         if Nx > 1:
             x_mid = mesh["x"][x] + (dx * 0.5)
-            mcdc["technique"]["iqmc_source_x"][:, t, x, y, z] += iqmc_linear_tally(
+            source_x = iqmc_linear_tally(
                 P["ux"], P["x"], dx, x_mid, dy, dz, w, distance, SigmaT
             )
+            mcdc["technique"]["iqmc_source_x"][:, t, x, y, z] += scattering_source(
+                source_x, mat_id, mcdc
+            ) + fission_source(source_x, mat_id, mcdc)
+
         # linear y-component
         if Ny > 1:
             y_mid = mesh["y"][y] + (dy * 0.5)
-            mcdc["technique"]["iqmc_source_y"][:, t, x, y, z] += iqmc_linear_tally(
+            source_y = iqmc_linear_tally(
                 P["uy"], P["y"], dy, y_mid, dx, dz, w, distance, SigmaT
             )
+            mcdc["technique"]["iqmc_source_y"][:, t, x, y, z] += scattering_source(
+                source_y, mat_id, mcdc
+            ) + fission_source(source_y, mat_id, mcdc)
+
         # linear z-component
         if Nz > 1:
             z_mid = mesh["z"][z] + (dz * 0.5)
-            mcdc["technique"]["iqmc_source_z"][:, t, x, y, z] += iqmc_linear_tally(
+            source_z = iqmc_linear_tally(
                 P["uz"], P["z"], dz, z_mid, dx, dy, w, distance, SigmaT
             )
+            mcdc["technique"]["iqmc_source_z"][:, t, x, y, z] += scattering_source(
+                source_z, mat_id, mcdc
+            ) + fission_source(source_z, mat_id, mcdc)
+        # bi-linear components
         if mcdc["technique"]["iqmc_source_tilt"] > 1:
             if Nx > 1 and Ny > 1:
-                mcdc["technique"]["iqmc_source_xy"][
-                    :, t, x, y, z
-                ] += iqmc_bilinear_tally(
+                source_xy = iqmc_bilinear_tally(
                     P["ux"],
                     P["x"],
                     dx,
@@ -2794,10 +2803,11 @@ def score_iqmc_flux(P, distance, mcdc):
                     distance,
                     SigmaT,
                 )
+                mcdc["technique"]["iqmc_source_xy"][:, t, x, y, z] += scattering_source(
+                    source_xy, mat_id, mcdc
+                ) + fission_source(source_xy, mat_id, mcdc)
             if Nx > 1 and Nz > 1:
-                mcdc["technique"]["iqmc_source_xz"][
-                    :, t, x, y, z
-                ] += iqmc_bilinear_tally(
+                source_xz = iqmc_bilinear_tally(
                     P["ux"],
                     P["x"],
                     dx,
@@ -2811,10 +2821,11 @@ def score_iqmc_flux(P, distance, mcdc):
                     distance,
                     SigmaT,
                 )
+                mcdc["technique"]["iqmc_source_xz"][:, t, x, y, z] += scattering_source(
+                    source_xz, mat_id, mcdc
+                ) + fission_source(source_xz, mat_id, mcdc)
             if Ny > 1 and Nz > 1:
-                mcdc["technique"]["iqmc_source_yz"][
-                    :, t, x, y, z
-                ] += iqmc_bilinear_tally(
+                source_yz = iqmc_bilinear_tally(
                     P["uy"],
                     P["y"],
                     dy,
@@ -2828,10 +2839,11 @@ def score_iqmc_flux(P, distance, mcdc):
                     distance,
                     SigmaT,
                 )
+                mcdc["technique"]["iqmc_source_yz"][:, t, x, y, z] += scattering_source(
+                    source_yz, mat_id, mcdc
+                ) + fission_source(source_yz, mat_id, mcdc)
             if mcdc["technique"]["iqmc_source_tilt"] > 2:
-                mcdc["technique"]["iqmc_source_xy"][
-                    :, t, x, y, z
-                ] += iqmc_trilinear_tally(
+                source_xyz = iqmc_trilinear_tally(
                     P["ux"],
                     P["x"],
                     dx,
@@ -2847,6 +2859,11 @@ def score_iqmc_flux(P, distance, mcdc):
                     w,
                     distance,
                     SigmaT,
+                )
+                mcdc["technique"]["iqmc_source_xyz"][
+                    :, t, x, y, z
+                ] += scattering_source(source_yz, mat_id, mcdc) + fission_source(
+                    source_xyz, mat_id, mcdc
                 )
 
 
