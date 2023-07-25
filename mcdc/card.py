@@ -145,6 +145,7 @@ class InputCard:
             "iqmc_fixed_source": np.ones([1, 1, 1, 1]),
             "iqmc_material_idx": np.ones([1, 1, 1, 1]),
             "iqmc_flux": np.ones([1, 1, 1, 1]),
+            "iqmc_source": np.zeros([1, 1, 1, 1]),
             "iqmc_mesh": {
                 "x": np.array([-INF, INF]),
                 "y": np.array([-INF, INF]),

@@ -272,8 +272,6 @@ def loop_particle(P, mcdc):
 
 @njit
 def loop_iqmc(mcdc):
-    # generate material index
-    kernel.generate_iqmc_material_idx(mcdc)
     # function calls from specified solvers
     if mcdc["setting"]["mode_eigenvalue"]:
         if mcdc["technique"]["iqmc_eigenmode_solver"] == "davidson":
@@ -291,7 +289,13 @@ def loop_iqmc(mcdc):
 def source_iteration(mcdc):
     simulation_end = False
     # set bank source
-    if not mcdc["setting"]["mode_eigenvalue"]:
+    if (
+        not mcdc["setting"]["mode_eigenvalue"]
+        and mcdc["technique"]["iqmc_source"].all() == 0.0
+    ):
+        # generate material index
+        kernel.generate_iqmc_material_idx(mcdc)
+        # use material index to generate a first guess for the source
         kernel.prepare_qmc_source(mcdc)
         if mcdc["technique"]["iqmc_source_tilt"]:
             kernel.prepare_qmc_tilt_source(mcdc)
@@ -367,7 +371,12 @@ def gmres(mcdc):
         b = np.reshape(b, b.size)
 
     # use piece-wise constant material approximations for the first source guess
-    if not mcdc["setting"]["mode_eigenvalue"]:
+    if (
+        not mcdc["setting"]["mode_eigenvalue"]
+        and mcdc["technique"]["iqmc_source"].all() == 0.0
+    ):
+        # generate material index
+        kernel.generate_iqmc_material_idx(mcdc)
         kernel.prepare_qmc_source(mcdc)
         if mcdc["technique"]["iqmc_source_tilt"]:
             kernel.prepare_qmc_tilt_source(mcdc)
@@ -511,8 +520,10 @@ def power_iteration(mcdc):
     k_old = mcdc["k_eff"]
     solver = mcdc["technique"]["iqmc_fixed_source_solver"]
 
-    kernel.prepare_qmc_source(mcdc)
-    kernel.prepare_nuSigmaF(mcdc)
+    if mcdc["technique"]["iqmc_source"].all() == 0.0:
+        kernel.generate_iqmc_material_idx(mcdc)
+        kernel.prepare_qmc_source(mcdc)
+        kernel.prepare_nuSigmaF(mcdc)
 
     while not simulation_end:
         # iterate over scattering source
@@ -588,10 +599,14 @@ def davidson(mcdc):
     V = np.zeros((Nt, maxit), dtype=np.float64)
     HV = np.zeros((Nt, maxit), dtype=np.float64)
     FV = np.zeros((Nt, maxit), dtype=np.float64)
-    # generate intial guess
-    kernel.prepare_qmc_source(mcdc)
-    if mcdc["technique"]["iqmc_source_tilt"]:
-        kernel.prepare_qmc_tilt_source(mcdc)
+    # generate first guess of source if none was passed through
+    if mcdc["technique"]["iqmc_source"].all() == 0.0:
+        # generate material index
+        kernel.generate_iqmc_material_idx(mcdc)
+        # generate intial guess
+        kernel.prepare_qmc_source(mcdc)
+        if mcdc["technique"]["iqmc_source_tilt"]:
+            kernel.prepare_qmc_tilt_source(mcdc)
     kernel.iqmc_consolidate_sources(mcdc)
     V0 = mcdc["technique"]["iqmc_total_source"].copy()
     V0 = kernel.preconditioner(V0, mcdc, num_sweeps=5)
@@ -606,10 +621,10 @@ def davidson(mcdc):
     # Davidson Routine
     while not simulation_end:
         # Calculate V*H*V (HxV is scattering linear operator function)
-        HV[:, Vsize - 1] = kernel.HxV(V[:, :Vsize], mcdc)  # [:, 0]
+        HV[:, Vsize - 1] = kernel.HxV(V[:, :Vsize], mcdc)
         VHV = np.dot(cga(V[:, :Vsize].T), cga(HV[:, :Vsize]))
         # Calculate V*F*V (FxV is fission linear operator function)
-        FV[:, Vsize - 1] = kernel.FxV(V[:, :Vsize], mcdc)  # [:, 0]
+        FV[:, Vsize - 1] = kernel.FxV(V[:, :Vsize], mcdc)
         VFV = np.dot(cga(V[:, :Vsize].T), cga(FV[:, :Vsize]))
         # solve for eigenvalues and vectors
         with objmode(Lambda="complex128[:]", w="complex128[:,:]"):

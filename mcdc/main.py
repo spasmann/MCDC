@@ -309,7 +309,6 @@ def prepare():
                 "iqmc_flux_old",
                 "iqmc_flux_outter",
                 "iqmc_mesh",
-                "iqmc_source",
                 "iqmc_res",
                 "iqmc_lds",
                 "iqmc_generator",

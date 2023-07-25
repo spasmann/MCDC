@@ -1185,6 +1185,7 @@ def iQMC(
     y=None,
     z=None,
     phi0=None,
+    source0=None,
     krylov_restart=None,
     fixed_source=None,
     scramble=False,
@@ -1235,10 +1236,14 @@ def iQMC(
         fixed_source = np.expand_dims(fixed_source, axis=ax)
         phi0 = np.expand_dims(phi0, axis=ax)
 
+    if source0 is None:
+        source0 = np.zeros_like(phi0)
+
     if krylov_restart is None:
         krylov_restart = maxitt
 
     card["iqmc_flux"] = phi0
+    card["iqmc_source"] = source0
     card["iqmc_fixed_source"] = fixed_source
     card["iqmc_fixed_source_solver"] = fixed_source_solver
     card["iqmc_eigenmode_solver"] = eigenmode_solver
