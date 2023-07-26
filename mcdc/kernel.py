@@ -1737,6 +1737,9 @@ def move_to_event(P, mcdc):
         w_final = continuous_weight_reduction(w, distance, SigmaT)
         P["iqmc_w"] = w_final
         P["w"] = w_final.sum()
+        
+        if P['w'].sum() <= 1e-16 / mcdc["setting"]["N_particle"]:
+            P["alive"] = False
 
     # Score tracklength tallies
     if mcdc["tally"]["tracklength"] and mcdc["cycle_active"]:
