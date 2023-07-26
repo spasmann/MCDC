@@ -537,7 +537,8 @@ def make_type_technique(N_particle, G, card):
     struct += [("iqmc_mesh", mesh)]
 
     # Low-discprenecy sequence
-    struct += [("iqmc_lds", float64, (N_particle, N_dim))]
+    N_work = math.ceil(N_particle / MPI.COMM_WORLD.Get_size())
+    struct += [("iqmc_lds", float64, (N_work, N_dim))]
     # Source
     struct += [("iqmc_source", float64, (Ng, Nt, Nx, Ny, Nz))]
     struct += [("iqmc_fixed_source", float64, (Ng, Nt, Nx, Ny, Nz))]

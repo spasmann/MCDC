@@ -1737,8 +1737,8 @@ def move_to_event(P, mcdc):
         w_final = continuous_weight_reduction(w, distance, SigmaT)
         P["iqmc_w"] = w_final
         P["w"] = w_final.sum()
-        
-        if P['w'].sum() <= 1e-16 / mcdc["setting"]["N_particle"]:
+
+        if P["w"].sum() <= 1e-16 / mcdc["setting"]["N_particle"]:
             P["alive"] = False
 
     # Score tracklength tallies
@@ -2550,16 +2550,15 @@ def prepare_qmc_particles(mcdc):
     QMC Low-Discrepency Sequence. Particles are added to the bank_source.
 
     """
-    # determine which portion of particles to loop through
+    # total number of particles
     N_particle = mcdc["setting"]["N_particle"]
+    # number of particles this processor will handle
     N_work = mcdc["mpi_work_size"]
-    rank = mcdc["mpi_rank"]
-    start = int(rank * N_work)
-    stop = int((rank + 1) * N_work)
 
     # low discrepency sequence
     lds = mcdc["technique"]["iqmc_lds"]
     # source
+    Q = mcdc["technique"]["iqmc_source"]
     mesh = mcdc["technique"]["iqmc_mesh"]
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
@@ -2574,7 +2573,7 @@ def prepare_qmc_particles(mcdc):
     za = mesh["z"][0]
     zb = mesh["z"][-1]
 
-    for n in range(start, stop):
+    for n in range(N_work):
         # Create new particle
         P_new = np.zeros(1, dtype=type_.particle_record)[0]
         # assign direction
