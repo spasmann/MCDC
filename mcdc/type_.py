@@ -632,6 +632,7 @@ def make_type_technique(N_particle, G, card):
         ("iqmc_preconditioner_sweeps", int64),
         ("iqmc_sweep_counter", int64),
         ("iqmc_source_tilt", int64),
+        ("iqmc_w_min", float64),
     ]
 
     # =========================================================================

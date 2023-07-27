@@ -326,6 +326,7 @@ def prepare():
                 "iqmc_effective_fission_outter",
                 "iqmc_nuSigmaF",
                 "iqmc_nuSigmaF_outter",
+                "iqmc_w_min",
             ]:
                 mcdc["technique"][name] = input_card.technique[name]
 
@@ -335,6 +336,8 @@ def prepare():
         mcdc["technique"]["iqmc_mesh"]["z"] = input_card.technique["iqmc_mesh"]["z"]
         mcdc["technique"]["iqmc_mesh"]["t"] = input_card.technique["iqmc_mesh"]["t"]
         mcdc["technique"]["iqmc_generator"] = input_card.technique["iqmc_generator"]
+        # minimum particle weight
+        mcdc["technique"]["iqmc_w_min"] = 1e-16 / mcdc["setting"]["N_particle"]
         # variables to generate samples
         scramble = mcdc["technique"]["iqmc_scramble"]
         N_dim = mcdc["technique"]["iqmc_N_dim"]

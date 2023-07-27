@@ -1738,7 +1738,7 @@ def move_to_event(P, mcdc):
         P["iqmc_w"] = w_final
         P["w"] = w_final.sum()
 
-        if P["w"].sum() <= 1e-16 / mcdc["setting"]["N_particle"]:
+        if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:
             P["alive"] = False
 
     # Score tracklength tallies
