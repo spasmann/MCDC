@@ -539,8 +539,7 @@ def make_type_technique(N_particle, G, card):
     # Low-discprenecy sequence
     N_work = math.ceil(N_particle / MPI.COMM_WORLD.Get_size())
     struct += [("iqmc_lds", float64, (N_work, N_dim))]
-    # Source
-    struct += [("iqmc_source", float64, (Ng, Nt, Nx, Ny, Nz))]
+
     struct += [("iqmc_fixed_source", float64, (Ng, Nt, Nx, Ny, Nz))]
     struct += [("iqmc_material_idx", int64, (Nt, Nx, Ny, Nz))]
     struct += [("iqmc_effective_scattering", float64, (Ng, Nt, Nx, Ny, Nz))]
@@ -562,6 +561,7 @@ def make_type_technique(N_particle, G, card):
         struct += [("iqmc_nuSigmaF", float64, (0, 0, 0, 0, 0))]
         struct += [("iqmc_nuSigmaF_outter", float64, (0, 0, 0, 0, 0))]
 
+    struct += [("iqmc_source", float64, (Ng, Nt, Nx, Ny, Nz))]
     # source tilting tallies
     # This logic structure ensures we don't allocate arrays for source tilting
     # unless the user has requested them. Even if source tilting is off, all
