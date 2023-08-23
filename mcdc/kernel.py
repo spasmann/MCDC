@@ -1761,7 +1761,7 @@ def iqmc_move_to_event(P, mcdc):
     # Distance to nearest geometry boundary (surface or lattice)
     # Also set particle material and speed
     d_boundary, event = distance_to_boundary(P, mcdc)
-    t_boundary = d_boundary / speed
+    t_boundary = (d_boundary / speed).min()
     
     # Distance to tally mesh
     d_mesh = INF
@@ -1770,16 +1770,16 @@ def iqmc_move_to_event(P, mcdc):
     d_iqmc_mesh = distance_to_mesh(P, mcdc["technique"]["iqmc_mesh"], mcdc)
     if d_iqmc_mesh < d_mesh:
         d_mesh = d_iqmc_mesh
-    t_mesh = d_mesh / speed
+    t_mesh = (d_mesh / speed).min()
     
     # Distance to time boundary
-    t_time_boundary = mcdc["setting"]["time_boundary"] - P["t"]
-    d_time_boundary = speed * t_time_boundary
+    t_time_boundary = (mcdc["setting"]["time_boundary"] - P["t"]).min()
+    d_time_boundary = (speed * t_time_boundary).min()
     
     # Distance to census time
     idx = mcdc["technique"]["census_idx"]
-    t_time_census = mcdc["technique"]["census_time"][idx] - P["t"]
-    d_time_census = speed * t_time_census
+    t_time_census = (mcdc["technique"]["census_time"][idx] - P["t"]).min()
+    d_time_census = (speed * t_time_census).min()
 
     # =========================================================================
     # Determine event
@@ -2772,7 +2772,7 @@ def qmc_res(flux_new, flux_old):
 
 
 @njit
-def score_iqmc_flux(P, distance, mcdc):
+def score_iqmc_flux(P, w_idx, distance, mcdc):
     """
 
     Tally the scalar flux and linear source tilt.
@@ -2811,21 +2811,26 @@ def score_iqmc_flux(P, distance, mcdc):
     else:
         flux = distance * w / dV
     mcdc["technique"]["iqmc_flux"][:, t, x, y, z] += flux
+    # Score flux from time-depleted groups
+    mcdc["technique"]["iqmc_flux"][w_idx, t, x, y, z] += P["iqmc_w"][w_idx]
+    # Deplete used groups
+    P["iqmc_w"][w_idx] = 0.0
 
-    # effective source tallies
+    # Score effective source tallies
     mcdc["technique"]["iqmc_effective_scattering"][:, t, x, y, z] += scattering_source(
         flux, mat_id, mcdc
     )
     mcdc["technique"]["iqmc_effective_fission"][:, t, x, y, z] += fission_source(
         flux, mat_id, mcdc
     )
+    # if using PI in eigenmode, score NuSigmaF*Phi
     if (
         mcdc["setting"]["mode_eigenvalue"]
         and mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration"
     ):
         mcdc["technique"]["iqmc_nuSigmaF"][:, t, x, y, z] += nu_f * SigmaF * flux
 
-    # source tilt tallies
+    # Score source tilt tallies
     if mcdc["technique"]["iqmc_source_tilt"] > 0:
         Nx = mesh["x"].size - 1
         Ny = mesh["y"].size - 1
