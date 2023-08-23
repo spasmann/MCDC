@@ -1784,27 +1784,22 @@ def iqmc_move_to_event(P, mcdc):
     # =========================================================================
     # Determine event
     #   Priority (in case of coincident events):
-    #     boundary > time_boundary > mesh > collision
+    #     boundary > time_boundary > mesh
     # =========================================================================
-    w_idx = np.where(P["t"] + t_mesh >= t_time_census)
-
 
     # Find the minimum
-    # distance = min(d_boundary, d_time_boundary, d_time_census, d_mesh)
-    time = min(t_boundary, t_time_boundary, t_time_census, t_mesh)
-    
-    # Remove the boundary event if it is not the nearest
-    if d_boundary > distance * PREC:
+    distance = min(d_boundary, d_time_boundary, d_time_census, d_mesh)
+    time = min(t_boundary.min(), t_time_boudnary, t_time_census, t_mesh.min())
+    # TODO: do I need to multiply by PREC ? what is it ?
+    if t_boundary > time * PREC:
         event = 0
-
-    # Add each event if it is within PREC of the nearest event
-    if d_time_boundary <= distance * PREC:
+    if t_time_boundary <= time * PREC:
         event += EVENT_TIME_BOUNDARY
-    if d_time_census <= distance * PREC:
-        event += EVENT_CENSUS
-    if d_mesh <= distance * PREC:
+    if t_time_census <= time * PREC:
+        event += EVENT_CENSUS   
+    if t_mesh <= time * PREC:
         event += EVENT_MESH
-
+        
     # Assign event
     P["event"] = event
 
