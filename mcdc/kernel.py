@@ -1750,7 +1750,90 @@ def move_to_event(P, mcdc):
     # Move particle
     move_particle(P, distance, mcdc)
 
+@njit
+def iqmc_move_to_event(P, mcdc):
+    # =========================================================================
+    # Get distances to events
+    # =========================================================================
+    # TODO: modify "get_particle_speed" to return vector of speeds
+    speed = get_particle_speed(P, mcdc)
+    
+    # Distance to nearest geometry boundary (surface or lattice)
+    # Also set particle material and speed
+    d_boundary, event = distance_to_boundary(P, mcdc)
+    t_boundary = d_boundary / speed
+    
+    # Distance to tally mesh
+    d_mesh = INF
+    if mcdc["cycle_active"]:
+        d_mesh = distance_to_mesh(P, mcdc["tally"]["mesh"], mcdc)
+    d_iqmc_mesh = distance_to_mesh(P, mcdc["technique"]["iqmc_mesh"], mcdc)
+    if d_iqmc_mesh < d_mesh:
+        d_mesh = d_iqmc_mesh
+    t_mesh = d_mesh / speed
+    
+    # Distance to time boundary
+    t_time_boundary = mcdc["setting"]["time_boundary"] - P["t"]
+    d_time_boundary = speed * t_time_boundary
+    
+    # Distance to census time
+    idx = mcdc["technique"]["census_idx"]
+    t_time_census = mcdc["technique"]["census_time"][idx] - P["t"]
+    d_time_census = speed * t_time_census
 
+    # =========================================================================
+    # Determine event
+    #   Priority (in case of coincident events):
+    #     boundary > time_boundary > mesh > collision
+    # =========================================================================
+    w_idx = np.where(P["t"] + t_mesh >= t_time_census)
+
+
+    # Find the minimum
+    # distance = min(d_boundary, d_time_boundary, d_time_census, d_mesh)
+    time = min(t_boundary, t_time_boundary, t_time_census, t_mesh)
+    
+    # Remove the boundary event if it is not the nearest
+    if d_boundary > distance * PREC:
+        event = 0
+
+    # Add each event if it is within PREC of the nearest event
+    if d_time_boundary <= distance * PREC:
+        event += EVENT_TIME_BOUNDARY
+    if d_time_census <= distance * PREC:
+        event += EVENT_CENSUS
+    if d_mesh <= distance * PREC:
+        event += EVENT_MESH
+
+    # Assign event
+    P["event"] = event
+
+    # =========================================================================
+    # Move particle
+    # =========================================================================
+
+    material = mcdc["materials"][P["material_ID"]]
+    w = P["iqmc_w"]
+    SigmaT = material["total"][:]
+    score_iqmc_flux(P, distance, mcdc)
+    w_final = continuous_weight_reduction(w, distance, SigmaT)
+    P["iqmc_w"] = w_final
+    P["w"] = w_final.sum()
+
+    if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:
+        P["alive"] = False
+
+    # Score tracklength tallies
+    if mcdc["tally"]["tracklength"] and mcdc["cycle_active"]:
+        score_tracklength(P, distance, mcdc)
+    if mcdc["setting"]["mode_eigenvalue"]:
+        eigenvalue_tally(P, distance, mcdc)
+
+    # Move particle
+    move_particle(P, distance, mcdc)
+    
+    
+    
 @njit
 def distance_to_collision(P, mcdc):
     # Get total cross-section
