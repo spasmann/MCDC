@@ -1761,7 +1761,7 @@ def iqmc_move_to_event(P, mcdc):
     # Distance to nearest geometry boundary (surface or lattice)
     # Also set particle material and speed
     d_boundary, event = distance_to_boundary(P, mcdc)
-    t_boundary = (d_boundary / speed).min()
+    t_boundary = (d_boundary / speed)
     
     # Distance to tally mesh
     d_mesh = INF
@@ -1770,16 +1770,16 @@ def iqmc_move_to_event(P, mcdc):
     d_iqmc_mesh = distance_to_mesh(P, mcdc["technique"]["iqmc_mesh"], mcdc)
     if d_iqmc_mesh < d_mesh:
         d_mesh = d_iqmc_mesh
-    t_mesh = (d_mesh / speed).min()
+    t_mesh = (d_mesh / speed)
     
     # Distance to time boundary
-    t_time_boundary = (mcdc["setting"]["time_boundary"] - P["t"]).min()
-    d_time_boundary = (speed * t_time_boundary).min()
+    t_time_boundary = (mcdc["setting"]["time_boundary"] - P["t"])
+    d_time_boundary = (speed * t_time_boundary)
     
     # Distance to census time
     idx = mcdc["technique"]["census_idx"]
-    t_time_census = (mcdc["technique"]["census_time"][idx] - P["t"]).min()
-    d_time_census = (speed * t_time_census).min()
+    t_time_census = (mcdc["technique"]["census_time"][idx] - P["t"])
+    d_time_census = (speed * t_time_census)
 
     # =========================================================================
     # Determine event
@@ -1789,22 +1789,26 @@ def iqmc_move_to_event(P, mcdc):
 
     # Find the minimum
     distance = min(d_boundary, d_time_boundary, d_time_census, d_mesh)
-    time = min(t_boundary.min(), t_time_boudnary, t_time_census, t_mesh.min())
+
     # TODO: do I need to multiply by PREC ? what is it ?
     if t_boundary > time * PREC:
         event = 0
+        time = t_boundary
     if t_time_boundary <= time * PREC:
         event += EVENT_TIME_BOUNDARY
+        time = t_time_boundary
     if t_time_census <= time * PREC:
         event += EVENT_CENSUS   
+        time = t_time_census
     if t_mesh <= time * PREC:
         event += EVENT_MESH
+        time = t_mesh
         
     # Assign event
     P["event"] = event
 
     # =========================================================================
-    # Move particle
+    # Score & Move particle
     # =========================================================================
 
     material = mcdc["materials"][P["material_ID"]]
@@ -1815,6 +1819,7 @@ def iqmc_move_to_event(P, mcdc):
     P["iqmc_w"] = w_final
     P["w"] = w_final.sum()
 
+    # kill particle if falls below a weight threshold 
     if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:
         P["alive"] = False
 
