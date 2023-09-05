@@ -252,8 +252,9 @@ def prepare():
         mcdc["setting"]["time_boundary"] = mcdc["tally"]["mesh"]["t"][-1]
         
     if input_card.technique["iQMC"]:
-        if mcdc["setting"]["time_boundary"] > mcdc["technique"]["iqmc_mesh"]["t"][-1]:
-            mcdc["setting"]["time_boundary"] = mcdc["technique"]["iqmc_mesh"]["t"][-1]
+        if len(mcdc["technique"]["iqmc_mesh"]["t"]) - 1 > 1:
+            if mcdc["setting"]["time_boundary"] > input_card.technique["iqmc_mesh"]["t"][-1]:
+                mcdc["setting"]["time_boundary"] = input_card.technique["iqmc_mesh"]["t"][-1]
     # =========================================================================
     # Technique
     # =========================================================================

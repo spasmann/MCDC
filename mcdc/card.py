@@ -154,10 +154,12 @@ class InputCard:
             "iqmc_source_yz": np.zeros([1, 1, 1, 1]),
             "iqmc_source_xyz": np.zeros([1, 1, 1, 1]),
             "iqmc_mesh": {
+                "g": np.array([-INF, INF]),
+                "t": np.array([-INF, INF]),
                 "x": np.array([-INF, INF]),
                 "y": np.array([-INF, INF]),
                 "z": np.array([-INF, INF]),
-                "t": np.array([-INF, INF]),
+
                 "mu": np.array([-1.0, 1.0]),
                 "azi": np.array([-PI, PI]),
             },

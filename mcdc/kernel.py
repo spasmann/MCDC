@@ -1706,7 +1706,6 @@ def move_to_event(P, mcdc):
 
     # Find the minimum
     distance = min(d_boundary, d_time_boundary, d_time_census, d_mesh, d_collision)
-    print(distance)
     # Remove the boundary event if it is not the nearest
     if d_boundary > distance * PREC:
         event = 0
@@ -1730,6 +1729,10 @@ def move_to_event(P, mcdc):
 
     # score iQMC tallies
     if mcdc["technique"]["iQMC"]:
+        
+        if mcdc["setting"]["track_particle"]:
+            track_particle(P, mcdc)
+            
         material = mcdc["materials"][P["material_ID"]]
         w = P["iqmc_w"]
         SigmaT = material["total"][:]
@@ -1738,8 +1741,8 @@ def move_to_event(P, mcdc):
         P["iqmc_w"] = w_final
         P["w"] = w_final.sum()
 
-        if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:
-            P["alive"] = False
+        # if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:
+            # P["alive"] = False
 
     # Score tracklength tallies
     if mcdc["tally"]["tracklength"] and mcdc["cycle_active"]:
@@ -2783,7 +2786,7 @@ def qmc_res(flux_new, flux_old):
     size = flux_old.size
     flux_new = flux_new.reshape((size,))
     flux_old = flux_old.reshape((size,))
-    res = np.linalg.norm((flux_new - flux_old), ord=2)
+    res = np.linalg.norm((flux_new - flux_old)/flux_old, ord=2)
     return res
 
 
@@ -3100,6 +3103,7 @@ def generate_iqmc_material_idx(mcdc):
                     z = z_mid[k]
     
                     # assign cell center position
+                    P_temp["t"] = t
                     P_temp["x"] = x
                     P_temp["y"] = y
                     P_temp["z"] = z
