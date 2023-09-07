@@ -250,11 +250,16 @@ def prepare():
     # Check if time boundary is above the final tally mesh time grid
     if mcdc["setting"]["time_boundary"] > mcdc["tally"]["mesh"]["t"][-1]:
         mcdc["setting"]["time_boundary"] = mcdc["tally"]["mesh"]["t"][-1]
-        
+
     if input_card.technique["iQMC"]:
         if len(mcdc["technique"]["iqmc_mesh"]["t"]) - 1 > 1:
-            if mcdc["setting"]["time_boundary"] > input_card.technique["iqmc_mesh"]["t"][-1]:
-                mcdc["setting"]["time_boundary"] = input_card.technique["iqmc_mesh"]["t"][-1]
+            if (
+                mcdc["setting"]["time_boundary"]
+                > input_card.technique["iqmc_mesh"]["t"][-1]
+            ):
+                mcdc["setting"]["time_boundary"] = input_card.technique["iqmc_mesh"][
+                    "t"
+                ][-1]
     # =========================================================================
     # Technique
     # =========================================================================

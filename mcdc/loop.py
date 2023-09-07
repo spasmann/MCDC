@@ -300,7 +300,7 @@ def source_iteration(mcdc):
         if mcdc["technique"]["iqmc_source_tilt"]:
             kernel.prepare_qmc_tilt_source(mcdc)
 
-    # kernel.iqmc_consolidate_sources(mcdc)
+    kernel.iqmc_consolidate_sources(mcdc)
     total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
 
     while not simulation_end:

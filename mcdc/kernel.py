@@ -1743,9 +1743,9 @@ def move_to_event(P, mcdc):
         eigenvalue_tally(P, distance, mcdc)
 
     # Move particle
-    move_particle(P, distance, mcdc)    
-    
-    
+    move_particle(P, distance, mcdc)
+
+
 @njit
 def distance_to_collision(P, mcdc):
     # Get total cross-section
@@ -2418,7 +2418,6 @@ def continuous_weight_reduction(P, distance, mcdc):
     w = P["iqmc_w"]
     P["iqmc_w"] = w * np.exp(-distance * SigmaT)
     P["w"] = P["iqmc_w"].sum()
-    
 
 
 @njit
@@ -2689,7 +2688,7 @@ def qmc_res(flux_new, flux_old):
     size = flux_old.size
     flux_new = flux_new.reshape((size,))
     flux_old = flux_old.reshape((size,))
-    res = np.linalg.norm((flux_new - flux_old)/flux_old, ord=2)
+    res = np.linalg.norm((flux_new - flux_old) / flux_old, ord=2)
     return res
 
 
@@ -3004,19 +3003,19 @@ def generate_iqmc_material_idx(mcdc):
                 y = y_mid[j]
                 for k in range(Nz):
                     z = z_mid[k]
-    
+
                     # assign cell center position
                     P_temp["t"] = t
                     P_temp["x"] = x
                     P_temp["y"] = y
                     P_temp["z"] = z
-    
+
                     # set cell_ID
                     P_temp["cell_ID"] = get_particle_cell(P_temp, 0, trans, mcdc)
-    
+
                     # set material_ID
                     material_ID = get_particle_material(P_temp, mcdc)
-    
+
                     # assign material index
                     mcdc["technique"]["iqmc_material_idx"][t, i, j, k] = material_ID
 
@@ -3337,19 +3336,13 @@ def iqmc_tilt_source(x, y, z, t, P, Q, mcdc):
     z_mid = mesh["z"][z] + (0.5 * dz)
     # linear x-component
     if Nx > 1:
-        Q += mcdc["technique"]["iqmc_source_x"][:, t, x, y, z] * (
-            P["x"] - x_mid
-        )
+        Q += mcdc["technique"]["iqmc_source_x"][:, t, x, y, z] * (P["x"] - x_mid)
     # linear y-component
     if Ny > 1:
-        Q += mcdc["technique"]["iqmc_source_y"][:, t, x, y, z] * (
-            P["y"] - y_mid
-        )
+        Q += mcdc["technique"]["iqmc_source_y"][:, t, x, y, z] * (P["y"] - y_mid)
     # linear z-component
     if Nz > 1:
-        Q += mcdc["technique"]["iqmc_source_z"][:, t, x, y, z] * (
-            P["z"] - z_mid
-        )
+        Q += mcdc["technique"]["iqmc_source_z"][:, t, x, y, z] * (P["z"] - z_mid)
 
     if mcdc["technique"]["iqmc_source_tilt"] > 1:
         if Nx > 1 and Ny > 1:
