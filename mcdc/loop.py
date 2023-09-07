@@ -596,9 +596,9 @@ def davidson(mcdc):
     # vector size
     Nt = mcdc["technique"]["iqmc_total_source"].size
     # allocate memory then use slice indexing in loop
-    V = np.zeros((Nt, maxit), dtype=np.float64)
-    HV = np.zeros((Nt, maxit), dtype=np.float64)
-    FV = np.zeros((Nt, maxit), dtype=np.float64)
+    V = np.zeros((Nt, m), dtype=np.float64)
+    HV = np.zeros((Nt, m), dtype=np.float64)
+    FV = np.zeros((Nt, m), dtype=np.float64)
     # generate first guess of source if none was passed through
     if mcdc["technique"]["iqmc_source"].all() == 0.0:
         # generate material index

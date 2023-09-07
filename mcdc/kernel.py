@@ -1729,20 +1729,12 @@ def move_to_event(P, mcdc):
 
     # score iQMC tallies
     if mcdc["technique"]["iQMC"]:
-        
         if mcdc["setting"]["track_particle"]:
             track_particle(P, mcdc)
-            
-        material = mcdc["materials"][P["material_ID"]]
-        w = P["iqmc_w"]
-        SigmaT = material["total"][:]
-        score_iqmc_flux(P, distance, mcdc)
-        w_final = continuous_weight_reduction(w, distance, SigmaT)
-        P["iqmc_w"] = w_final
-        P["w"] = w_final.sum()
-
-        # if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:
-            # P["alive"] = False
+        score_iqmc_tallies(P, distance, mcdc)
+        continuous_weight_reduction(P, distance, mcdc)
+        if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:
+            P["alive"] = False
 
     # Score tracklength tallies
     if mcdc["tally"]["tracklength"] and mcdc["cycle_active"]:
@@ -1751,90 +1743,7 @@ def move_to_event(P, mcdc):
         eigenvalue_tally(P, distance, mcdc)
 
     # Move particle
-    move_particle(P, distance, mcdc)
-
-@njit
-def iqmc_move_to_event(P, mcdc):
-    # =========================================================================
-    # Get distances to events
-    # =========================================================================
-    # TODO: modify "get_particle_speed" to return vector of speeds
-    speed = get_particle_speed(P, mcdc)
-    
-    # Distance to nearest geometry boundary (surface or lattice)
-    # Also set particle material and speed
-    d_boundary, event = distance_to_boundary(P, mcdc)
-    t_boundary = (d_boundary / speed)
-    
-    # Distance to tally mesh
-    d_mesh = INF
-    if mcdc["cycle_active"]:
-        d_mesh = distance_to_mesh(P, mcdc["tally"]["mesh"], mcdc)
-    d_iqmc_mesh = distance_to_mesh(P, mcdc["technique"]["iqmc_mesh"], mcdc)
-    if d_iqmc_mesh < d_mesh:
-        d_mesh = d_iqmc_mesh
-    t_mesh = (d_mesh / speed)
-    
-    # Distance to time boundary
-    t_time_boundary = (mcdc["setting"]["time_boundary"] - P["t"])
-    d_time_boundary = (speed * t_time_boundary)
-    
-    # Distance to census time
-    idx = mcdc["technique"]["census_idx"]
-    t_time_census = (mcdc["technique"]["census_time"][idx] - P["t"])
-    d_time_census = (speed * t_time_census)
-
-    # =========================================================================
-    # Determine event
-    #   Priority (in case of coincident events):
-    #     boundary > time_boundary > mesh
-    # =========================================================================
-
-    # Find the minimum
-    distance = min(d_boundary, d_time_boundary, d_time_census, d_mesh)
-
-    # TODO: do I need to multiply by PREC ? what is it ?
-    if t_boundary > time * PREC:
-        event = 0
-        time = t_boundary
-    if t_time_boundary <= time * PREC:
-        event += EVENT_TIME_BOUNDARY
-        time = t_time_boundary
-    if t_time_census <= time * PREC:
-        event += EVENT_CENSUS   
-        time = t_time_census
-    if t_mesh <= time * PREC:
-        event += EVENT_MESH
-        time = t_mesh
-        
-    # Assign event
-    P["event"] = event
-
-    # =========================================================================
-    # Score & Move particle
-    # =========================================================================
-
-    material = mcdc["materials"][P["material_ID"]]
-    w = P["iqmc_w"]
-    SigmaT = material["total"][:]
-    score_iqmc_flux(P, distance, mcdc)
-    w_final = continuous_weight_reduction(w, distance, SigmaT)
-    P["iqmc_w"] = w_final
-    P["w"] = w_final.sum()
-
-    # kill particle if falls below a weight threshold 
-    if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:
-        P["alive"] = False
-
-    # Score tracklength tallies
-    if mcdc["tally"]["tracklength"] and mcdc["cycle_active"]:
-        score_tracklength(P, distance, mcdc)
-    if mcdc["setting"]["mode_eigenvalue"]:
-        eigenvalue_tally(P, distance, mcdc)
-
-    # Move particle
-    move_particle(P, distance, mcdc)
-    
+    move_particle(P, distance, mcdc)    
     
     
 @njit
@@ -2485,7 +2394,7 @@ def weight_window(P, mcdc):
 
 
 @njit
-def continuous_weight_reduction(w, distance, SigmaT):
+def continuous_weight_reduction(P, distance, mcdc):
     """
     Continuous weight reduction technique based on particle track-length, for
     use with iQMC.
@@ -2504,7 +2413,12 @@ def continuous_weight_reduction(w, distance, SigmaT):
     float64
         New particle weight
     """
-    return w * np.exp(-distance * SigmaT)
+    material = mcdc["materials"][P["material_ID"]]
+    SigmaT = material["total"][:]
+    w = P["iqmc_w"]
+    P["iqmc_w"] = w * np.exp(-distance * SigmaT)
+    P["w"] = P["iqmc_w"].sum()
+    
 
 
 @njit
@@ -2645,7 +2559,6 @@ def prepare_qmc_particles(mcdc):
     N_particle = mcdc["setting"]["N_particle"]
     # number of particles this processor will handle
     N_work = mcdc["mpi_work_size"]
-
     # low discrepency sequence
     lds = mcdc["technique"]["iqmc_lds"]
     # source
@@ -2670,7 +2583,9 @@ def prepare_qmc_particles(mcdc):
     for n in range(N_work):
         # Create new particle
         P_new = np.zeros(1, dtype=type_.particle_record)[0]
-        # assign direction
+        # assign initial group, time, and position
+        P_new["g"] = 0
+        P_new["t"] = sample_qmc_position(ta, tb, lds[n, 2])
         P_new["x"] = sample_qmc_position(xa, xb, lds[n, 0])
         P_new["y"] = sample_qmc_position(ya, yb, lds[n, 4])
         P_new["z"] = sample_qmc_position(za, zb, lds[n, 3])
@@ -2678,27 +2593,15 @@ def prepare_qmc_particles(mcdc):
         P_new["ux"], P_new["uy"], P_new["uz"] = sample_qmc_isotropic_direction(
             lds[n, 1], lds[n, 5]
         )
-        if P_new["ux"] == 0.0:
-            P_new["ux"] += 0.01
-        # time and group
-        if Nt > 1:
-            P_new["t"] = sample_qmc_position(ta, tb, lds[n,2])
-        else:
-            P_new["t"] = 0
-        P_new["g"] = 0
         t, x, y, z, outside = mesh_get_index(P_new, mesh)
-        # mat_idx = mcdc["technique"]["iqmc_material_idx"][t, x, y, z]
-        # G = mcdc["materials"][mat_idx]["G"]
-        Q = mcdc["technique"]["iqmc_source"].copy()
-        # calculate dx,dy,dz and then dV
-        # TODO: Bug where if x = 0.0 the x-index is -1
+        q = Q[:, t, x, y, z].copy()
         dV = iqmc_cell_volume(x, y, z, mesh)
         # Source tilt
         if mcdc["technique"]["iqmc_source_tilt"]:
-            iqmc_tilt_source(x, y, z, t, P_new, Q, mcdc)
+            iqmc_tilt_source(x, y, z, t, P_new, q, mcdc)
         # set particle weight
-        P_new["iqmc_w"] = Q[:, t, x, y, z] * dV * N_total / N_particle
-        P_new["w"] = (P_new["iqmc_w"]).sum()
+        P_new["iqmc_w"] = q * dV * N_total / N_particle
+        P_new["w"] = P_new["iqmc_w"].sum()
         # add to source bank
         add_particle(P_new, mcdc["bank_source"])
 
@@ -2791,7 +2694,7 @@ def qmc_res(flux_new, flux_old):
 
 
 @njit
-def score_iqmc_flux(P, distance, mcdc):
+def score_iqmc_tallies(P, distance, mcdc):
     """
 
     Tally the scalar flux and linear source tilt.
@@ -3245,13 +3148,6 @@ def modified_gram_schmidt(V, u):
     w2 = v1 - np.dot(V, np.dot(V.T, v1))
     v2 = w2 / np.linalg.norm(w2)
     V = np.append(V, v2, axis=1)
-    # TODO: unit test that each column of V.dot(v2) == 0
-    # for i in range(V.shape[1]):
-    #     temp = V[:,i].dot(v2)
-    #     try:
-    #         assert np.isclose(temp, 0.0)
-    #     except:
-    #         print(temp)
     return V
 
 
@@ -3441,41 +3337,41 @@ def iqmc_tilt_source(x, y, z, t, P, Q, mcdc):
     z_mid = mesh["z"][z] + (0.5 * dz)
     # linear x-component
     if Nx > 1:
-        Q[:, t, x, y, z] += mcdc["technique"]["iqmc_source_x"][:, t, x, y, z] * (
+        Q += mcdc["technique"]["iqmc_source_x"][:, t, x, y, z] * (
             P["x"] - x_mid
         )
     # linear y-component
     if Ny > 1:
-        Q[:, t, x, y, z] += mcdc["technique"]["iqmc_source_y"][:, t, x, y, z] * (
+        Q += mcdc["technique"]["iqmc_source_y"][:, t, x, y, z] * (
             P["y"] - y_mid
         )
     # linear z-component
     if Nz > 1:
-        Q[:, t, x, y, z] += mcdc["technique"]["iqmc_source_z"][:, t, x, y, z] * (
+        Q += mcdc["technique"]["iqmc_source_z"][:, t, x, y, z] * (
             P["z"] - z_mid
         )
 
     if mcdc["technique"]["iqmc_source_tilt"] > 1:
         if Nx > 1 and Ny > 1:
-            Q[:, t, x, y, z] += (
+            Q += (
                 mcdc["technique"]["iqmc_source_xy"][:, t, x, y, z]
                 * (P["x"] - x_mid)
                 * (P["y"] - y_mid)
             )
         if Nx > 1 and Nz > 1:
-            Q[:, t, x, y, z] += (
+            Q += (
                 mcdc["technique"]["iqmc_source_xz"][:, t, x, y, z]
                 * (P["x"] - x_mid)
                 * (P["z"] - z_mid)
             )
         if Ny > 1 and Nz > 1:
-            Q[:, t, x, y, z] += (
+            Q += (
                 mcdc["technique"]["iqmc_source_yz"][:, t, x, y, z]
                 * (P["y"] - y_mid)
                 * (P["z"] - z_mid)
             )
         if mcdc["technique"]["iqmc_source_tilt"] > 2:
-            Q[:, t, x, y, z] += (
+            Q += (
                 mcdc["technique"]["iqmc_source_xyz"][:, t, x, y, z]
                 * (P["x"] - x_mid)
                 * (P["y"] - y_mid)

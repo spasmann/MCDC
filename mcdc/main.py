@@ -343,21 +343,20 @@ def prepare():
         size = MPI.COMM_WORLD.Get_size()
         rank = MPI.COMM_WORLD.Get_rank()
         N_work = math.ceil(N_particle / size)
-        # how many samples will we skip in the LDS
+        # how many samples this processor will skip in the LDS
         fast_forward = int((rank / size) * N)
-        # generate lds
+        # generate LDS
         if input_card.technique["iqmc_generator"] == "sobol":
             sampler = qmc.Sobol(d=N_dim, scramble=scramble)
-            if rank == 0:
-                # skip the first entry in Sobol sequence because its 0.0
-                sampler.fast_forward(1)
+            # skip the first entry in Sobol sequence because its 0.0
+            # skip the second because it maps to ux = 0.0
+            sampler.fast_forward(2)
             sampler.fast_forward(fast_forward)
             mcdc["technique"]["iqmc_lds"] = sampler.random(N_work)
         if input_card.technique["iqmc_generator"] == "halton":
             sampler = qmc.Halton(d=N_dim, scramble=scramble, seed=seed)
-            if rank == 0:
-                # skip the first entry in Halton sequence because its 0.0
-                sampler.fast_forward(1)
+            # skip the first entry in Halton sequence because its 0.0
+            sampler.fast_forward(1)
             sampler.fast_forward(fast_forward)
             mcdc["technique"]["iqmc_lds"] = sampler.random(N_work)
         if input_card.technique["iqmc_generator"] == "random":

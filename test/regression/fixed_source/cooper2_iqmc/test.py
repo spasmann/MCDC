@@ -242,20 +242,20 @@ def si_st_test():
     b = output["iqmc/flux"][:]
     assert np.allclose(a, b)
 
-    a = answer["iqmc/source"][:]
-    b = output["iqmc/source"][:]
+    a = answer["iqmc/source/constant"][:]
+    b = output["iqmc/source/constant"][:]
     assert np.allclose(a, b)
 
-    a = answer["iqmc/source_x"][:]
-    b = output["iqmc/source_x"][:]
+    a = answer["iqmc/source/x"][:]
+    b = output["iqmc/source/x"][:]
     assert np.allclose(a, b)
 
-    a = answer["iqmc/source_y"][:]
-    b = output["iqmc/source_y"][:]
+    a = answer["iqmc/source/y"][:]
+    b = output["iqmc/source/y"][:]
     assert np.allclose(a, b)
 
-    a = answer["iqmc/source_xy"][:]
-    b = output["iqmc/source_xy"][:]
+    a = answer["iqmc/source/xy"][:]
+    b = output["iqmc/source/xy"][:]
     assert np.allclose(a, b)
 
     output.close()
@@ -341,20 +341,20 @@ def gmres_st_test():
     b = output["iqmc/flux"][:]
     assert np.allclose(a, b)
 
-    a = answer["iqmc/source"][:]
-    b = output["iqmc/source"][:]
+    a = answer["iqmc/source/constant"][:]
+    b = output["iqmc/source/constant"][:]
     assert np.allclose(a, b)
 
-    a = answer["iqmc/source_x"][:]
-    b = output["iqmc/source_x"][:]
+    a = answer["iqmc/source/x"][:]
+    b = output["iqmc/source/x"][:]
     assert np.allclose(a, b)
 
-    a = answer["iqmc/source_y"][:]
-    b = output["iqmc/source_y"][:]
+    a = answer["iqmc/source/y"][:]
+    b = output["iqmc/source/y"][:]
     assert np.allclose(a, b)
 
-    a = answer["iqmc/source_xy"][:]
-    b = output["iqmc/source_xy"][:]
+    a = answer["iqmc/source/xy"][:]
+    b = output["iqmc/source/xy"][:]
     assert np.allclose(a, b)
 
     output.close()
@@ -364,5 +364,5 @@ def gmres_st_test():
 if __name__ == "__main__":
     si_test()
     gmres_test()
-    # si_st_test()
-    # gmres_st_test()
+    si_st_test()
+    gmres_st_test()
