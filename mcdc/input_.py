@@ -1240,14 +1240,17 @@ def iQMC(
     if z is None:
         ax_expand.append(4)
     for ax in ax_expand:
-        fixed_source = np.expand_dims(fixed_source, axis=ax)
         phi0 = np.expand_dims(phi0, axis=ax)
-
+        if fixed_source is not None:
+            fixed_source = np.expand_dims(fixed_source, axis=ax)
+        else:
+            fixed_source = np.zeros_like(phi0)
+            
     if krylov_restart is None:
         krylov_restart = maxitt
-
     if source0 is None:
         source0 = np.zeros_like(phi0)
+        
 
     Nx = phi0.shape[2]
     Ny = phi0.shape[3]
