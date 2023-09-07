@@ -2656,7 +2656,7 @@ def prepare_qmc_particles(mcdc):
     Ny = len(mesh["y"]) - 1
     Nz = len(mesh["z"]) - 1
     # total number of spatial cells
-    N_total = Nx * Ny * Nz
+    N_total = Nx * Ny * Nz * Nt
     # outter mesh boundaries for sampling position
     xa = mesh["x"][0]
     xb = mesh["x"][-1]
