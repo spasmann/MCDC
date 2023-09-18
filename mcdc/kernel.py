@@ -12,6 +12,29 @@ from mcdc.type_ import score_list
 from mcdc.loop import loop_source
 
 
+from mcdc.main import USE_TIMER
+import time
+from numba import njit, objmode
+def get_decorator():
+    if USE_TIMER:
+        return njit_timer
+    else:
+        return njit
+
+def njit_timer(f):
+    jf = njit(f)
+    @njit
+    def wrapper(*args):
+        with objmode(start='float64'):
+            start = time.time()
+        g = jf(*args)
+        with objmode():
+            stop = time.time()
+            args[-1]['timer'][f.__name__] += stop - start
+        return g
+    return wrapper
+
+
 # =============================================================================
 # Random sampling
 # =============================================================================

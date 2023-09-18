@@ -18,13 +18,38 @@ from mcdc.print_ import (
     print_iqmc_eigenvalue_exit_code,
 )
 
+# =============================================================================
+# Timing Decorator
+# =============================================================================
+
+from mcdc.main import USE_TIMER
+import time
+from numba import njit, objmode
+def get_decorator():
+    if USE_TIMER:
+        return njit_timer
+    else:
+        return njit
+
+def njit_timer(f):
+    jf = njit(f)
+    @njit
+    def wrapper(*args):
+        with objmode(start='float64'):
+            start = time.time()
+        g = jf(*args)
+        with objmode():
+            stop = time.time()
+            args[-1]['timer'][f.__name__] += stop - start
+        return g
+    return wrapper
 
 # =========================================================================
 # Fixed-source loop
 # =========================================================================
 
 
-@njit
+@get_decorator()
 def loop_fixed_source(mcdc):
     # Loop over batches
     for idx_batch in range(mcdc["setting"]["N_batch"]):
@@ -75,7 +100,7 @@ def loop_fixed_source(mcdc):
 # =========================================================================
 
 
-@njit
+@get_decorator()
 def loop_eigenvalue(mcdc):
     # Loop over power iteration cycles
     for idx_cycle in range(mcdc["setting"]["N_cycle"]):
@@ -114,7 +139,7 @@ def loop_eigenvalue(mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def loop_source(seed, mcdc):
     # Progress bar indicator
     N_prog = 0
@@ -195,7 +220,7 @@ def loop_source(seed, mcdc):
 # =========================================================================
 
 
-@njit
+@get_decorator()
 def loop_particle(P, mcdc):
     # Particle tracker
     if mcdc["setting"]["track_particle"]:
@@ -294,7 +319,7 @@ def loop_particle(P, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def loop_iqmc(mcdc):
     # generate material index
     kernel.generate_iqmc_material_idx(mcdc)
@@ -311,7 +336,7 @@ def loop_iqmc(mcdc):
             gmres(mcdc)
 
 
-@njit
+@get_decorator()
 def source_iteration(mcdc):
     simulation_end = False
 
@@ -361,7 +386,7 @@ def source_iteration(mcdc):
         loop_index += 1
 
 
-@njit
+@get_decorator()
 def gmres(mcdc):
     """
     GMRES solver for iQMC fixed-source problems.
@@ -513,7 +538,7 @@ def gmres(mcdc):
     # end outer loop
 
 
-@njit
+@get_decorator()
 def power_iteration(mcdc):
     simulation_end = False
 
@@ -562,7 +587,7 @@ def power_iteration(mcdc):
             print_iqmc_eigenvalue_exit_code(mcdc)
 
 
-@njit
+@get_decorator()
 def davidson(mcdc):
     """
     The generalized Davidson method is a Krylov subspace method for solving
@@ -692,7 +717,7 @@ def davidson(mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def loop_source_precursor(seed, mcdc):
     # TODO: censussed neutrons seeding is still not reproducible
 

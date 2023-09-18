@@ -9,6 +9,7 @@ parser.add_argument(
 )
 parser.add_argument("--N_particle", type=int, help="Number of particles")
 parser.add_argument("--output", type=str, help="Output file name")
+parser.add_argument("--use_timer", type=str, help="Using timing decorator to store function call times")
 args, unargs = parser.parse_known_args()
 
 # Set mode
@@ -18,6 +19,10 @@ if mode == "python":
     nb.config.DISABLE_JIT = True
 elif mode == "numba":
     nb.config.DISABLE_JIT = False
+
+USE_TIMER = False
+if args.use_timer is not None:
+    USE_TIMER = True
 
 import h5py
 import numpy as np
@@ -44,6 +49,8 @@ def run():
         input_deck.setting["N_particle"] = args.N_particle
     if args.output is not None:
         input_deck.setting["output"] = args.output
+    if args.use_timer is not None:
+        input_deck.setting["timer"] = args.use_timer
 
     # Start timer
     total_start = MPI.Wtime()
@@ -170,6 +177,7 @@ def prepare():
     type_.make_type_tally(N_tally_scores, input_deck.tally)
     type_.make_type_setting(input_deck)
     type_.make_type_technique(N_particle, G, input_deck.technique)
+    type_.make_type_timer(input_deck)
     type_.make_type_global(input_deck)
     kernel.adapt_rng(nb.config.DISABLE_JIT)
 
@@ -447,6 +455,7 @@ def prepare():
     # All active eigenvalue cycle?
     elif mcdc["setting"]["N_inactive"] == 0:
         mcdc["cycle_active"] = True
+        
 
     # =========================================================================
     # Source file
@@ -466,6 +475,13 @@ def prepare():
             # Add particles to source bank
             mcdc["bank_source"]["particles"][:N_local] = f["particles"][start:end]
             mcdc["bank_source"]["size"] = N_local
+            
+            
+    # =========================================================================
+    # Function Timer
+    # =========================================================================
+    for name in type_.timer.names:
+        mcdc["timer"][name] = 0.0   
 
     # =========================================================================
     # IC file
@@ -662,6 +678,10 @@ def generate_hdf5(mcdc):
             with h5py.File(mcdc["setting"]["output"] + ".h5", "a") as f:
                 f.create_dataset("particles", data=neutrons[:])
                 f.create_dataset("particles_size", data=len(neutrons[:]))
+    
+    # Function timing?
+    for name in mcdc["timer"].dtype.names:
+        f.create_dataset("timer/"+name, data=mcdc["timer"][name])
 
 
 def closeout(mcdc):
