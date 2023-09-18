@@ -24,7 +24,6 @@ source = None
 setting = None
 tally = None
 technique = None
-timer = None
 global_ = None
 
 
@@ -754,7 +753,6 @@ def make_type_global(card):
             ("particle_track_history_ID", int64),
             ("particle_track_particle_ID", int64),
             ("precursor_strength", float64),
-            ("timer", timer),
         ]
     )
 
@@ -823,22 +821,4 @@ def make_type_mesh_(card):
 
 mesh_names = ["x", "y", "z", "t", "mu", "azi", "g"]
 
-
-def make_type_timer(card):
-    global timer
-    from mcdc import kernel
-    from mcdc import loop
-    # =========================================================================
-    # Timer
-    # =========================================================================
-    struct = []
-    # main
-    loop_names = [func for func in dir(loop) if not func.startswith('__')]
-    kernel_names = [func for func in dir(kernel) if not func.startswith('__')]
-    function_names = set(loop_names + kernel_names)
-    for name in function_names:
-        struct += [(name, float64)]
     
-    timer = np.dtype(struct)
-    
-        

@@ -20,9 +20,10 @@ if mode == "python":
 elif mode == "numba":
     nb.config.DISABLE_JIT = False
 
-USE_TIMER = False
+USE_TIMER = True
 if args.use_timer is not None:
     USE_TIMER = True
+from mcdc.decorator import results, tree, print_tree
 
 import h5py
 import numpy as np
@@ -44,13 +45,13 @@ input_deck = mcdc_.input_deck
 
 
 def run():
+    global results, tree
+    
     # Override input deck with command-line argument, if given
     if args.N_particle is not None:
         input_deck.setting["N_particle"] = args.N_particle
     if args.output is not None:
         input_deck.setting["output"] = args.output
-    if args.use_timer is not None:
-        input_deck.setting["timer"] = args.use_timer
 
     # Start timer
     total_start = MPI.Wtime()
@@ -86,7 +87,6 @@ def run():
     # Stop timer
     MPI.COMM_WORLD.Barrier()
     mcdc["runtime_total"] = MPI.Wtime() - total_start
-
     # Closout
     closeout(mcdc)
 
@@ -177,7 +177,6 @@ def prepare():
     type_.make_type_tally(N_tally_scores, input_deck.tally)
     type_.make_type_setting(input_deck)
     type_.make_type_technique(N_particle, G, input_deck.technique)
-    type_.make_type_timer(input_deck)
     type_.make_type_global(input_deck)
     kernel.adapt_rng(nb.config.DISABLE_JIT)
 
@@ -476,12 +475,6 @@ def prepare():
             mcdc["bank_source"]["particles"][:N_local] = f["particles"][start:end]
             mcdc["bank_source"]["size"] = N_local
             
-            
-    # =========================================================================
-    # Function Timer
-    # =========================================================================
-    for name in type_.timer.names:
-        mcdc["timer"][name] = 0.0   
 
     # =========================================================================
     # IC file
@@ -678,10 +671,6 @@ def generate_hdf5(mcdc):
             with h5py.File(mcdc["setting"]["output"] + ".h5", "a") as f:
                 f.create_dataset("particles", data=neutrons[:])
                 f.create_dataset("particles_size", data=len(neutrons[:]))
-    
-    # Function timing?
-    for name in mcdc["timer"].dtype.names:
-        f.create_dataset("timer/"+name, data=mcdc["timer"][name])
 
 
 def closeout(mcdc):
@@ -698,6 +687,23 @@ def closeout(mcdc):
                 f.create_dataset(
                     "runtime/" + name, data=np.array([mcdc["runtime_" + name]])
                 )
+            if USE_TIMER:
+                # TODO: print to h5 file
+                # TODO: move to print.py
+                from tabulate import tabulate
+                table = []
+                decimals = 6
+                for name in list(results):
+                    calls = len(results[name])
+                    total_time = np.round(sum(results[name]),decimals=decimals)
+                    avg_time = np.round(total_time / calls, decimals=decimals)
+                    row = [name, calls, avg_time, total_time]
+                    table.append(row)
+                table = sorted(table, key=lambda x: x[3], reverse=True)
+                print('\n')
+                print(tabulate(table, headers=["Function", "Calls", "Avg. Time", "Cumulative Time"], tablefmt="github"))
+            
 
     print_runtime(mcdc)
     input_deck.reset()
+    

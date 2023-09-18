@@ -18,31 +18,10 @@ from mcdc.print_ import (
     print_iqmc_eigenvalue_exit_code,
 )
 
-# =============================================================================
-# Timing Decorator
-# =============================================================================
 
-from mcdc.main import USE_TIMER
-import time
-from numba import njit, objmode
-def get_decorator():
-    if USE_TIMER:
-        return njit_timer
-    else:
-        return njit
 
-def njit_timer(f):
-    jf = njit(f)
-    @njit
-    def wrapper(*args):
-        with objmode(start='float64'):
-            start = time.time()
-        g = jf(*args)
-        with objmode():
-            stop = time.time()
-            args[-1]['timer'][f.__name__] += stop - start
-        return g
-    return wrapper
+from mcdc.decorator import get_decorator
+USE_TIMER = True
 
 # =========================================================================
 # Fixed-source loop
@@ -93,7 +72,6 @@ def loop_fixed_source(mcdc):
 
     # Tally closeout
     kernel.tally_closeout(mcdc)
-
 
 # =========================================================================
 # Eigenvalue loop

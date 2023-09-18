@@ -12,27 +12,8 @@ from mcdc.type_ import score_list
 from mcdc.loop import loop_source
 
 
-from mcdc.main import USE_TIMER
-import time
-from numba import njit, objmode
-def get_decorator():
-    if USE_TIMER:
-        return njit_timer
-    else:
-        return njit
-
-def njit_timer(f):
-    jf = njit(f)
-    @njit
-    def wrapper(*args):
-        with objmode(start='float64'):
-            start = time.time()
-        g = jf(*args)
-        with objmode():
-            stop = time.time()
-            args[-1]['timer'][f.__name__] += stop - start
-        return g
-    return wrapper
+from mcdc.decorator import get_decorator
+USE_TIMER = True
 
 
 # =============================================================================
@@ -40,7 +21,7 @@ def njit_timer(f):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def sample_isotropic_direction(P):
     # Sample polar cosine and azimuthal angle uniformly
     mu = 2.0 * rng(P) - 1.0
@@ -54,7 +35,7 @@ def sample_isotropic_direction(P):
     return x, y, z
 
 
-@njit
+@get_decorator()
 def sample_white_direction(nx, ny, nz, P):
     # Sample polar cosine
     mu = math.sqrt(rng(P))
@@ -84,13 +65,13 @@ def sample_white_direction(nx, ny, nz, P):
     return x, y, z
 
 
-@njit
+@get_decorator()
 def sample_uniform(a, b, P):
     return a + rng(P) * (b - a)
 
 
 # TODO: use cummulative density function and binary search
-@njit
+@get_decorator()
 def sample_discrete(group, P):
     tot = 0.0
     xi = rng(P)
@@ -165,13 +146,13 @@ def rng_(seed):
     return wrapping_add(wrapping_mul(RNG_G, seed), RNG_C) & RNG_MOD_MASK
 
 
-@njit
+@get_decorator()
 def rng(state):
     state["rng_seed"] = rng_(state["rng_seed"])
     return state["rng_seed"] / RNG_MOD
 
 
-@njit
+@get_decorator()
 def rng_from_seed(seed):
     return rng_(seed) / RNG_MOD
 
@@ -181,7 +162,7 @@ def rng_from_seed(seed):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def source_particle(seed, mcdc):
     P = np.zeros(1, dtype=type_.particle_record)[0]
     P["rng_seed"] = seed
@@ -241,7 +222,7 @@ def source_particle(seed, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def add_particle(P, bank):
     # Check if bank is full
     if bank["size"] == bank["particles"].shape[0]:
@@ -255,7 +236,7 @@ def add_particle(P, bank):
     bank["size"] += 1
 
 
-@njit
+@get_decorator()
 def get_particle(bank, mcdc):
     # Check if bank is empty
     if bank["size"] == 0:
@@ -295,7 +276,7 @@ def get_particle(bank, mcdc):
     return P
 
 
-@njit
+@get_decorator()
 def manage_particle_banks(seed, mcdc):
     # Record time
     if mcdc["mpi_master"]:
@@ -334,7 +315,7 @@ def manage_particle_banks(seed, mcdc):
         mcdc["runtime_bank_management"] += time_end - time_start
 
 
-@njit
+@get_decorator()
 def manage_IC_bank(mcdc):
     # Buffer bank
     buff_n = np.zeros(
@@ -388,7 +369,7 @@ def manage_IC_bank(mcdc):
     mcdc["technique"]["IC_bank_precursor_local"]["size"] = 0
 
 
-@njit
+@get_decorator()
 def bank_scanning(bank, mcdc):
     N_local = bank["size"]
 
@@ -407,7 +388,7 @@ def bank_scanning(bank, mcdc):
     return idx_start, N_local, N_global
 
 
-@njit
+@get_decorator()
 def bank_scanning_weight(bank, mcdc):
     # Local weight CDF
     N_local = bank["size"]
@@ -432,7 +413,7 @@ def bank_scanning_weight(bank, mcdc):
     return w_start, w_cdf, W_global
 
 
-@njit
+@get_decorator()
 def bank_scanning_DNP(bank, mcdc):
     N_DNP_local = bank["size"]
 
@@ -457,7 +438,7 @@ def bank_scanning_DNP(bank, mcdc):
     return idx_start, N_local, N_global
 
 
-@njit
+@get_decorator()
 def normalize_weight(bank, norm):
     # Get total weight
     W = total_weight(bank)
@@ -467,7 +448,7 @@ def normalize_weight(bank, norm):
         P["w"] *= norm / W
 
 
-@njit
+@get_decorator()
 def total_weight(bank):
     # Local total weight
     W_local = np.zeros(1)
@@ -481,7 +462,7 @@ def total_weight(bank):
     return buff[0]
 
 
-@njit
+@get_decorator()
 def bank_rebalance(mcdc):
     # Scan the bank
     idx_start, N_local, N = bank_scanning(mcdc["bank_source"], mcdc)
@@ -562,7 +543,7 @@ def bank_rebalance(mcdc):
         mcdc["bank_source"]["particles"][i] = buff[i]
 
 
-@njit
+@get_decorator()
 def distribute_work(N, mcdc, precursor=False):
     size = mcdc["mpi_size"]
     rank = mcdc["mpi_rank"]
@@ -601,7 +582,7 @@ def distribute_work(N, mcdc, precursor=False):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def bank_IC(P, mcdc):
     # TODO: Consider multi-nuclide material
     material = mcdc["nuclides"][P["material_ID"]]
@@ -709,7 +690,7 @@ def bank_IC(P, mcdc):
 #       required due to pure-Python behavior of taking things by reference.
 
 
-@njit
+@get_decorator()
 def population_control(seed, mcdc):
     if mcdc["technique"]["pct"] == PCT_COMBING:
         pct_combing(seed, mcdc)
@@ -717,7 +698,7 @@ def population_control(seed, mcdc):
         pct_combing_weight(seed, mcdc)
 
 
-@njit
+@get_decorator()
 def pct_combing(seed, mcdc):
     bank_census = mcdc["bank_census"]
     M = mcdc["setting"]["N_particle"]
@@ -753,7 +734,7 @@ def pct_combing(seed, mcdc):
         add_particle(P, bank_source)
 
 
-@njit
+@get_decorator()
 def pct_combing_weight(seed, mcdc):
     bank_census = mcdc["bank_census"]
     M = mcdc["setting"]["N_particle"]
@@ -796,7 +777,7 @@ def pct_combing_weight(seed, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def move_particle(P, distance, mcdc):
     P["x"] += P["ux"] * distance
     P["y"] += P["uy"] * distance
@@ -804,7 +785,7 @@ def move_particle(P, distance, mcdc):
     P["t"] += distance / get_particle_speed(P, mcdc)
 
 
-@njit
+@get_decorator()
 def shift_particle(P, shift):
     if P["ux"] > 0.0:
         P["x"] += shift
@@ -821,7 +802,7 @@ def shift_particle(P, shift):
     P["t"] += shift
 
 
-@njit
+@get_decorator()
 def get_particle_cell(P, universe_ID, trans, mcdc):
     """
     Find and return particle cell ID in the given universe and translation
@@ -840,7 +821,7 @@ def get_particle_cell(P, universe_ID, trans, mcdc):
     return -1
 
 
-@njit
+@get_decorator()
 def get_particle_material(P, mcdc):
     # Translation accumulator
     trans = np.zeros(3)
@@ -879,12 +860,12 @@ def get_particle_material(P, mcdc):
     return cell["material_ID"]
 
 
-@njit
+@get_decorator()
 def get_particle_speed(P, mcdc):
     return mcdc["materials"][P["material_ID"]]["speed"][P["g"]]
 
 
-@njit
+@get_decorator()
 def copy_particle(P):
     P_new = np.zeros(1, dtype=type_.particle_record)[0]
     P_new["x"] = P["x"]
@@ -901,7 +882,7 @@ def copy_particle(P):
     return P_new
 
 
-@njit
+@get_decorator()
 def split_particle(P):
     P_new = copy_particle(P)
     P_new["rng_seed"] = split_seed(P["rng_seed"], SEED_SPLIT_PARTICLE)
@@ -914,7 +895,7 @@ def split_particle(P):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def cell_check(P, cell, trans, mcdc):
     for i in range(cell["N_surface"]):
         surface = mcdc["surfaces"][cell["surface_IDs"][i]]
@@ -935,7 +916,7 @@ def cell_check(P, cell, trans, mcdc):
 #   J(t) = J0_i + J1_i*t for t in [t_{i-1}, t_i), t_0 = 0
 
 
-@njit
+@get_decorator()
 def surface_evaluate(P, surface, trans):
     x = P["x"] + trans[0]
     y = P["y"] + trans[1]
@@ -973,7 +954,7 @@ def surface_evaluate(P, surface, trans):
     )
 
 
-@njit
+@get_decorator()
 def surface_bc(P, surface, trans):
     if surface["vacuum"]:
         P["alive"] = False
@@ -981,7 +962,7 @@ def surface_bc(P, surface, trans):
         surface_reflect(P, surface, trans)
 
 
-@njit
+@get_decorator()
 def surface_reflect(P, surface, trans):
     ux = P["ux"]
     uy = P["uy"]
@@ -995,7 +976,7 @@ def surface_reflect(P, surface, trans):
     P["uz"] = uz - c * nz
 
 
-@njit
+@get_decorator()
 def surface_shift(P, surface, trans, mcdc):
     ux = P["ux"]
     uy = P["uy"]
@@ -1031,7 +1012,7 @@ def surface_shift(P, surface, trans, mcdc):
         P["z"] -= shift_z
 
 
-@njit
+@get_decorator()
 def surface_normal(P, surface, trans):
     if surface["linear"]:
         return surface["nx"], surface["ny"], surface["nz"]
@@ -1057,7 +1038,7 @@ def surface_normal(P, surface, trans):
     return dx / norm, dy / norm, dz / norm
 
 
-@njit
+@get_decorator()
 def surface_normal_component(P, surface, trans):
     ux = P["ux"]
     uy = P["uy"]
@@ -1066,7 +1047,7 @@ def surface_normal_component(P, surface, trans):
     return nx * ux + ny * uy + nz * uz
 
 
-@njit
+@get_decorator()
 def surface_distance(P, surface, trans, mcdc):
     ux = P["ux"]
     uy = P["uy"]
@@ -1165,7 +1146,7 @@ def surface_distance(P, surface, trans, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def mesh_distance_search(value, direction, grid):
     if direction == 0.0:
         return INF
@@ -1183,7 +1164,7 @@ def mesh_distance_search(value, direction, grid):
     return dist
 
 
-@njit
+@get_decorator()
 def mesh_uniform_distance_search(value, direction, x0, dx):
     if direction == 0.0:
         return INF
@@ -1195,7 +1176,7 @@ def mesh_uniform_distance_search(value, direction, x0, dx):
     return dist
 
 
-@njit
+@get_decorator()
 def mesh_get_index(P, mesh):
     # Check if outside grid
     outside = False
@@ -1219,7 +1200,7 @@ def mesh_get_index(P, mesh):
     return t, x, y, z, outside
 
 
-@njit
+@get_decorator()
 def mesh_get_angular_index(P, mesh):
     ux = P["ux"]
     uy = P["uy"]
@@ -1235,12 +1216,12 @@ def mesh_get_angular_index(P, mesh):
     return mu, azi
 
 
-@njit
+@get_decorator()
 def mesh_get_energy_index(P, mesh):
     return binary_search(P["g"], mesh["g"])
 
 
-@njit
+@get_decorator()
 def mesh_uniform_get_index(P, mesh, trans):
     Px = P["x"] + trans[0]
     Py = P["y"] + trans[1]
@@ -1251,7 +1232,7 @@ def mesh_uniform_get_index(P, mesh, trans):
     return x, y, z
 
 
-@njit
+@get_decorator()
 def mesh_crossing_evaluate(P, mesh):
     # Shift backward
     shift_particle(P, -SHIFT)
@@ -1280,7 +1261,7 @@ def mesh_crossing_evaluate(P, mesh):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def score_tracklength(P, distance, mcdc):
     tally = mcdc["tally"]
     material = mcdc["materials"][P["material_ID"]]
@@ -1314,7 +1295,7 @@ def score_tracklength(P, distance, mcdc):
         score_eddington(s, g, t, x, y, z, flux, P, tally["score"]["eddington"])
 
 
-@njit
+@get_decorator()
 def score_crossing_x(P, t, x, y, z, mcdc):
     tally = mcdc["tally"]
     material = mcdc["materials"][P["material_ID"]]
@@ -1345,7 +1326,7 @@ def score_crossing_x(P, t, x, y, z, mcdc):
         score_eddington(s, g, t, x, y, z, flux, P, tally["score"]["eddington_x"])
 
 
-@njit
+@get_decorator()
 def score_crossing_y(P, t, x, y, z, mcdc):
     tally = mcdc["tally"]
     material = mcdc["materials"][P["material_ID"]]
@@ -1376,7 +1357,7 @@ def score_crossing_y(P, t, x, y, z, mcdc):
         score_eddington(s, g, t, x, y, z, flux, P, tally["score"]["eddington_y"])
 
 
-@njit
+@get_decorator()
 def score_crossing_z(P, t, x, y, z, mcdc):
     tally = mcdc["tally"]
     material = mcdc["materials"][P["material_ID"]]
@@ -1407,7 +1388,7 @@ def score_crossing_z(P, t, x, y, z, mcdc):
         score_eddington(s, g, t, x, y, z, flux, P, tally["score"]["eddington_z"])
 
 
-@njit
+@get_decorator()
 def score_crossing_t(P, t, x, y, z, mcdc):
     tally = mcdc["tally"]
     material = mcdc["materials"][P["material_ID"]]
@@ -1437,19 +1418,19 @@ def score_crossing_t(P, t, x, y, z, mcdc):
         score_eddington(s, g, t, x, y, z, flux, P, tally["score"]["eddington_t"])
 
 
-@njit
+@get_decorator()
 def score_flux(s, g, t, x, y, z, mu, azi, flux, score):
     score["bin"][s, g, t, x, y, z, mu, azi] += flux
 
 
-@njit
+@get_decorator()
 def score_current(s, g, t, x, y, z, flux, P, score):
     score["bin"][s, g, t, x, y, z, 0] += flux * P["ux"]
     score["bin"][s, g, t, x, y, z, 1] += flux * P["uy"]
     score["bin"][s, g, t, x, y, z, 2] += flux * P["uz"]
 
 
-@njit
+@get_decorator()
 def score_eddington(s, g, t, x, y, z, flux, P, score):
     ux = P["ux"]
     uy = P["uy"]
@@ -1462,7 +1443,7 @@ def score_eddington(s, g, t, x, y, z, flux, P, score):
     score["bin"][s, g, t, x, y, z, 5] += flux * uz * uz
 
 
-@njit
+@get_decorator()
 def score_reduce_bin(score, mcdc):
     # Normalize
     score["bin"][:] /= mcdc["setting"]["N_particle"]
@@ -1474,7 +1455,7 @@ def score_reduce_bin(score, mcdc):
     score["bin"][:] = buff
 
 
-@njit
+@get_decorator()
 def score_closeout_history(score):
     # Accumulate score and square of score into mean and sdev
     score["mean"][:] += score["bin"]
@@ -1484,7 +1465,7 @@ def score_closeout_history(score):
     score["bin"].fill(0.0)
 
 
-@njit
+@get_decorator()
 def score_closeout(score, mcdc):
     N_history = mcdc["setting"]["N_particle"]
 
@@ -1511,7 +1492,7 @@ def score_closeout(score, mcdc):
     )
 
 
-@njit
+@get_decorator()
 def tally_reduce_bin(mcdc):
     tally = mcdc["tally"]
 
@@ -1520,7 +1501,7 @@ def tally_reduce_bin(mcdc):
             score_reduce_bin(tally["score"][name], mcdc)
 
 
-@njit
+@get_decorator()
 def tally_closeout_history(mcdc):
     tally = mcdc["tally"]
 
@@ -1529,7 +1510,7 @@ def tally_closeout_history(mcdc):
             score_closeout_history(tally["score"][name])
 
 
-@njit
+@get_decorator()
 def tally_closeout(mcdc):
     tally = mcdc["tally"]
 
@@ -1543,7 +1524,7 @@ def tally_closeout(mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def eigenvalue_tally(P, distance, mcdc):
     tally = mcdc["tally"]
 
@@ -1584,7 +1565,7 @@ def eigenvalue_tally(P, distance, mcdc):
             mcdc["C_max"] = C_density
 
 
-@njit
+@get_decorator()
 def eigenvalue_tally_closeout_history(mcdc):
     N_particle = mcdc["setting"]["N_particle"]
 
@@ -1727,7 +1708,7 @@ def eigenvalue_tally_closeout_history(mcdc):
         mcdc["gyration_radius"][idx_cycle] = rms
 
 
-@njit
+@get_decorator()
 def eigenvalue_tally_closeout(mcdc):
     N = mcdc["setting"]["N_active"]
     mcdc["n_avg"] /= N
@@ -1745,7 +1726,7 @@ def eigenvalue_tally_closeout(mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def move_to_event(P, mcdc):
     # =========================================================================
     # Get distances to events
@@ -1829,7 +1810,7 @@ def move_to_event(P, mcdc):
     move_particle(P, distance, mcdc)
 
 
-@njit
+@get_decorator()
 def distance_to_collision(P, mcdc):
     # Get total cross-section
     material = mcdc["materials"][P["material_ID"]]
@@ -1845,7 +1826,7 @@ def distance_to_collision(P, mcdc):
     return distance
 
 
-@njit
+@get_decorator()
 def distance_to_boundary(P, mcdc):
     """
     Find the nearest geometry boundary, which could be lattice or surface, and
@@ -1920,7 +1901,7 @@ def distance_to_boundary(P, mcdc):
     return distance, event
 
 
-@njit
+@get_decorator()
 def distance_to_nearest_surface(P, cell, trans, mcdc):
     distance = INF
     surface_ID = -1
@@ -1936,7 +1917,7 @@ def distance_to_nearest_surface(P, cell, trans, mcdc):
     return distance, surface_ID, surface_move
 
 
-@njit
+@get_decorator()
 def distance_to_lattice(P, lattice, trans):
     mesh = lattice["mesh"]
 
@@ -1954,7 +1935,7 @@ def distance_to_lattice(P, lattice, trans):
     return d
 
 
-@njit
+@get_decorator()
 def distance_to_mesh(P, mesh, mcdc):
     x = P["x"]
     y = P["y"]
@@ -1978,7 +1959,7 @@ def distance_to_mesh(P, mesh, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def surface_crossing(P, mcdc):
     trans = P["translation"]
 
@@ -2016,7 +1997,7 @@ def surface_crossing(P, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def mesh_crossing(P, mcdc):
     # Tally mesh crossing
     if mcdc["tally"]["crossing"] and mcdc["cycle_active"]:
@@ -2041,7 +2022,7 @@ def mesh_crossing(P, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def collision(P, mcdc):
     # Get the reaction cross-sections
     material = mcdc["materials"][P["material_ID"]]
@@ -2075,7 +2056,7 @@ def collision(P, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def capture(P, mcdc):
     # Kill the current particle
     P["alive"] = False
@@ -2086,7 +2067,7 @@ def capture(P, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def scattering(P, mcdc):
     # Kill the current particle
     P["alive"] = False
@@ -2121,7 +2102,7 @@ def scattering(P, mcdc):
         add_particle(P_new, mcdc["bank_active"])
 
 
-@njit
+@get_decorator()
 def sample_phasespace_scattering(P, material, P_new):
     # Get outgoing spectrum
     g = P["g"]
@@ -2180,7 +2161,7 @@ def sample_phasespace_scattering(P, material, P_new):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def fission(P, mcdc):
     # Kill the current particle
     P["alive"] = False
@@ -2222,7 +2203,7 @@ def fission(P, mcdc):
             add_particle(P_new, mcdc["bank_active"])
 
 
-@njit
+@get_decorator()
 def sample_phasespace_fission(P, material, P_new, mcdc):
     # Get constants
     G = material["G"]
@@ -2292,7 +2273,7 @@ def sample_phasespace_fission(P, material, P_new, mcdc):
         P_new["t"] -= math.log(xi) / decay
 
 
-@njit
+@get_decorator()
 def sample_phasespace_fission_nuclide(P, nuclide, P_new, mcdc):
     # Get constants
     G = nuclide["G"]
@@ -2350,7 +2331,7 @@ def sample_phasespace_fission_nuclide(P, nuclide, P_new, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def branchless_collision(P, mcdc):
     # Data
     # TODO: Consider multi-nuclide material
@@ -2423,7 +2404,7 @@ def branchless_collision(P, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def time_boundary(P, mcdc):
     P["alive"] = False
 
@@ -2433,7 +2414,7 @@ def time_boundary(P, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def weight_window(P, mcdc):
     # Get indices
     t, x, y, z, outside = mesh_get_index(P, mcdc["technique"]["ww_mesh"])
@@ -2481,7 +2462,7 @@ def weight_window(P, mcdc):
 # ==============================================================================
 
 
-@njit
+@get_decorator()
 def continuous_weight_reduction(w, distance, SigmaT):
     """
     Continuous weight reduction technique based on particle track-length, for
@@ -2504,7 +2485,7 @@ def continuous_weight_reduction(w, distance, SigmaT):
     return w * np.exp(-distance * SigmaT)
 
 
-@njit
+@get_decorator()
 def UpdateK(keff, phi_outter, phi_inner, mcdc):
     mesh = mcdc["technique"]["iqmc_mesh"]
     Nx = len(mesh["x"]) - 1
@@ -2526,7 +2507,7 @@ def UpdateK(keff, phi_outter, phi_inner, mcdc):
     mcdc["k_eff"] = keff
 
 
-@njit
+@get_decorator()
 def prepare_qmc_source(mcdc):
     """
 
@@ -2560,7 +2541,7 @@ def prepare_qmc_source(mcdc):
                 )
 
 
-@njit
+@get_decorator()
 def prepare_qmc_scattering_source(mcdc):
     """
 
@@ -2589,7 +2570,7 @@ def prepare_qmc_scattering_source(mcdc):
                 )
 
 
-@njit
+@get_decorator()
 def prepare_qmc_fission_source(mcdc):
     """
 
@@ -2618,7 +2599,7 @@ def prepare_qmc_fission_source(mcdc):
                 )
 
 
-@njit
+@get_decorator()
 def prepare_qmc_particles(mcdc):
     """
     Create N_particles assigning the position, direction, and group from the
@@ -2677,7 +2658,7 @@ def prepare_qmc_particles(mcdc):
         add_particle(P_new, mcdc["bank_source"])
 
 
-@njit
+@get_decorator()
 def fission_source(phi, mat_idx, mcdc):
     """
     Calculate the fission source for use with iQMC.
@@ -2717,7 +2698,7 @@ def fission_source(phi, mat_idx, mcdc):
     return F
 
 
-@njit
+@get_decorator()
 def scattering_source(phi, mat_idx, mcdc):
     """
     Calculate the scattering source for use with iQMC.
@@ -2743,7 +2724,7 @@ def scattering_source(phi, mat_idx, mcdc):
     return np.dot(chi_s.T, SigmaS * phi)
 
 
-@njit
+@get_decorator()
 def qmc_res(flux_new, flux_old):
     """
 
@@ -2769,7 +2750,7 @@ def qmc_res(flux_new, flux_old):
     return res
 
 
-@njit
+@get_decorator()
 def score_iqmc_flux(P, distance, mcdc):
     """
 
@@ -2808,7 +2789,7 @@ def score_iqmc_flux(P, distance, mcdc):
     mcdc["technique"]["iqmc_flux"][:, t, x, y, z] += flux
 
 
-@njit
+@get_decorator()
 def iqmc_cell_volume(x, y, z, mesh):
     """
     Calculate the volume of the current spatial cell.
@@ -2841,12 +2822,12 @@ def iqmc_cell_volume(x, y, z, mesh):
     return dV
 
 
-@njit
+@get_decorator()
 def sample_qmc_position(a, b, sample):
     return a + (b - a) * sample
 
 
-@njit
+@get_decorator()
 def sample_qmc_isotropic_direction(sample1, sample2):
     """
 
@@ -2881,7 +2862,7 @@ def sample_qmc_isotropic_direction(sample1, sample2):
     return ux, uy, uz
 
 
-@njit
+@get_decorator()
 def sample_qmc_group(sample, G):
     """
     Uniformly sample energy group using a random sample between [0,1].
@@ -2902,7 +2883,7 @@ def sample_qmc_group(sample, G):
     return int(np.floor(sample * G))
 
 
-@njit
+@get_decorator()
 def generate_iqmc_material_idx(mcdc):
     """
     This algorithm is meant to loop through every spatial cell of the
@@ -2957,7 +2938,7 @@ def generate_iqmc_material_idx(mcdc):
                 mcdc["technique"]["iqmc_material_idx"][t, i, j, k] = material_ID
 
 
-@njit
+@get_decorator()
 def iqmc_distribute_flux(mcdc):
     flux_local = mcdc["technique"]["iqmc_flux"].copy()
     # TODO: is there a way to do this without creating a new matrix ?
@@ -2967,7 +2948,7 @@ def iqmc_distribute_flux(mcdc):
     mcdc["technique"]["iqmc_flux"] = flux_total.copy()
 
 
-@njit
+@get_decorator()
 def lartg(f, g):
     """
     Originally a Lapack routine to generate a plane rotation with
@@ -2995,7 +2976,7 @@ def lartg(f, g):
     return c, s, r
 
 
-@njit
+@get_decorator()
 def modified_gram_schmidt(V, u):
     """
     Modified Gram Schmidt routine
@@ -3022,7 +3003,7 @@ def modified_gram_schmidt(V, u):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def AxV(phi, b, mcdc):
     """
     Linear operator to be used with GMRES.
@@ -3051,7 +3032,7 @@ def AxV(phi, b, mcdc):
     return axv
 
 
-@njit
+@get_decorator()
 def RHS(mcdc):
     """
     We solve A x = b with a Krylov method. This function extracts
@@ -3079,7 +3060,7 @@ def RHS(mcdc):
     return b
 
 
-@njit
+@get_decorator()
 def HxV(V, mcdc):
     """
     Linear operator for Davidson method,
@@ -3111,7 +3092,7 @@ def HxV(V, mcdc):
     return axv
 
 
-@njit
+@get_decorator()
 def FxV(V, mcdc):
     """
     Linear operator for Davidson method,
@@ -3142,7 +3123,7 @@ def FxV(V, mcdc):
     return v_out
 
 
-@njit
+@get_decorator()
 def preconditioner(V, mcdc, num_sweeps=3):
     """
     Linear operator approximation of (I-L^(-1)S)*phi
@@ -3185,7 +3166,7 @@ def preconditioner(V, mcdc, num_sweeps=3):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def weight_roulette(P, mcdc):
     """
     If neutron weight below wr_threshold, then enter weight rouelette
@@ -3216,7 +3197,7 @@ def weight_roulette(P, mcdc):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def sensitivity_surface(P, surface, material_ID_old, material_ID_new, mcdc):
     # Sample number of derivative sources
     xi = surface["dsm_Np"]
@@ -3442,7 +3423,7 @@ def sensitivity_surface(P, surface, material_ID_old, material_ID_new, mcdc):
                     break
 
 
-@njit
+@get_decorator()
 def sensitivity_material(P, mcdc):
     # The incident particle is already terminated
 
@@ -3541,7 +3522,7 @@ def sensitivity_material(P, mcdc):
 # ==============================================================================
 
 
-@njit
+@get_decorator()
 def track_particle(P, mcdc):
     idx = mcdc["particle_track_N"]
     mcdc["particle_track"][idx, 0] = mcdc["particle_track_history_ID"]
@@ -3560,7 +3541,7 @@ def track_particle(P, mcdc):
 # ==============================================================================
 
 
-@njit
+@get_decorator()
 def get_DSM_ID(ID1, ID2, Np):
     # First-order sensitivity
     if ID1 == 0:
@@ -3583,7 +3564,7 @@ def get_DSM_ID(ID1, ID2, Np):
 # =============================================================================
 
 
-@njit
+@get_decorator()
 def binary_search(val, grid):
     """
     Binary search that returns the bin index of a value val given grid grid
