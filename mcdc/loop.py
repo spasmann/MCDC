@@ -6,6 +6,7 @@ from scipy.linalg import eig
 import mcdc.kernel as kernel
 import mcdc.type_ as type_
 
+from mcdc.decorator import get_decorator
 import mcdc.print_ as print_module
 
 from mcdc.constant import *
@@ -18,10 +19,6 @@ from mcdc.print_ import (
     print_iqmc_eigenvalue_exit_code,
 )
 
-
-
-from mcdc.decorator import get_decorator
-USE_TIMER = True
 
 # =========================================================================
 # Fixed-source loop
@@ -72,6 +69,7 @@ def loop_fixed_source(mcdc):
 
     # Tally closeout
     kernel.tally_closeout(mcdc)
+
 
 # =========================================================================
 # Eigenvalue loop

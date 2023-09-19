@@ -820,5 +820,3 @@ def make_type_mesh_(card):
 
 
 mesh_names = ["x", "y", "z", "t", "mu", "azi", "g"]
-
-    

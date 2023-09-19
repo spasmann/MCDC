@@ -13,6 +13,7 @@ from mcdc.loop import loop_source
 
 
 from mcdc.decorator import get_decorator
+
 USE_TIMER = True
 
 

@@ -2,7 +2,7 @@ import numba as nb
 import numpy as np
 import sys
 from mpi4py import MPI
-
+from tabulate import tabulate
 
 master = MPI.COMM_WORLD.Get_rank() == 0
 
@@ -214,3 +214,49 @@ def print_progress_iqmc(mcdc):
             print("Iteration ", itt)
             print("Residual ", res)
             print("*******************************\n")
+
+
+def print_timing_table(results, results2, tree, mcdc):
+    # TODO: print to h5 file
+    if master:
+        table = []
+        decimals = 9
+        tot = 0
+        for name in list(results):
+            tot += np.round(sum(results2[name]), decimals=decimals)
+
+        for name in list(results):
+            calls = len(results[name])
+
+            total_time = np.round(sum(results[name]), decimals=decimals)
+            total_percent = np.round((total_time / tot) * 100.0, decimals=2)
+
+            self_time = np.round(sum(results2[name]), decimals=decimals)
+            self_percent = np.round((self_time / tot) * 100.0, decimals=2)
+
+            row = [name, calls, total_time, total_percent, self_time, self_percent]
+            table.append(row)
+
+        table = sorted(table, key=lambda x: x[3], reverse=True)
+
+        print("\n")
+        print(
+            tabulate(
+                table,
+                headers=[
+                    "Function",
+                    "Calls",
+                    "Cumulative Time (s)",
+                    "Cumulative Percent (%)",
+                    "Self Time (s)",
+                    "Self Percent (%)",
+                ],
+                tablefmt="github",
+            )
+        )
+        print("\n Total Decorator Runtime ", tot)
+        print(
+            "Decorator and MPI.Wtime Runtime Agreement ",
+            abs(mcdc["runtime_total"] - tot),
+        )
+        print()

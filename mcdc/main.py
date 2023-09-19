@@ -9,7 +9,9 @@ parser.add_argument(
 )
 parser.add_argument("--N_particle", type=int, help="Number of particles")
 parser.add_argument("--output", type=str, help="Output file name")
-parser.add_argument("--use_timer", type=str, help="Using timing decorator to store function call times")
+parser.add_argument(
+    "--use_timer", type=str, help="Using timing decorator to store function call times"
+)
 args, unargs = parser.parse_known_args()
 
 # Set mode
@@ -20,10 +22,9 @@ if mode == "python":
 elif mode == "numba":
     nb.config.DISABLE_JIT = False
 
+from mcdc.decorator import results, results2, tree, python_timer
+
 USE_TIMER = True
-if args.use_timer is not None:
-    USE_TIMER = True
-from mcdc.decorator import results, tree, print_tree
 
 import h5py
 import numpy as np
@@ -36,7 +37,13 @@ import mcdc.type_ as type_
 
 from mcdc.constant import *
 from mcdc.loop import loop_fixed_source, loop_eigenvalue, loop_iqmc
-from mcdc.print_ import print_banner, print_msg, print_runtime, print_header_eigenvalue
+from mcdc.print_ import (
+    print_banner,
+    print_msg,
+    print_runtime,
+    print_header_eigenvalue,
+    print_timing_table,
+)
 
 # Get input_deck
 import mcdc.global_ as mcdc_
@@ -46,7 +53,7 @@ input_deck = mcdc_.input_deck
 
 def run():
     global results, tree
-    
+
     # Override input deck with command-line argument, if given
     if args.N_particle is not None:
         input_deck.setting["N_particle"] = args.N_particle
@@ -89,8 +96,11 @@ def run():
     mcdc["runtime_total"] = MPI.Wtime() - total_start
     # Closout
     closeout(mcdc)
+    if USE_TIMER:
+        print_timing_table(results, results2, tree, mcdc)
 
 
+@python_timer
 def prepare():
     """
     Preparing the MC transport simulation:
@@ -454,7 +464,6 @@ def prepare():
     # All active eigenvalue cycle?
     elif mcdc["setting"]["N_inactive"] == 0:
         mcdc["cycle_active"] = True
-        
 
     # =========================================================================
     # Source file
@@ -474,7 +483,6 @@ def prepare():
             # Add particles to source bank
             mcdc["bank_source"]["particles"][:N_local] = f["particles"][start:end]
             mcdc["bank_source"]["size"] = N_local
-            
 
     # =========================================================================
     # IC file
@@ -527,6 +535,7 @@ def prepare():
     return mcdc
 
 
+@python_timer
 def dictlist_to_h5group(dictlist, input_group, name):
     main_group = input_group.create_group(name + "s")
     for item in dictlist:
@@ -534,6 +543,7 @@ def dictlist_to_h5group(dictlist, input_group, name):
         dict_to_h5group(item, group)
 
 
+@python_timer
 def dict_to_h5group(dict_, group):
     for k, v in dict_.items():
         if type(v) == dict:
@@ -542,6 +552,7 @@ def dict_to_h5group(dict_, group):
             group[k] = v
 
 
+@python_timer
 def generate_hdf5(mcdc):
     if mcdc["mpi_master"]:
         if mcdc["setting"]["progress_bar"]:
@@ -673,6 +684,7 @@ def generate_hdf5(mcdc):
                 f.create_dataset("particles_size", data=len(neutrons[:]))
 
 
+@python_timer
 def closeout(mcdc):
     # Runtime
     if mcdc["mpi_master"]:
@@ -687,23 +699,6 @@ def closeout(mcdc):
                 f.create_dataset(
                     "runtime/" + name, data=np.array([mcdc["runtime_" + name]])
                 )
-            if USE_TIMER:
-                # TODO: print to h5 file
-                # TODO: move to print.py
-                from tabulate import tabulate
-                table = []
-                decimals = 6
-                for name in list(results):
-                    calls = len(results[name])
-                    total_time = np.round(sum(results[name]),decimals=decimals)
-                    avg_time = np.round(total_time / calls, decimals=decimals)
-                    row = [name, calls, avg_time, total_time]
-                    table.append(row)
-                table = sorted(table, key=lambda x: x[3], reverse=True)
-                print('\n')
-                print(tabulate(table, headers=["Function", "Calls", "Avg. Time", "Cumulative Time"], tablefmt="github"))
-            
 
     print_runtime(mcdc)
     input_deck.reset()
-    
