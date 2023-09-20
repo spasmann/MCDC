@@ -11,11 +11,7 @@ from mcdc.print_ import print_error
 from mcdc.type_ import score_list
 from mcdc.loop import loop_source
 
-
 from mcdc.decorator import get_decorator
-
-USE_TIMER = True
-
 
 # =============================================================================
 # Random sampling
@@ -145,7 +141,6 @@ def split_seed(key, seed):
 @njit(numba.uint64(numba.uint64))
 def rng_(seed):
     return wrapping_add(wrapping_mul(RNG_G, seed), RNG_C) & RNG_MOD_MASK
-
 
 @get_decorator()
 def rng(state):

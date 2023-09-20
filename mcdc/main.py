@@ -10,7 +10,7 @@ parser.add_argument(
 parser.add_argument("--N_particle", type=int, help="Number of particles")
 parser.add_argument("--output", type=str, help="Output file name")
 parser.add_argument(
-    "--use_timer", type=str, help="Using timing decorator to store function call times"
+    "--use_timer", type=bool, help="Using timing decorator to store function call times"
 )
 args, unargs = parser.parse_known_args()
 
@@ -22,9 +22,8 @@ if mode == "python":
 elif mode == "numba":
     nb.config.DISABLE_JIT = False
 
+USE_TIMER = args.use_timer
 from mcdc.decorator import results, results2, tree, python_timer
-
-USE_TIMER = True
 
 import h5py
 import numpy as np
@@ -41,6 +40,7 @@ from mcdc.print_ import (
     print_banner,
     print_msg,
     print_runtime,
+    print_decorator_runtime,
     print_header_eigenvalue,
     print_timing_table,
 )
@@ -52,7 +52,6 @@ input_deck = mcdc_.input_deck
 
 
 def run():
-    global results, tree
 
     # Override input deck with command-line argument, if given
     if args.N_particle is not None:
@@ -97,7 +96,7 @@ def run():
     # Closout
     closeout(mcdc)
     if USE_TIMER:
-        print_timing_table(results, results2, tree, mcdc)
+        print_timing_table(results, results2, mcdc)
 
 
 @python_timer
@@ -701,4 +700,5 @@ def closeout(mcdc):
                 )
 
     print_runtime(mcdc)
+    print_decorator_runtime(results, results2)
     input_deck.reset()

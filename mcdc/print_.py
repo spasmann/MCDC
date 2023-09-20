@@ -162,6 +162,35 @@ def print_iqmc_eigenvalue_exit_code(mcdc):
             print("Successful " + solver + " convergence.")
 
 
+def print_decorator_runtime(results, results2):
+        # determine total runtime associated with each function
+        total = 0.0
+        for name in list(results):
+            total += sum(results2[name])
+            
+        # determine time spent in preparation
+        prepare_names = ['prepare']
+        preparation = 0.0
+        for names in prepare_names:
+            if name in list(results):
+                preparation += sum(results[name])
+        # determine time spent in closeout
+        output = 0.0
+        output_names = ['dictlist_to_h5group', 'dict_to_h5group', 'generate_hdf5', 'closeout']
+        for names in output_names:
+            if name in list(results):
+                output += sum(results[name])
+        # determine time spent in simulation
+        simulation = total - preparation - output
+        # create nested list for tabulate
+        table = [[" Total", "{} seconds".format(np.round(total,2)), "({}%)".format(np.round(100.0,2))],
+                 [" Preparation", "{} seconds".format(np.round(preparation,2)), "({}%)".format(np.round(preparation/total * 100,2))], 
+                 [" Simulation","{} seconds".format(np.round(simulation,2)),"({}%)".format(np.round(simulation/total * 100,2))], 
+                 [" Output", "{} seconds".format(np.round(output,2)), "({}%)".format(np.round(output/total * 100,2))]]
+        
+        print(tabulate(table, headers=[" Runtime Report:", "", ""], tablefmt="plain"))
+        
+
 def print_runtime(mcdc):
     total = mcdc["runtime_total"]
     preparation = mcdc["runtime_preparation"]
@@ -216,47 +245,43 @@ def print_progress_iqmc(mcdc):
             print("*******************************\n")
 
 
-def print_timing_table(results, results2, tree, mcdc):
+def print_timing_table(results, results2, mcdc):
     # TODO: print to h5 file
     if master:
         table = []
+        table_fmt = "github"
         decimals = 9
-        tot = 0
+        # determine total runtime associated with each function
+        total = 0.0
         for name in list(results):
-            tot += np.round(sum(results2[name]), decimals=decimals)
-
+            total += sum(results2[name])
+            
         for name in list(results):
             calls = len(results[name])
 
-            total_time = np.round(sum(results[name]), decimals=decimals)
-            total_percent = np.round((total_time / tot) * 100.0, decimals=2)
+            cumulative_time = np.round(sum(results[name]), decimals=decimals)
+            cumulative_percent = np.round((cumulative_time / total) * 100.0, decimals=2)
 
             self_time = np.round(sum(results2[name]), decimals=decimals)
-            self_percent = np.round((self_time / tot) * 100.0, decimals=2)
+            self_percent = np.round((self_time / total) * 100.0, decimals=2)
 
-            row = [name, calls, total_time, total_percent, self_time, self_percent]
+            row = [name, calls, cumulative_time, cumulative_percent, self_time, self_percent]
             table.append(row)
 
-        table = sorted(table, key=lambda x: x[3], reverse=True)
+        table = sorted(table, key=lambda x: x[5], reverse=True)
 
         print("\n")
+        print(tabulate(table, headers=[
+                                        "Function",
+                                        "Calls",
+                                        "Time (s)",
+                                        "Percent (%)",
+                                        "Self Time (s)",
+                                        "Self Percent (%)",
+                                        ],
+            tablefmt=table_fmt))
+
         print(
-            tabulate(
-                table,
-                headers=[
-                    "Function",
-                    "Calls",
-                    "Cumulative Time (s)",
-                    "Cumulative Percent (%)",
-                    "Self Time (s)",
-                    "Self Percent (%)",
-                ],
-                tablefmt="github",
-            )
+            "\n Decorator and MPI.Wtime Runtime Agreement ",
+            abs(mcdc["runtime_total"] - total),
         )
-        print("\n Total Decorator Runtime ", tot)
-        print(
-            "Decorator and MPI.Wtime Runtime Agreement ",
-            abs(mcdc["runtime_total"] - tot),
-        )
-        print()
