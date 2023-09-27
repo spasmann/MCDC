@@ -228,7 +228,7 @@ def si_st_test():
     # Set tally, setting, and run mcdc
     # =============================================================================
     # Setting
-    mcdc.setting(N_particle=N, progress_bar=False, output="si_st_output")
+    mcdc.setting(N_particle=N, progress_bar=False, output_name="si_st_output")
     # Run
     mcdc.run()
     # =========================================================================
@@ -327,7 +327,7 @@ def gmres_st_test():
     # Set tally, setting, and run mcdc
     # =============================================================================
     # Setting
-    mcdc.setting(N_particle=N, progress_bar=False, output="gmres_st_output")
+    mcdc.setting(N_particle=N, progress_bar=False, output_name="gmres_st_output")
     # Run
     mcdc.run()
     # =========================================================================
