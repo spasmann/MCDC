@@ -355,28 +355,31 @@ def prepare():
     for name in type_.technique.names:
         if name[:4] == "iqmc":
             if name not in [
-                "iqmc_flux_old",
-                "iqmc_flux_outter",
                 "iqmc_mesh",
                 "iqmc_res",
                 "iqmc_lds",
                 "iqmc_generator",
                 "iqmc_sweep_counter",
                 "iqmc_total_source",
-                "iqmc_effective_scattering",
-                "iqmc_effective_fission",
-                "iqmc_effective_fission_outter",
-                "iqmc_nuSigmaF",
-                "iqmc_nuSigmaF_outter",
                 "iqmc_w_min",
+                "iqmc_score_list",
+                "iqmc_score",
             ]:
                 mcdc["technique"][name] = input_deck.technique[name]
 
     if input_deck.technique["iQMC"]:
+        # pass in mesh
         mcdc["technique"]["iqmc_mesh"]["x"] = input_deck.technique["iqmc_mesh"]["x"]
         mcdc["technique"]["iqmc_mesh"]["y"] = input_deck.technique["iqmc_mesh"]["y"]
         mcdc["technique"]["iqmc_mesh"]["z"] = input_deck.technique["iqmc_mesh"]["z"]
         mcdc["technique"]["iqmc_mesh"]["t"] = input_deck.technique["iqmc_mesh"]["t"]
+        # pass in score list
+        for name, value in input_deck.technique["iqmc_score_list"].items():
+            mcdc["technique"]["iqmc_score_list"][name] = value
+        # pass in initial tallies
+        for name, value in input_deck.technique["iqmc_score"].items():
+            mcdc["technique"]["iqmc_score"][name] = value
+        # LDS generator
         mcdc["technique"]["iqmc_generator"] = input_deck.technique["iqmc_generator"]
         # minimum particle weight
         mcdc["technique"]["iqmc_w_min"] = 1e-16 / mcdc["setting"]["N_particle"]
@@ -569,9 +572,9 @@ def generate_hdf5(mcdc):
                 dictlist_to_h5group(input_deck.sources, input_group, "source")
                 dict_to_h5group(input_deck.tally, input_group.create_group("tally"))
                 dict_to_h5group(input_deck.setting, input_group.create_group("setting"))
-                dict_to_h5group(
-                    input_deck.technique, input_group.create_group("technique")
-                )
+                # dict_to_h5group(
+                    # input_deck.technique, input_group.create_group("technique")
+                # )
 
             # Tally
             T = mcdc["tally"]
@@ -626,15 +629,15 @@ def generate_hdf5(mcdc):
                 f.create_dataset("iqmc/grid/z", data=T["iqmc_mesh"]["z"])
                 f.create_dataset("iqmc/material_idx", data=T["iqmc_material_idx"])
                 # dump x,y,z scalar flux across all groups
-                f.create_dataset("iqmc/flux", data=np.squeeze(T["iqmc_flux"]))
+                f.create_dataset("iqmc/flux", data=np.squeeze(T["iqmc_score"]["flux"]))
                 f.create_dataset("iqmc/source/constant", data=T["iqmc_source"])
-                f.create_dataset("iqmc/source/x", data=T["iqmc_source_x"])
-                f.create_dataset("iqmc/source/y", data=T["iqmc_source_y"])
-                f.create_dataset("iqmc/source/z", data=T["iqmc_source_z"])
-                f.create_dataset("iqmc/source/xy", data=T["iqmc_source_xy"])
-                f.create_dataset("iqmc/source/xz", data=T["iqmc_source_xz"])
-                f.create_dataset("iqmc/source/yz", data=T["iqmc_source_yz"])
-                f.create_dataset("iqmc/source/xyz", data=T["iqmc_source_xyz"])
+                f.create_dataset("iqmc/source/x", data=T["iqmc_score"]["tilt-x"])
+                f.create_dataset("iqmc/source/y", data=T["iqmc_score"]["tilt-y"])
+                f.create_dataset("iqmc/source/z", data=T["iqmc_score"]["tilt-z"])
+                f.create_dataset("iqmc/source/xy", data=T["iqmc_score"]["tilt-xy"])
+                f.create_dataset("iqmc/source/xz", data=T["iqmc_score"]["tilt-xz"])
+                f.create_dataset("iqmc/source/yz", data=T["iqmc_score"]["tilt-yz"])
+                f.create_dataset("iqmc/source/xyz", data=T["iqmc_score"]["tilt-xyz"])
                 # iteration data
                 f.create_dataset("iqmc/itteration_count", data=T["iqmc_itt"])
                 f.create_dataset("iqmc/final_residual", data=T["iqmc_res"])

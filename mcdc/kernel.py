@@ -2311,7 +2311,7 @@ def continuous_weight_reduction(P, distance, mcdc):
 @njit
 def prepare_nuSigmaF(mcdc):
     mesh = mcdc["technique"]["iqmc_mesh"]
-    flux = mcdc["technique"]["iqmc_flux"]
+    flux = mcdc["technique"]["iqmc_score/flux"]
     Nt = len(mesh["t"]) - 1
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
@@ -2340,13 +2340,13 @@ def prepare_qmc_source(mcdc):
     mcdc['technique']['iqmc_source'], a matrix of size [G,Nt,Nx,Ny,Nz].
 
     """
-    flux_scatter = mcdc["technique"]["iqmc_flux"]
-    flux_fission = mcdc["technique"]["iqmc_flux"]
+    flux_scatter = mcdc["technique"]["iqmc_score"]["flux"]
+    flux_fission = mcdc["technique"]["iqmc_score"]["flux"]
     if (
         mcdc["setting"]["mode_eigenvalue"]
         and mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration"
     ):
-        flux_fission = mcdc["technique"]["iqmc_flux_outter"]
+        flux_fission = mcdc["technique"]["iqmc_score"]["flux-outter"]
     mesh = mcdc["technique"]["iqmc_mesh"]
     Nt = len(mesh["t"]) - 1
     Nx = len(mesh["x"]) - 1
@@ -2369,9 +2369,9 @@ def prepare_qmc_source(mcdc):
                     scatter[:, t, i, j, k] = scattering_source(
                         flux_scatter[:, t, i, j, k], mat_idx, mcdc
                     )
-    mcdc["technique"]["iqmc_effective_scattering"] = scatter
-    mcdc["technique"]["iqmc_effective_fission"] = fission
-    mcdc["technique"]["iqmc_effective_fission_outter"] = fission
+    mcdc["technique"]["iqmc_score"]["effective-scattering"] = scatter
+    mcdc["technique"]["iqmc_score"]["effective-fission"] = fission
+    mcdc["technique"]["iqmc_score"]["effective-fission-outter"] = fission
     iqmc_update_source(mcdc)
 
 
@@ -2386,7 +2386,7 @@ def prepare_qmc_scattering_source(mcdc):
     """
     Q = mcdc["technique"]["iqmc_source"]
     fixed_source = mcdc["technique"]["iqmc_fixed_source"]
-    flux = mcdc["technique"]["iqmc_flux"]
+    flux = mcdc["technique"]["iqmc_score"]["flux"]
     mesh = mcdc["technique"]["iqmc_mesh"]
     Nt = len(mesh["t"]) - 1
     Nx = len(mesh["x"]) - 1
@@ -2416,7 +2416,7 @@ def prepare_qmc_fission_source(mcdc):
     """
     Q = mcdc["technique"]["iqmc_source"]
     fixed_source = mcdc["technique"]["iqmc_fixed_source"]
-    flux = mcdc["technique"]["iqmc_flux"]
+    flux = mcdc["technique"]["iqmc_score"]["flux"]
     mesh = mcdc["technique"]["iqmc_mesh"]
     Nt = len(mesh["t"]) - 1
     Nx = len(mesh["x"]) - 1
@@ -2556,6 +2556,12 @@ def scattering_source(phi, mat_id, mcdc):
     SigmaS = material["scatter"]
     return np.dot(chi_s.T, SigmaS * phi)
 
+@njit
+def effective_source(phi, mat_id, mcdc):
+    S = scattering_source(phi, mat_id, mcdc)
+    F = fission_source(phi, mat_id, mcdc)
+    return S + F
+
 
 @njit
 def qmc_res(flux_new, flux_old):
@@ -2602,7 +2608,8 @@ def score_iqmc_tallies(P, distance, mcdc):
     None.
 
     """
-
+    score_list = mcdc["technique"]["iqmc_score_list"]
+    score_bin = mcdc["technique"]["iqmc_score"]
     # Get indices
     mesh = mcdc["technique"]["iqmc_mesh"]
     material = mcdc["materials"][P["material_ID"]]
@@ -2616,148 +2623,100 @@ def score_iqmc_tallies(P, distance, mcdc):
         return
     dV = iqmc_cell_volume(x, y, z, mesh)
     mat_id = P["material_ID"]
+    dx = dy = dz = 1.0
+    if (mesh["x"][x] != -INF) and (mesh["x"][x] != INF):
+        dx = mesh["x"][x + 1] - mesh["x"][x]
+    if (mesh["y"][y] != -INF) and (mesh["y"][y] != INF):
+        dy = mesh["y"][y + 1] - mesh["y"][y]
+    if (mesh["z"][z] != -INF) and (mesh["z"][z] != INF):
+        dz = mesh["z"][z + 1] - mesh["z"][z]
 
     # Score Flux
     if SigmaT.all() > 0.0:
         flux = w * (1 - np.exp(-(distance * SigmaT))) / (SigmaT * dV)
     else:
         flux = distance * w / dV
-    mcdc["technique"]["iqmc_flux"][:, t, x, y, z] += flux
+    score_bin["flux"][:, t, x, y, z] += flux
 
     # Score effective source tallies
-    mcdc["technique"]["iqmc_effective_scattering"][:, t, x, y, z] += scattering_source(
-        flux, mat_id, mcdc
-    )
-    mcdc["technique"]["iqmc_effective_fission"][:, t, x, y, z] += fission_source(
-        flux, mat_id, mcdc
-    )
-    # if using PI in eigenmode, score NuSigmaF*Phi
-    if (
-        mcdc["setting"]["mode_eigenvalue"]
-        and mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration"
-    ):
-        mcdc["technique"]["iqmc_nuSigmaF"][:, t, x, y, z] += nu_f * SigmaF * flux
+    score_bin["effective-scattering"][:,t,x,y,z] += scattering_source(flux, mat_id, mcdc)
+    score_bin["effective-fission"][:,t,x,y,z] += fission_source(flux, mat_id, mcdc)
+    
+    if score_list["fission-source"]:
+        score_bin["fission-source"][:,t,x,y,z] += nu_f * SigmaF * flux
 
-    # Score source tilt tallies
-    if mcdc["technique"]["iqmc_source_tilt"] > 0:
-        Nx = mesh["x"].size - 1
-        Ny = mesh["y"].size - 1
-        Nz = mesh["z"].size - 1
-        dx = dy = dz = 1.0
-        if (mesh["x"][x] != -INF) and (mesh["x"][x] != INF):
-            dx = mesh["x"][x + 1] - mesh["x"][x]
-        if (mesh["y"][y] != -INF) and (mesh["y"][y] != INF):
-            dy = mesh["y"][y + 1] - mesh["y"][y]
-        if (mesh["z"][z] != -INF) and (mesh["z"][z] != INF):
-            dz = mesh["z"][z + 1] - mesh["z"][z]
-        # linear x-component
-        if Nx > 1:
-            x_mid = mesh["x"][x] + (dx * 0.5)
-            source_x = iqmc_linear_tally(
-                P["ux"], P["x"], dx, x_mid, dy, dz, w, distance, SigmaT
-            )
-            mcdc["technique"]["iqmc_source_x"][:, t, x, y, z] += scattering_source(
-                source_x, mat_id, mcdc
-            ) + fission_source(source_x, mat_id, mcdc)
-
-        # linear y-component
-        if Ny > 1:
-            y_mid = mesh["y"][y] + (dy * 0.5)
-            source_y = iqmc_linear_tally(
-                P["uy"], P["y"], dy, y_mid, dx, dz, w, distance, SigmaT
-            )
-            mcdc["technique"]["iqmc_source_y"][:, t, x, y, z] += scattering_source(
-                source_y, mat_id, mcdc
-            ) + fission_source(source_y, mat_id, mcdc)
-
-        # linear z-component
-        if Nz > 1:
-            z_mid = mesh["z"][z] + (dz * 0.5)
-            source_z = iqmc_linear_tally(
-                P["uz"], P["z"], dz, z_mid, dx, dy, w, distance, SigmaT
-            )
-            mcdc["technique"]["iqmc_source_z"][:, t, x, y, z] += scattering_source(
-                source_z, mat_id, mcdc
-            ) + fission_source(source_z, mat_id, mcdc)
-        # bi-linear components
-        if mcdc["technique"]["iqmc_source_tilt"] > 1:
-            if Nx > 1 and Ny > 1:
-                source_xy = iqmc_bilinear_tally(
-                    P["ux"],
-                    P["x"],
-                    dx,
-                    x_mid,
-                    P["uy"],
-                    P["y"],
-                    dy,
-                    y_mid,
-                    dz,
-                    w,
-                    distance,
-                    SigmaT,
-                )
-                mcdc["technique"]["iqmc_source_xy"][:, t, x, y, z] += scattering_source(
-                    source_xy, mat_id, mcdc
-                ) + fission_source(source_xy, mat_id, mcdc)
-            if Nx > 1 and Nz > 1:
-                source_xz = iqmc_bilinear_tally(
-                    P["ux"],
-                    P["x"],
-                    dx,
-                    x_mid,
-                    P["uz"],
-                    P["z"],
-                    dz,
-                    z_mid,
-                    dy,
-                    w,
-                    distance,
-                    SigmaT,
-                )
-                mcdc["technique"]["iqmc_source_xz"][:, t, x, y, z] += scattering_source(
-                    source_xz, mat_id, mcdc
-                ) + fission_source(source_xz, mat_id, mcdc)
-            if Ny > 1 and Nz > 1:
-                source_yz = iqmc_bilinear_tally(
-                    P["uy"],
-                    P["y"],
-                    dy,
-                    y_mid,
-                    P["uz"],
-                    P["z"],
-                    dz,
-                    z_mid,
-                    dx,
-                    w,
-                    distance,
-                    SigmaT,
-                )
-                mcdc["technique"]["iqmc_source_yz"][:, t, x, y, z] += scattering_source(
-                    source_yz, mat_id, mcdc
-                ) + fission_source(source_yz, mat_id, mcdc)
-            if mcdc["technique"]["iqmc_source_tilt"] > 2:
-                source_xyz = iqmc_trilinear_tally(
-                    P["ux"],
-                    P["x"],
-                    dx,
-                    x_mid,
-                    P["uy"],
-                    P["y"],
-                    dy,
-                    y_mid,
-                    P["uz"],
-                    P["z"],
-                    dz,
-                    z_mid,
-                    w,
-                    distance,
-                    SigmaT,
-                )
-                mcdc["technique"]["iqmc_source_xyz"][
-                    :, t, x, y, z
-                ] += scattering_source(source_yz, mat_id, mcdc) + fission_source(
-                    source_xyz, mat_id, mcdc
-                )
+    if score_list["tilt-x"]:
+        x_mid = mesh["x"][x] + (dx * 0.5)
+        tilt = iqmc_linear_tally(P["ux"], P["x"], dx, x_mid, dy, dz, w, distance, SigmaT)
+        score_bin["tilt-x"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
+    
+    if score_list["tilt-y"]:
+        y_mid = mesh["y"][y] + (dy * 0.5)
+        tilt = iqmc_linear_tally( P["uy"], P["y"], dy, y_mid, dx, dz, w, distance, SigmaT)
+        score_bin["tilt-y"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
+    
+    if score_list["tilt-z"]:
+        z_mid = mesh["z"][z] + (dz * 0.5)
+        tilt = iqmc_linear_tally(P["uz"], P["z"], dz, z_mid, dx, dy, w, distance, SigmaT)
+        score_bin["tilt-z"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
+    
+    if score_list["tilt-xy"]:
+        tilt = iqmc_bilinear_tally(P["ux"],P["x"],dx,x_mid,P["uy"],P["y"],dy,y_mid,dz,w,distance,SigmaT)
+        score_bin["tilt-xy"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
+                
+    if score_list["tilt-xz"]:
+        tilt = iqmc_bilinear_tally(
+            P["ux"],
+            P["x"],
+            dx,
+            x_mid,
+            P["uz"],
+            P["z"],
+            dz,
+            z_mid,
+            dy,
+            w,
+            distance,
+            SigmaT,
+        )
+        score_bin["tilt-xz"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
+    
+    if score_list["tilt-yz"]:
+        tilt = iqmc_bilinear_tally(
+            P["uy"],
+            P["y"],
+            dy,
+            y_mid,
+            P["uz"],
+            P["z"],
+            dz,
+            z_mid,
+            dx,
+            w,
+            distance,
+            SigmaT,
+        )
+        score_bin["tilt-yz"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
+        
+    if score_list["tilt-xyz"]:
+        tilt = iqmc_trilinear_tally(
+            P["ux"],
+            P["x"],
+            dx,
+            x_mid,
+            P["uy"],
+            P["y"],
+            dy,
+            y_mid,
+            P["uz"],
+            P["z"],
+            dz,
+            z_mid,
+            w,
+            distance,
+            SigmaT,
+        )
+        score_bin["tilt-xyz"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
 
 
 @njit
@@ -2914,53 +2873,53 @@ def generate_iqmc_material_idx(mcdc):
 @njit
 def iqmc_reset_tallies(mcdc):
     mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
-    mcdc["technique"]["iqmc_source_x"] = np.zeros_like(
-        mcdc["technique"]["iqmc_source_x"]
+    mcdc["technique"]["iqmc_score"]["tilt-x"] = np.zeros_like(
+        mcdc["technique"]["iqmc_score"]["tilt-x"]
     )
-    mcdc["technique"]["iqmc_source_y"] = np.zeros_like(
-        mcdc["technique"]["iqmc_source_y"]
+    mcdc["technique"]["iqmc_score"]["tilt-y"] = np.zeros_like(
+        mcdc["technique"]["iqmc_score"]["tilt-y"]
     )
-    mcdc["technique"]["iqmc_source_z"] = np.zeros_like(
-        mcdc["technique"]["iqmc_source_z"]
+    mcdc["technique"]["iqmc_score"]["tilt-z"] = np.zeros_like(
+        mcdc["technique"]["iqmc_score"]["tilt-z"]
     )
-    mcdc["technique"]["iqmc_source_xy"] = np.zeros_like(
-        mcdc["technique"]["iqmc_source_xy"]
+    mcdc["technique"]["iqmc_score"]["tilt-xy"] = np.zeros_like(
+        mcdc["technique"]["iqmc_score"]["tilt-xy"]
     )
-    mcdc["technique"]["iqmc_source_xz"] = np.zeros_like(
-        mcdc["technique"]["iqmc_source_xz"]
+    mcdc["technique"]["iqmc_score"]["tilt-xz"] = np.zeros_like(
+        mcdc["technique"]["iqmc_score"]["tilt-xz"]
     )
-    mcdc["technique"]["iqmc_source_yz"] = np.zeros_like(
-        mcdc["technique"]["iqmc_source_yz"]
+    mcdc["technique"]["iqmc_score"]["tilt-yz"] = np.zeros_like(
+        mcdc["technique"]["iqmc_score"]["tilt-yz"]
     )
-    mcdc["technique"]["iqmc_source_xyz"] = np.zeros_like(
-        mcdc["technique"]["iqmc_source_xyz"]
+    mcdc["technique"]["iqmc_score"]["tilt-xyz"] = np.zeros_like(
+        mcdc["technique"]["iqmc_score"]["tilt-xyz"]
     )
-    mcdc["technique"]["iqmc_flux"] = np.zeros_like(mcdc["technique"]["iqmc_flux"])
-    mcdc["technique"]["iqmc_effective_scattering"] = np.zeros_like(
-        mcdc["technique"]["iqmc_effective_scattering"]
+    mcdc["technique"]["iqmc_score"]["flux"] = np.zeros_like(mcdc["technique"]["iqmc_score"]["flux"])
+    mcdc["technique"]["iqmc_score"]["effective-scattering"] = np.zeros_like(
+        mcdc["technique"]["iqmc_score"]["effective-scattering"]
     )
-    mcdc["technique"]["iqmc_effective_fission"] = np.zeros_like(
-        mcdc["technique"]["iqmc_effective_fission"]
+    mcdc["technique"]["iqmc_score"]["effective-fission"] = np.zeros_like(
+        mcdc["technique"]["iqmc_score"]["effective-fission"]
     )
-    mcdc["technique"]["iqmc_nuSigmaF"] = np.zeros_like(
-        mcdc["technique"]["iqmc_nuSigmaF"]
+    mcdc["technique"]["iqmc_score"]["fission-source"] = np.zeros_like(
+        mcdc["technique"]["iqmc_score"]["fission-source"]
     )
 
 
 @njit
 def iqmc_distribute_tallies(mcdc):
     # TODO: is there a way to do this without creating a new matrix ?
-    flux_local = mcdc["technique"]["iqmc_flux"].copy()
-    sourceX_local = mcdc["technique"]["iqmc_source_x"].copy()
-    sourceY_local = mcdc["technique"]["iqmc_source_y"].copy()
-    sourceZ_local = mcdc["technique"]["iqmc_source_z"].copy()
-    sourceXY_local = mcdc["technique"]["iqmc_source_xy"].copy()
-    sourceXZ_local = mcdc["technique"]["iqmc_source_xz"].copy()
-    sourceYZ_local = mcdc["technique"]["iqmc_source_yz"].copy()
-    sourceXYZ_local = mcdc["technique"]["iqmc_source_xyz"].copy()
-    scatter_local = mcdc["technique"]["iqmc_effective_scattering"].copy()
-    fission_local = mcdc["technique"]["iqmc_effective_fission"].copy()
-    nuSigmaF_local = mcdc["technique"]["iqmc_nuSigmaF"].copy()
+    flux_local = mcdc["technique"]["iqmc_score"]["flux"].copy()
+    sourceX_local = mcdc["technique"]["iqmc_score"]["tilt-x"].copy()
+    sourceY_local = mcdc["technique"]["iqmc_score"]["tilt-y"].copy()
+    sourceZ_local = mcdc["technique"]["iqmc_score"]["tilt-z"].copy()
+    sourceXY_local = mcdc["technique"]["iqmc_score"]["tilt-xy"].copy()
+    sourceXZ_local = mcdc["technique"]["iqmc_score"]["tilt-xz"].copy()
+    sourceYZ_local = mcdc["technique"]["iqmc_score"]["tilt-yz"].copy()
+    sourceXYZ_local = mcdc["technique"]["iqmc_score"]["tilt-xyz"].copy()
+    scatter_local = mcdc["technique"]["iqmc_score"]["effective-scattering"].copy()
+    fission_local = mcdc["technique"]["iqmc_score"]["effective-fission"].copy()
+    nuSigmaF_local = mcdc["technique"]["iqmc_score"]["fission-source"].copy()
     flux_total = np.zeros_like(flux_local, np.float64)
     sourceX_total = np.zeros_like(sourceX_local, np.float64)
     sourceY_total = np.zeros_like(sourceY_local, np.float64)
@@ -2984,17 +2943,17 @@ def iqmc_distribute_tallies(mcdc):
         MPI.COMM_WORLD.Allreduce(scatter_local, scatter_total, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(fission_local, fission_total, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(nuSigmaF_local, nuSigmaF_total, op=MPI.SUM)
-    mcdc["technique"]["iqmc_flux"] = flux_total.copy()
-    mcdc["technique"]["iqmc_source_x"] = sourceX_total.copy()
-    mcdc["technique"]["iqmc_source_y"] = sourceY_total.copy()
-    mcdc["technique"]["iqmc_source_z"] = sourceZ_total.copy()
-    mcdc["technique"]["iqmc_source_xy"] = sourceXY_total.copy()
-    mcdc["technique"]["iqmc_source_xz"] = sourceXZ_total.copy()
-    mcdc["technique"]["iqmc_source_yz"] = sourceYZ_total.copy()
-    mcdc["technique"]["iqmc_source_xyz"] = sourceXYZ_total.copy()
-    mcdc["technique"]["iqmc_effective_scattering"] = scatter_total.copy()
-    mcdc["technique"]["iqmc_effective_fission"] = fission_total.copy()
-    mcdc["technique"]["iqmc_nuSigmaF"] = nuSigmaF_total.copy()
+    mcdc["technique"]["iqmc_score"]["flux"] = flux_total.copy()
+    mcdc["technique"]["iqmc_score"]["tilt-x"] = sourceX_total.copy()
+    mcdc["technique"]["iqmc_score"]["tilt-y"] = sourceY_total.copy()
+    mcdc["technique"]["iqmc_score"]["tilt-z"] = sourceZ_total.copy()
+    mcdc["technique"]["iqmc_score"]["tilt-xy"] = sourceXY_total.copy()
+    mcdc["technique"]["iqmc_score"]["tilt-xz"] = sourceXZ_total.copy()
+    mcdc["technique"]["iqmc_score"]["tilt-yz"] = sourceYZ_total.copy()
+    mcdc["technique"]["iqmc_score"]["tilt-xyz"] = sourceXYZ_total.copy()
+    mcdc["technique"]["iqmc_score"]["effective-scattering"] = scatter_total.copy()
+    mcdc["technique"]["iqmc_score"]["effective-fission"] = fission_total.copy()
+    mcdc["technique"]["iqmc_score"]["fission-source"] = nuSigmaF_total.copy()
 
 
 @njit
@@ -3044,15 +3003,15 @@ def modified_gram_schmidt(V, u):
 @njit
 def iqmc_update_source(mcdc):
     keff = mcdc["k_eff"]
-    scatter = mcdc["technique"]["iqmc_effective_scattering"]
+    scatter = mcdc["technique"]["iqmc_score"]["effective-scattering"]
     fixed = mcdc["technique"]["iqmc_fixed_source"]
     if (
         mcdc["setting"]["mode_eigenvalue"]
         and mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration"
     ):
-        fission = mcdc["technique"]["iqmc_effective_fission_outter"]
+        fission = mcdc["technique"]["iqmc_score"]["effective-fission-outter"]
     else:
-        fission = mcdc["technique"]["iqmc_effective_fission"]
+        fission = mcdc["technique"]["iqmc_score"]["effective-fission"]
     mcdc["technique"]["iqmc_source"] = scatter + fission / keff + fixed
 
 
@@ -3152,73 +3111,10 @@ def iqmc_trilinear_tally(
 
 
 @njit
-def prepare_qmc_tilt_source(mcdc):
-    """
-    Parameters
-    ----------
-    mcdc : TYPE
-        DESCRIPTION.
-
-    Returns
-    -------
-    None.
-
-    """
-    mesh = mcdc["technique"]["iqmc_mesh"]
-    Nx = len(mesh["x"]) - 1
-    Ny = len(mesh["y"]) - 1
-    Nz = len(mesh["z"]) - 1
-    t = 0
-    source_x = mcdc["technique"]["iqmc_source_x"]
-    source_y = mcdc["technique"]["iqmc_source_y"]
-    source_z = mcdc["technique"]["iqmc_source_z"]
-    source_xy = mcdc["technique"]["iqmc_source_xy"]
-    source_xz = mcdc["technique"]["iqmc_source_xz"]
-    source_yz = mcdc["technique"]["iqmc_source_yz"]
-    source_xyz = mcdc["technique"]["iqmc_source_xyz"]
-
-    # calculate source for every cell and group in the iqmc_mesh
-    for i in range(Nx):
-        for j in range(Ny):
-            for k in range(Nz):
-                mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
-                if Nx > 1:
-                    source_x[:, t, i, j, k] = scattering_source(
-                        source_x[:, t, i, j, k], mat_idx, mcdc
-                    ) + fission_source(source_x[:, t, i, j, k], mat_idx, mcdc)
-                if Ny > 1:
-                    source_y[:, t, i, j, k] = scattering_source(
-                        source_y[:, t, i, j, k], mat_idx, mcdc
-                    ) + fission_source(source_y[:, t, i, j, k], mat_idx, mcdc)
-                if Nz > 1:
-                    source_z[:, t, i, j, k] = scattering_source(
-                        source_z[:, t, i, j, k], mat_idx, mcdc
-                    ) + fission_source(source_z[:, t, i, j, k], mat_idx, mcdc)
-                if mcdc["technique"]["iqmc_source_tilt"] > 1:
-                    if Nx > 1 and Ny > 1:
-                        source_xy[:, t, i, j, k] = scattering_source(
-                            source_xy[:, t, i, j, k], mat_idx, mcdc
-                        ) + fission_source(source_xy[:, t, i, j, k], mat_idx, mcdc)
-                    if Nx > 1 and Nz > 1:
-                        source_xz[:, t, i, j, k] = scattering_source(
-                            source_xz[:, t, i, j, k], mat_idx, mcdc
-                        ) + fission_source(source_xz[:, t, i, j, k], mat_idx, mcdc)
-                    if Ny > 1 and Nz > 1:
-                        source_yz[:, t, i, j, k] = scattering_source(
-                            source_yz[:, t, i, j, k], mat_idx, mcdc
-                        ) + fission_source(source_yz[:, t, i, j, k], mat_idx, mcdc)
-                    if mcdc["technique"]["iqmc_source_tilt"] > 2:
-                        source_xyz[:, t, i, j, k] = scattering_source(
-                            source_xyz[:, t, i, j, k], mat_idx, mcdc
-                        ) + fission_source(source_xyz[:, t, i, j, k], mat_idx, mcdc)
-
-
-@njit
 def iqmc_tilt_source(x, y, z, t, P, Q, mcdc):
+    score_list = mcdc["technique"]["iqmc_score_list"]
+    score_bin = mcdc["technique"]["iqmc_score"]
     mesh = mcdc["technique"]["iqmc_mesh"]
-    Nx = len(mesh["x"]) - 1
-    Ny = len(mesh["y"]) - 1
-    Nz = len(mesh["z"]) - 1
     dx = mesh["x"][x + 1] - mesh["x"][x]
     dy = mesh["y"][y + 1] - mesh["y"][y]
     dz = mesh["z"][z + 1] - mesh["z"][z]
@@ -3226,41 +3122,26 @@ def iqmc_tilt_source(x, y, z, t, P, Q, mcdc):
     y_mid = mesh["y"][y] + (0.5 * dy)
     z_mid = mesh["z"][z] + (0.5 * dz)
     # linear x-component
-    if Nx > 1:
-        Q += mcdc["technique"]["iqmc_source_x"][:, t, x, y, z] * (P["x"] - x_mid)
+    if score_list["tilt-x"]:
+        Q += score_bin["tilt-x"][:, t, x, y, z] * (P["x"] - x_mid)
     # linear y-component
-    if Ny > 1:
-        Q += mcdc["technique"]["iqmc_source_y"][:, t, x, y, z] * (P["y"] - y_mid)
+    if score_list["tilt-y"]:
+        Q += score_bin["tilt-y"][:, t, x, y, z] * (P["y"] - y_mid)
     # linear z-component
-    if Nz > 1:
-        Q += mcdc["technique"]["iqmc_source_z"][:, t, x, y, z] * (P["z"] - z_mid)
-
-    if mcdc["technique"]["iqmc_source_tilt"] > 1:
-        if Nx > 1 and Ny > 1:
-            Q += (
-                mcdc["technique"]["iqmc_source_xy"][:, t, x, y, z]
-                * (P["x"] - x_mid)
-                * (P["y"] - y_mid)
-            )
-        if Nx > 1 and Nz > 1:
-            Q += (
-                mcdc["technique"]["iqmc_source_xz"][:, t, x, y, z]
-                * (P["x"] - x_mid)
-                * (P["z"] - z_mid)
-            )
-        if Ny > 1 and Nz > 1:
-            Q += (
-                mcdc["technique"]["iqmc_source_yz"][:, t, x, y, z]
-                * (P["y"] - y_mid)
-                * (P["z"] - z_mid)
-            )
-        if mcdc["technique"]["iqmc_source_tilt"] > 2:
-            Q += (
-                mcdc["technique"]["iqmc_source_xyz"][:, t, x, y, z]
-                * (P["x"] - x_mid)
-                * (P["y"] - y_mid)
-                * (P["z"] - z_mid)
-            )
+    if score_list["tilt-z"]:
+        Q += score_bin["tilt-z"][:, t, x, y, z] * (P["z"] - z_mid)
+    # bilinear xy
+    if score_list["tilt-xy"]: 
+        Q += (score_bin["tilt-xy"][:,t,x,y,z]*(P["x"]-x_mid)*(P["y"]-y_mid))
+    # bilinear xz
+    if score_list["tilt-xz"]: 
+        Q += (score_bin["tilt-xz"][:,t,x,y,z]*(P["x"]-x_mid)*(P["z"]-z_mid))
+    # bilinear yz
+    if score_list["tilt-yz"]: 
+        Q += (score_bin["tilt-yz"][:,t,x,y,z]*(P["y"]-y_mid)*(P["z"]-z_mid))
+    # trilinear xyz
+    if score_list["tilt-xyz"]: 
+        Q += (score_bin["tilt-xyz"][:,t,x,y, z]*(P["x"]-x_mid)*(P["y"]-y_mid)*(P["z"] - z_mid))
 
 
 @njit
@@ -3281,13 +3162,10 @@ def iqmc_distribute_sources(mcdc):
 
     """
     total_source = mcdc["technique"]["iqmc_total_source"].copy()
-    matrix_shape = mcdc["technique"]["iqmc_source"].shape
-    vector_size = mcdc["technique"]["iqmc_source"].size
-
-    mesh = mcdc["technique"]["iqmc_mesh"]
-    Nx = len(mesh["x"]) - 1
-    Ny = len(mesh["y"]) - 1
-    Nz = len(mesh["z"]) - 1
+    shape = mcdc["technique"]["iqmc_source"].shape
+    size = mcdc["technique"]["iqmc_source"].size
+    score_list = mcdc["technique"]["iqmc_score_list"]
+    score_bin = mcdc["technique"]["iqmc_score"]
     Vsize = 0
 
     # effective sources
@@ -3298,61 +3176,59 @@ def iqmc_distribute_sources(mcdc):
         and mcdc["technique"]["iqmc_eigenmode_solver"] == "davidson"
     ):
         # effective scattering
-        mcdc["technique"]["iqmc_effective_scattering"] = np.reshape(
-            total_source[Vsize : (Vsize + vector_size)].copy(), matrix_shape
+        score_bin["effective-scattering"] = np.reshape(
+            total_source[Vsize : (Vsize + size)].copy(), shape
         )
-        Vsize += vector_size
+        Vsize += size
         # effective fission
-        mcdc["technique"]["iqmc_effective_fission"] = np.reshape(
-            total_source[Vsize : (Vsize + vector_size)].copy(), matrix_shape
+        score_bin["effective-fission"] = np.reshape(
+            total_source[Vsize : (Vsize + size)].copy(), shape
         )
-        Vsize += vector_size
+        Vsize += size
     else:
         # effective source
         mcdc["technique"]["iqmc_source"] = np.reshape(
-            total_source[Vsize : (Vsize + vector_size)].copy(), matrix_shape
+            total_source[Vsize : (Vsize + size)].copy(), shape
         )
-        Vsize += vector_size
+        Vsize += size
 
     # source tilting arrays
-    if mcdc["technique"]["iqmc_source_tilt"] > 0:
-        if Nx > 1:
-            mcdc["technique"]["iqmc_source_x"] = np.reshape(
-                total_source[Vsize : (Vsize + vector_size)], matrix_shape
-            )
-            Vsize += vector_size
-        if Ny > 1:
-            mcdc["technique"]["iqmc_source_y"] = np.reshape(
-                total_source[Vsize : (Vsize + vector_size)], matrix_shape
-            )
-            Vsize += vector_size
-        if Nz > 1:
-            mcdc["technique"]["iqmc_source_z"] = np.reshape(
-                total_source[Vsize : (Vsize + vector_size)], matrix_shape
-            )
-            Vsize += vector_size
-        if mcdc["technique"]["iqmc_source_tilt"] > 1:
-            if Nx > 1 and Ny > 1:
-                mcdc["technique"]["iqmc_source_xy"] = np.reshape(
-                    total_source[Vsize : (Vsize + vector_size)], matrix_shape
-                )
-                Vsize += vector_size
-            if Nx > 1 and Nz > 1:
-                mcdc["technique"]["iqmc_source_yz"] = np.reshape(
-                    total_source[Vsize : (Vsize + vector_size)], matrix_shape
-                )
-                Vsize += vector_size
-            if Ny > 1 and Nz > 1:
-                mcdc["technique"]["iqmc_source_xz"] = np.reshape(
-                    total_source[Vsize : (Vsize + vector_size)], matrix_shape
-                )
-                Vsize += vector_size
-            if mcdc["technique"]["iqmc_source_tilt"] > 2:
-                if Nx > 1 and Ny > 1 and Nz > 1:
-                    mcdc["technique"]["iqmc_source_xyz"] = np.reshape(
-                        total_source[Vsize : (Vsize + vector_size)], matrix_shape
-                    )
-                    Vsize += vector_size
+    if score_list["tilt-x"]:
+        score_bin["tilt-x"] = np.reshape(
+            total_source[Vsize : (Vsize + size)], shape
+        )
+        Vsize += size
+    if score_list["tilt-y"]:
+        score_bin["tilt-y"] = np.reshape(
+            total_source[Vsize : (Vsize + size)], shape
+        )
+        Vsize += size
+    if score_list["tilt-z"]:
+        score_bin["tilt-z"] = np.reshape(
+            total_source[Vsize : (Vsize + size)], shape
+        )
+        Vsize += size
+    if score_list["tilt-xy"]:
+        score_bin["tilt-xy"] = np.reshape(
+            total_source[Vsize : (Vsize + size)], shape
+        )
+        Vsize += size
+    if score_list["tilt-xz"]:
+        score_bin["tilt-xz"] = np.reshape(
+            total_source[Vsize : (Vsize + size)], shape
+        )
+        Vsize += size
+    if score_list["tilt-yz"]:
+        score_bin["tilt-yz"] = np.reshape(
+            total_source[Vsize : (Vsize + size)], shape
+        )
+        Vsize += size
+    if score_list["tilt-xyz"]:
+        score_bin["tilt-xyz"] = np.reshape(
+            total_source[Vsize : (Vsize + size)], shape
+        )
+        Vsize += size
+        
 
 
 @njit
@@ -3373,11 +3249,9 @@ def iqmc_consolidate_sources(mcdc):
 
     """
     total_source = mcdc["technique"]["iqmc_total_source"]
-    vector_size = mcdc["technique"]["iqmc_source"].size
-    mesh = mcdc["technique"]["iqmc_mesh"]
-    Nx = len(mesh["x"]) - 1
-    Ny = len(mesh["y"]) - 1
-    Nz = len(mesh["z"]) - 1
+    size = mcdc["technique"]["iqmc_source"].size
+    score_list = mcdc["technique"]["iqmc_score_list"]
+    score_bin = mcdc["technique"]["iqmc_score"]
     Vsize = 0
 
     # effective sources
@@ -3388,61 +3262,64 @@ def iqmc_consolidate_sources(mcdc):
         and mcdc["technique"]["iqmc_eigenmode_solver"] == "davidson"
     ):
         # effective scattering array
-        total_source[Vsize : (Vsize + vector_size)] = np.reshape(
-            mcdc["technique"]["iqmc_effective_scattering"].copy(), vector_size
+        total_source[Vsize : (Vsize + size)] = np.reshape(
+            score_bin["effective-scattering"].copy(), size
         )
-        Vsize += vector_size
+        Vsize += size
         # effective fission array
-        total_source[Vsize : (Vsize + vector_size)] = np.reshape(
-            mcdc["technique"]["iqmc_effective_fission"].copy(), vector_size
+        total_source[Vsize : (Vsize + size)] = np.reshape(
+            score_bin["effective-fission"].copy(), size
         )
-        Vsize += vector_size
+        Vsize += size
     else:
         # effective source
-        total_source[Vsize : (Vsize + vector_size)] = np.reshape(
-            mcdc["technique"]["iqmc_source"].copy(), vector_size
+        total_source[Vsize : (Vsize + size)] = np.reshape(
+            mcdc["technique"]["iqmc_source"].copy(), size
         )
-        Vsize += vector_size
+        Vsize += size
 
     # source tilting arrays
-    if mcdc["technique"]["iqmc_source_tilt"] > 0:
-        if Nx > 1:
-            total_source[Vsize : (Vsize + vector_size)] = np.reshape(
-                mcdc["technique"]["iqmc_source_x"], vector_size
-            )
-            Vsize += vector_size
-        if Ny > 1:
-            total_source[Vsize : (Vsize + vector_size)] = np.reshape(
-                mcdc["technique"]["iqmc_source_y"], vector_size
-            )
-            Vsize += vector_size
-        if Nz > 1:
-            total_source[Vsize : (Vsize + vector_size)] = np.reshape(
-                mcdc["technique"]["iqmc_source_z"], vector_size
-            )
-            Vsize += vector_size
-        if mcdc["technique"]["iqmc_source_tilt"] > 1:
-            if Nx > 1 and Ny > 1:
-                total_source[Vsize : (Vsize + vector_size)] = np.reshape(
-                    mcdc["technique"]["iqmc_source_xy"], vector_size
-                )
-                Vsize += vector_size
-            if Nx > 1 and Nz > 1:
-                total_source[Vsize : (Vsize + vector_size)] = np.reshape(
-                    mcdc["technique"]["iqmc_source_yz"], vector_size
-                )
-                Vsize += vector_size
-            if Ny > 1 and Nz > 1:
-                total_source[Vsize : (Vsize + vector_size)] = np.reshape(
-                    mcdc["technique"]["iqmc_source_xz"], vector_size
-                )
-                Vsize += vector_size
-            if mcdc["technique"]["iqmc_source_tilt"] > 2:
-                if Nx > 1 and Ny > 1 and Nz > 1:
-                    total_source[Vsize : (Vsize + vector_size)] = np.reshape(
-                        mcdc["technique"]["iqmc_source_xyz"], vector_size
-                    )
-                    Vsize += vector_size
+    if score_list["tilt-x"]:
+        total_source[Vsize : (Vsize + size)] = np.reshape(
+            score_bin["tilt-x"], size
+        )
+        Vsize += size
+        
+    if score_list["tilt-y"]:
+        total_source[Vsize : (Vsize + size)] = np.reshape(
+            score_bin["tilt-y"], size
+        )
+        Vsize += size
+        
+    if score_list["tilt-z"]:
+        total_source[Vsize : (Vsize + size)] = np.reshape(
+            score_bin["tilt-z"], size
+        )
+        Vsize += size
+        
+    if score_list["tilt-xy"]:
+        total_source[Vsize : (Vsize + size)] = np.reshape(
+            score_bin["tilt-xy"], size
+        )
+        Vsize += size
+        
+    if score_list["tilt-xz"]:
+        total_source[Vsize : (Vsize + size)] = np.reshape(
+            score_bin["tilt-xz"], size
+        )
+        Vsize += size
+    
+    if score_list["tilt-yz"]:
+        total_source[Vsize : (Vsize + size)] = np.reshape(
+            score_bin["tilt-yz"], size
+        )
+        Vsize += size
+        
+    if score_list["tilt-xyz"]:
+        total_source[Vsize : (Vsize + size)] = np.reshape(
+            score_bin["tilt-xyz"], size
+        )
+        Vsize += size
 
 
 # =============================================================================
@@ -3496,7 +3373,7 @@ def HxV(V, mcdc):
     # prepare_qmc_scattering_source(mcdc)
     mcdc["technique"]["iqmc_source"] = (
         mcdc["technique"]["iqmc_fixed_source"]
-        + mcdc["technique"]["iqmc_effective_scattering"]
+        + mcdc["technique"]["iqmc_score"]["effective-scattering"]
     )
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
@@ -3529,7 +3406,7 @@ def FxV(V, mcdc):
     # prepare_qmc_fission_source(mcdc)
     mcdc["technique"]["iqmc_source"] = (
         mcdc["technique"]["iqmc_fixed_source"]
-        + mcdc["technique"]["iqmc_effective_fission"]
+        + mcdc["technique"]["iqmc_score"]["effective-fission"]
     )
     prepare_qmc_particles(mcdc)
     iqmc_reset_tallies(mcdc)
@@ -3562,7 +3439,7 @@ def preconditioner(V, mcdc, num_sweeps=3):
         # QMC Sweep
         mcdc["technique"]["iqmc_source"] = (
             mcdc["technique"]["iqmc_fixed_source"]
-            + mcdc["technique"]["iqmc_effective_scattering"]
+            + mcdc["technique"]["iqmc_score"]["effective-scattering"]
         )
         prepare_qmc_particles(mcdc)
         iqmc_reset_tallies(mcdc)

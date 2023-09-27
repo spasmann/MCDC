@@ -7,6 +7,7 @@ from mpi4py import MPI
 # Basic types
 float64 = np.float64
 int64 = np.int64
+int32 = np.int32
 uint64 = np.uint64
 bool_ = np.bool_
 str_ = "U30"
@@ -489,80 +490,59 @@ def make_type_technique(N_particle, G, card):
     # Low-discprenecy sequence
     N_work = math.ceil(N_particle / MPI.COMM_WORLD.Get_size())
     struct += [("iqmc_lds", float64, (N_work, N_dim))]
-
     struct += [("iqmc_fixed_source", float64, (Ng, Nt, Nx, Ny, Nz))]
+    # TODO: make matidx int32
     struct += [("iqmc_material_idx", int64, (Nt, Nx, Ny, Nz))]
-    struct += [("iqmc_effective_scattering", float64, (Ng, Nt, Nx, Ny, Nz))]
-    struct += [("iqmc_effective_fission", float64, (Ng, Nt, Nx, Ny, Nz))]
+    # this is the original source matrix size + all tilted sources
+    struct += [("iqmc_source", float64, (Ng, Nt, Nx, Ny, Nz))]
+    total_size = (Ng * Nt * Nx * Ny * Nz) * card["iqmc_krylov_vector_size"]
+    struct += [(("iqmc_total_source"), float64, (total_size,))]
 
-    # flux tallies
-    struct += [("iqmc_flux", float64, (Ng, Nt, Nx, Ny, Nz))]
-    struct += [("iqmc_flux_old", float64, (Ng, Nt, Nx, Ny, Nz))]
+    # Scores and shapes
+    scores_shapes = [
+        ["tilt-t", (Ng, Nt, Nx, Ny, Nz)],
+        ["tilt-x", (Ng, Nt, Nx, Ny, Nz)],
+        ["tilt-y", (Ng, Nt, Nx, Ny, Nz)],
+        ["tilt-z", (Ng, Nt, Nx, Ny, Nz)],
+        ["tilt-xy", (Ng, Nt, Nx, Ny, Nz)],
+        ["tilt-xz", (Ng, Nt, Nx, Ny, Nz)],
+        ["tilt-yz", (Ng, Nt, Nx, Ny, Nz)],
+        ["tilt-xyz", (Ng, Nt, Nx, Ny, Nz)],
+        ["fission-power", (Ng, Nt, Nx, Ny, Nz)], #SigmaF*phi
+        ["fission-source", (Ng, Nt, Nx, Ny, Nz)], # nu*SigmaF*phi
+    ]
 
-    # TODO: make outter flux size zero if not eigenmode
-    # (causes problems with numba)
-    struct += [("iqmc_flux_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
-    struct += [("iqmc_effective_fission_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
 
     if setting["mode_eigenvalue"]:
-        struct += [("iqmc_nuSigmaF", float64, (Ng, Nt, Nx, Ny, Nz))]
-        struct += [("iqmc_nuSigmaF_outter", float64, (Ng, Nt, Nx, Ny, Nz))]
-    else:
-        struct += [("iqmc_nuSigmaF", float64, (0, 0, 0, 0, 0))]
-        struct += [("iqmc_nuSigmaF_outter", float64, (0, 0, 0, 0, 0))]
+        if card["eigenmode_solver"] == "power_iteration":
+            card["iqmc_score_list"]["fission-source"] = True
+    
+    # Add score flags to structure
+    score_list = []
+    for i in range(len(scores_shapes)):
+        name = scores_shapes[i][0]
+        score_list += [(name, bool_)]
+    score_list = np.dtype(score_list)
+    struct += [("iqmc_score_list", score_list)]
 
-    struct += [("iqmc_source", float64, (Ng, Nt, Nx, Ny, Nz))]
-    # source tilting tallies
-    # This logic structure ensures we don't allocate arrays for source tilting
-    # unless the user has requested them. Even if source tilting is off, all
-    # arrays must exist for Numba -> arrays are of size of 0 if not needed
-    x = [(("iqmc_source_x"), float64, (0, 0, 0, 0, 0))]
-    y = [(("iqmc_source_y"), float64, (0, 0, 0, 0, 0))]
-    z = [(("iqmc_source_z"), float64, (0, 0, 0, 0, 0))]
-    xy = [(("iqmc_source_xy"), float64, (0, 0, 0, 0, 0))]
-    yz = [(("iqmc_source_yz"), float64, (0, 0, 0, 0, 0))]
-    xz = [(("iqmc_source_xz"), float64, (0, 0, 0, 0, 0))]
-    xyz = [(("iqmc_source_xyz"), float64, (0, 0, 0, 0, 0))]
-    # also need to determine the total size of the source to be iterated,
-    # this is the original source matrix + all tilted sources
-    vector_size = Ng * Nt * Nx * Ny * Nz
-    total_size = vector_size
-    if card["iqmc_eigenmode_solver"] == "davidson":
-        total_size *= 2
+    # Add scores to structure
+    scores_struct = []
+    for i in range(len(scores_shapes)):
+        name = scores_shapes[i][0]
+        shape = scores_shapes[i][1]
+        if not card["iqmc_score_list"][name]:
+            shape = (0,) * len(shape)
+        scores_struct += [(name, float64, shape)]
+    scores_struct += [("flux",  float64, (Ng, Nt, Nx, Ny, Nz))]
+    scores_struct += [("effective-scattering", float64, (Ng, Nt, Nx, Ny, Nz))]
+    scores_struct += [("effective-fission", float64, (Ng, Nt, Nx, Ny, Nz))]
+    # TODO: make outter flux/effective fission size zero if not eigenmode
+    # (causes problems with numba)
+    scores_struct += [("flux-outter", float64, (Ng, Nt, Nx, Ny, Nz))]
+    scores_struct += [("effective-fission-outter", float64, (Ng, Nt, Nx, Ny, Nz))]
+    scores = np.dtype(scores_struct)
+    struct += [("iqmc_score", scores)]
 
-    # total_size = vector_size
-    if card["iqmc_source_tilt"] > 0:
-        if Nx > 1:
-            x = [(("iqmc_source_x"), float64, (Ng, Nt, Nx, Ny, Nz))]
-            total_size += vector_size
-        if Ny > 1:
-            y = [(("iqmc_source_y"), float64, (Ng, Nt, Nx, Ny, Nz))]
-            total_size += vector_size
-        if Nz > 1:
-            z = [(("iqmc_source_z"), float64, (Ng, Nt, Nx, Ny, Nz))]
-            total_size += vector_size
-        if card["iqmc_source_tilt"] > 1:
-            if Nx > 1 and Ny > 1:
-                xy = [(("iqmc_source_xy"), float64, (Ng, Nt, Nx, Ny, Nz))]
-                total_size += vector_size
-            if Nx > 1 and Nz > 1:
-                xz = [(("iqmc_source_xz"), float64, (Ng, Nt, Nx, Ny, Nz))]
-                total_size += vector_size
-            if Ny > 1 and Nz > 1:
-                yz = [(("iqmc_source_yz"), float64, (Ng, Nt, Nx, Ny, Nz))]
-                total_size += vector_size
-            if card["iqmc_source_tilt"] > 2:
-                if Nx > 1 and Ny > 1 and Nz > 1:
-                    xyz = [(("iqmc_source_xyz"), float64, (Ng, Nt, Nx, Ny, Nz))]
-                    total_size += vector_size
-    struct += x
-    struct += y
-    struct += z
-    struct += xy
-    struct += yz
-    struct += xz
-    struct += xyz
-    struct += [(("iqmc_total_source"), float64, (total_size,))]
 
     # Constants
     struct += [

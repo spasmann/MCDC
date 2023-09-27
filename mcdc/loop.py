@@ -315,8 +315,6 @@ def source_iteration(mcdc):
         kernel.generate_iqmc_material_idx(mcdc)
         # use material index to generate a first guess for the source
         kernel.prepare_qmc_source(mcdc)
-        if mcdc["technique"]["iqmc_source_tilt"]:
-            kernel.prepare_qmc_tilt_source(mcdc)
 
     kernel.iqmc_consolidate_sources(mcdc)
     total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
@@ -384,16 +382,20 @@ def gmres(mcdc):
     R = mcdc["technique"]["iqmc_krylov_restart"]
     tol = mcdc["technique"]["iqmc_tol"]
 
-    if mcdc["technique"]["iqmc_source_tilt"]:
-        b = np.zeros_like(mcdc["technique"]["iqmc_total_source"])
-        b[: mcdc["technique"]["iqmc_fixed_source"].size] = np.reshape(
-            mcdc["technique"]["iqmc_fixed_source"],
-            mcdc["technique"]["iqmc_fixed_source"].size,
-        )
-    else:
-        b = mcdc["technique"]["iqmc_fixed_source"].copy()
-        b = np.reshape(b, b.size)
-
+    # if mcdc["technique"]["iqmc_krylov_vector_size"] > 1:
+    #     b = np.zeros_like(mcdc["technique"]["iqmc_total_source"])
+    #     b[: mcdc["technique"]["iqmc_fixed_source"].size] = np.reshape(
+    #         mcdc["technique"]["iqmc_fixed_source"],
+    #         mcdc["technique"]["iqmc_fixed_source"].size,
+    #     )
+    # else:
+    #     b = mcdc["technique"]["iqmc_fixed_source"].copy()
+    #     b = np.reshape(b, b.size)
+        
+    fixed_source = mcdc["technique"]["iqmc_fixed_source"]
+    single_vector = mcdc["technique"]["iqmc_fixed_source"].size
+    b = np.zeros_like(mcdc["technique"]["iqmc_total_source"])
+    b[:single_vector] = np.reshape(fixed_source, fixed_source.size)
     # use piece-wise constant material approximations for the first source guess
     if (
         not mcdc["setting"]["mode_eigenvalue"]
@@ -402,8 +404,7 @@ def gmres(mcdc):
         # generate material index
         kernel.generate_iqmc_material_idx(mcdc)
         kernel.prepare_qmc_source(mcdc)
-        if mcdc["technique"]["iqmc_source_tilt"]:
-            kernel.prepare_qmc_tilt_source(mcdc)
+
     kernel.iqmc_consolidate_sources(mcdc)
     X = mcdc["technique"]["iqmc_total_source"].copy()
     # initial residual
@@ -632,8 +633,7 @@ def davidson(mcdc):
         kernel.generate_iqmc_material_idx(mcdc)
         # generate intial guess
         kernel.prepare_qmc_source(mcdc)
-        if mcdc["technique"]["iqmc_source_tilt"]:
-            kernel.prepare_qmc_tilt_source(mcdc)
+
     kernel.iqmc_consolidate_sources(mcdc)
     V0 = mcdc["technique"]["iqmc_total_source"].copy()
     V0 = kernel.preconditioner(V0, mcdc, num_sweeps=5)
