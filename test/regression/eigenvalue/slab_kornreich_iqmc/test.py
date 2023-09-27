@@ -6,6 +6,10 @@ from mpi4py import MPI
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
+import numba as nb
+
+nb.config.DISABLE_JIT = True
+
 
 def pi_test():
     # =========================================================================
@@ -64,7 +68,7 @@ def pi_test():
         eigenmode_solver=solver,
     )
     # Setting
-    mcdc.setting(N_particle=N, output="pi_output")
+    mcdc.setting(N_particle=N, output_name="pi_output")
     mcdc.eigenmode()
 
     # Run
@@ -145,7 +149,7 @@ def davidson_test():
         eigenmode_solver=solver,
     )
     # Setting
-    mcdc.setting(N_particle=N, output="davidson_output")
+    mcdc.setting(N_particle=N, output_name="davidson_output")
     mcdc.eigenmode()
 
     # Run

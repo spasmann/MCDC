@@ -11,7 +11,7 @@ uint64 = np.uint64
 bool_ = np.bool_
 str_ = "U30"
 
-# MC/DC types, will be defined by input card
+# MC/DC types, will be defined based on input deck
 particle = None
 particle_record = None
 nuclide = None
@@ -21,6 +21,7 @@ cell = None
 universe = None
 lattice = None
 source = None
+setting = None
 tally = None
 technique = None
 global_ = None
@@ -51,6 +52,7 @@ def make_type_particle(iQMC, G):
         ("translation", float64, (3,)),
         ("event", int64),
         ("sensitivity_ID", int64),
+        ("rng_seed", uint64),
     ]
     # iqmc vector of weights
     Ng = 1
@@ -74,6 +76,7 @@ def make_type_particle_record(iQMC, G):
         ("g", uint64),
         ("w", float64),
         ("sensitivity_ID", int64),
+        ("rng_seed", uint64),
     ]
     # iqmc vector of weights
     Ng = 1
@@ -139,6 +142,7 @@ def make_type_nuclide(G, J):
             ("chi_d", float64, (J, G)),
             ("sensitivity", bool_),
             ("sensitivity_ID", int64),
+            ("dsm_Np", float64),
         ]
     )
 
@@ -200,6 +204,7 @@ def make_type_surface(Nmax_slice):
             ("nz", float64),
             ("sensitivity", bool_),
             ("sensitivity_ID", int64),
+            ("dsm_Np", float64),
         ]
     )
 
@@ -314,52 +319,21 @@ def make_type_source(G):
 
 
 # Score lists
-score_tl_list = (
+score_list = (
     "flux",
-    "current",
-    "eddington",
     "density",
     "fission",
     "total",
+    "current",
+    "eddington",
 )
-score_x_list = (
-    "flux_x",
-    "current_x",
-    "eddington_x",
-    "density_x",
-    "fission_x",
-    "total_x",
-)
-score_y_list = (
-    "flux_y",
-    "current_y",
-    "eddington_y",
-    "density_y",
-    "fission_y",
-    "total_y",
-)
-score_z_list = (
-    "flux_z",
-    "current_z",
-    "eddington_z",
-    "density_z",
-    "fission_z",
-    "total_z",
-)
-score_t_list = (
-    "flux_t",
-    "current_t",
-    "eddington_t",
-    "density_t",
-    "fission_t",
-    "total_t",
-)
-
-score_list = score_tl_list + score_x_list + score_y_list + score_z_list + score_t_list
 
 
 def make_type_tally(Ns, card):
     global tally
+
+    # Tally estimator flags
+    struct = [("tracklength", bool_)]
 
     def make_type_score(shape):
         return np.dtype(
@@ -369,16 +343,6 @@ def make_type_tally(Ns, card):
                 ("sdev", float64, shape),
             ]
         )
-
-    # Estimator flags
-    struct = [
-        ("tracklength", bool_),
-        ("crossing", bool_),
-        ("crossing_x", bool_),
-        ("crossing_y", bool_),
-        ("crossing_z", bool_),
-        ("crossing_t", bool_),
-    ]
 
     # Mesh
     mesh, Nx, Ny, Nz, Nt, Nmu, N_azi, Ng = make_type_mesh(card["mesh"])
@@ -390,32 +354,8 @@ def make_type_tally(Ns, card):
         ["density", (Ns, Ng, Nt, Nx, Ny, Nz, Nmu, N_azi)],
         ["fission", (Ns, Ng, Nt, Nx, Ny, Nz, Nmu, N_azi)],
         ["total", (Ns, Ng, Nt, Nx, Ny, Nz, Nmu, N_azi)],
-        ["flux_x", (Ns, Ng, Nt, Nx + 1, Ny, Nz, Nmu, N_azi)],
-        ["density_x", (Ns, Ng, Nt, Nx + 1, Ny, Nz, Nmu, N_azi)],
-        ["fission_x", (Ns, Ng, Nt, Nx + 1, Ny, Nz, Nmu, N_azi)],
-        ["total_x", (Ns, Ng, Nt, Nx + 1, Ny, Nz, Nmu, N_azi)],
-        ["flux_y", (Ns, Ng, Nt, Nx, Ny + 1, Nz, Nmu, N_azi)],
-        ["density_y", (Ns, Ng, Nt, Nx, Ny + 1, Nz, Nmu, N_azi)],
-        ["fission_y", (Ns, Ng, Nt, Nx, Ny + 1, Nz, Nmu, N_azi)],
-        ["total_y", (Ns, Ng, Nt, Nx, Ny + 1, Nz, Nmu, N_azi)],
-        ["flux_z", (Ns, Ng, Nt, Nx, Ny, Nz + 1, Nmu, N_azi)],
-        ["density_z", (Ns, Ng, Nt, Nx, Ny, Nz + 1, Nmu, N_azi)],
-        ["fission_z", (Ns, Ng, Nt, Nx, Ny, Nz + 1, Nmu, N_azi)],
-        ["total_z", (Ns, Ng, Nt, Nx, Ny, Nz + 1, Nmu, N_azi)],
-        ["flux_t", (Ns, Ng, Nt + 1, Nx, Ny, Nz, Nmu, N_azi)],
-        ["density_t", (Ns, Ng, Nt + 1, Nx, Ny, Nz, Nmu, N_azi)],
-        ["fission_t", (Ns, Ng, Nt + 1, Nx, Ny, Nz, Nmu, N_azi)],
-        ["total_t", (Ns, Ng, Nt + 1, Nx, Ny, Nz, Nmu, N_azi)],
         ["current", (Ns, Ng, Nt, Nx, Ny, Nz, 3)],
-        ["current_x", (Ns, Ng, Nt, Nx + 1, Ny, Nz, 3)],
-        ["current_y", (Ns, Ng, Nt, Nx, Ny + 1, Nz, 3)],
-        ["current_z", (Ns, Ng, Nt, Nx, Ny, Nz + 1, 3)],
-        ["current_t", (Ns, Ng, Nt + 1, Nx, Ny, Nz, 3)],
         ["eddington", (Ns, Ng, Nt, Nx, Ny, Nz, 6)],
-        ["eddington_x", (Ns, Ng, Nt, Nx + 1, Ny, Nz, 6)],
-        ["eddington_y", (Ns, Ng, Nt, Nx, Ny + 1, Nz, 6)],
-        ["eddington_z", (Ns, Ng, Nt, Nx, Ny, Nz + 1, 6)],
-        ["eddington_t", (Ns, Ng, Nt + 1, Nx, Ny, Nz, 6)],
     ]
 
     # Add score flags to structure
@@ -443,35 +383,46 @@ def make_type_tally(Ns, card):
 # ==============================================================================
 
 
-setting = np.dtype(
-    [
-        ("N_particle", int64),
-        ("N_inactive", int64),
-        ("N_active", int64),
-        ("N_cycle", int64),
-        ("rng_seed", int64),
-        ("rng_stride", int64),
-        ("rng_g", int64),
-        ("rng_c", int64),
-        ("rng_mod", uint64),
+def make_type_setting(deck):
+    global setting
+
+    card = deck.setting
+    struct = [
+        # Basic MC simulation parameters
+        ("N_particle", uint64),
+        ("N_batch", uint64),
+        ("rng_seed", uint64),
         ("time_boundary", float64),
-        ("bank_active_buff", int64),
+        # Misc.
+        ("progress_bar", bool_),
+        ("output_name", "U30"),
+        ("save_input_deck", bool_),
+        ("track_particle", bool_),
+        # Eigenvalue mode
         ("mode_eigenvalue", bool_),
         ("k_init", float64),
+        ("N_inactive", uint64),
+        ("N_active", uint64),
+        ("N_cycle", uint64),
+        ("save_particle", bool_),
         ("gyration_radius", bool_),
-        ("gyration_radius_type", int64),
-        ("output", "U30"),
-        ("progress_bar", bool_),
+        ("gyration_radius_type", uint64),
+        # Time census
+        ("N_census", uint64),
+        ("census_time", float64, (card["N_census"],)),
+        # Particle source file
         ("source_file", bool_),
         ("source_file_name", "U30"),
-        ("track_particle", bool_),
-        ("save_particle", bool_),
-        ("save_input_deck", bool_),
+        # Initial condition source file
         ("IC_file", bool_),
         ("IC_file_name", "U30"),
-        ("N_precursor", int64),
+        ("N_precursor", uint64),
+        # TODO: Move to technique
+        ("N_sensitivity", uint64),
     ]
-)
+
+    # Finalize setting type
+    setting = np.dtype(struct)
 
 
 # ==============================================================================
@@ -493,7 +444,6 @@ def make_type_technique(N_particle, G, card):
         ("weight_roulette", bool_),
         ("iQMC", bool_),
         ("IC_generator", bool_),
-        ("time_census", bool_),
         ("branchless_collision", bool_),
     ]
 
@@ -636,15 +586,6 @@ def make_type_technique(N_particle, G, card):
     ]
 
     # =========================================================================
-    # Time census
-    # =========================================================================
-
-    struct += [
-        ("census_time", float64, (len(card["census_time"]),)),
-        ("census_idx", int64),
-    ]
-
-    # =========================================================================
     # IC generator
     # =========================================================================
 
@@ -684,6 +625,14 @@ def make_type_technique(N_particle, G, card):
         ("IC_fission", float64),
     ]
 
+    # =========================================================================
+    # Derivative Source Method
+    # =========================================================================
+
+    struct += [
+        ("dsm_order", int64),
+    ]
+
     # Finalize technique type
     technique = np.dtype(struct)
 
@@ -715,7 +664,7 @@ def make_type_global(card):
 
     # Particle bank types
     bank_active = particle_bank(1 + bank_active_buff)
-    if card.setting["mode_eigenvalue"] or card.technique["time_census"]:
+    if card.setting["mode_eigenvalue"] or card.setting["N_census"] > 1:
         bank_census = particle_bank(int((1 + bank_census_buff) * N_work))
         bank_source = particle_bank(int((1 + bank_census_buff) * N_work))
     else:
@@ -764,9 +713,6 @@ def make_type_global(card):
             ("bank_census", bank_census),
             ("bank_source", bank_source),
             ("bank_precursor", bank_precursor),
-            ("rng_seed_base", int64),
-            ("rng_seed", int64),
-            ("rng_stride", int64),
             ("k_eff", float64),
             ("k_cycle", float64, (N_cycle,)),
             ("k_avg", float64),
@@ -780,11 +726,13 @@ def make_type_global(card):
             ("k_avg_running", float64),
             ("k_sdv_running", float64),
             ("gyration_radius", float64, (N_cycle,)),
-            ("i_cycle", int64),
+            ("idx_cycle", int64),
             ("cycle_active", bool_),
             ("eigenvalue_tally_nuSigmaF", float64),
             ("eigenvalue_tally_n", float64),
             ("eigenvalue_tally_C", float64),
+            ("idx_census", int64),
+            ("idx_batch", int64),
             ("mpi_size", int64),
             ("mpi_rank", int64),
             ("mpi_master", bool_),

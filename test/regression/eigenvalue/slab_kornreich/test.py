@@ -73,11 +73,11 @@ def test():
             2.5,
         ]
     )
-    scores = ["flux-x"]
+    scores = ["flux"]
     mcdc.tally(scores=scores, x=x)
 
     # Setting
-    mcdc.setting(N_particle=10, progress_bar=False)
+    mcdc.setting(N_particle=100, progress_bar=False)
     mcdc.eigenmode(N_inactive=1, N_active=2, gyration_radius="only-x")
 
     # Run
