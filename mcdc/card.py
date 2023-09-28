@@ -109,8 +109,9 @@ class InputDeck:
                 "tilt-xy": np.ones([1, 1, 1, 1]),
                 "tilt-xz": np.ones([1, 1, 1, 1]),
                 "tilt-yz": np.ones([1, 1, 1, 1]),
-                "tilt-xyz": np.ones([1, 1, 1, 1]),},
-            "iqmc_score_list":{
+                "tilt-xyz": np.ones([1, 1, 1, 1]),
+            },
+            "iqmc_score_list": {
                 "tilt-t": False,
                 "tilt-x": False,
                 "tilt-y": False,
@@ -120,7 +121,8 @@ class InputDeck:
                 "tilt-yz": False,
                 "tilt-xyz": False,
                 "fission-power": False,
-                "fission-source": False,},
+                "fission-source": False,
+            },
             "iqmc_mesh": {
                 "g": np.array([-INF, INF]),
                 "t": np.array([-INF, INF]),
@@ -128,7 +130,8 @@ class InputDeck:
                 "y": np.array([-INF, INF]),
                 "z": np.array([-INF, INF]),
                 "mu": np.array([-1.0, 1.0]),
-                "azi": np.array([-PI, PI]),},
+                "azi": np.array([-PI, PI]),
+            },
             "IC_generator": False,
             "IC_N_neutron": 0,
             "IC_N_precursor": 0,

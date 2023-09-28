@@ -89,6 +89,7 @@ def print_progress(percent, mcdc):
                 )
         sys.stdout.flush()
 
+
 def print_progress_iqmc(mcdc):
     # TODO: function was not working with numba when structured like the
     # other print_progress functions
@@ -102,6 +103,7 @@ def print_progress_iqmc(mcdc):
             print("Residual %10.3E" % (res))
             print("*******************************\n")
             sys.stdout.flush()
+
 
 def print_header_eigenvalue(mcdc):
     if master:
@@ -169,7 +171,9 @@ def print_iqmc_eigenvalue_exit_code(mcdc):
             print("\n")
             print("================================")
             print("\n")
-            print(" Convergence to tolerance not achieved: Maximum number of iterations.")
+            print(
+                " Convergence to tolerance not achieved: Maximum number of iterations."
+            )
         else:
             print("\n")
             print("================================")
@@ -217,4 +221,3 @@ def print_bank(bank, show_content=False):
         for i in range(size):
             print(" ", particles[i])
     print("\n")
-

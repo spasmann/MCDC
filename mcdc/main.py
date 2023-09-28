@@ -382,7 +382,7 @@ def prepare():
         # LDS generator
         mcdc["technique"]["iqmc_generator"] = input_deck.technique["iqmc_generator"]
         # minimum particle weight
-        mcdc["technique"]["iqmc_w_min"] = 1e-16 / mcdc["setting"]["N_particle"]
+        mcdc["technique"]["iqmc_w_min"] = 1e-16  # / mcdc["setting"]["N_particle"]
         # variables to generate samples
         scramble = mcdc["technique"]["iqmc_scramble"]
         N_dim = mcdc["technique"]["iqmc_N_dim"]
@@ -573,7 +573,7 @@ def generate_hdf5(mcdc):
                 dict_to_h5group(input_deck.tally, input_group.create_group("tally"))
                 dict_to_h5group(input_deck.setting, input_group.create_group("setting"))
                 # dict_to_h5group(
-                    # input_deck.technique, input_group.create_group("technique")
+                # input_deck.technique, input_group.create_group("technique")
                 # )
 
             # Tally

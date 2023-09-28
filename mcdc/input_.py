@@ -1137,9 +1137,8 @@ def iQMC(
     generator="halton",
     fixed_source_solver="source_iteration",
     eigenmode_solver="power_iteration",
-    score=[]
-    ):
-    
+    score=[],
+):
     card = mcdc.input_deck.technique
     card["iQMC"] = True
     card["iqmc_tol"] = tol
@@ -1149,7 +1148,7 @@ def iQMC(
     card["iqmc_scramble"] = scramble
     card["iqmc_seed"] = seed
     card["iqmc_source_tilt"] = source_tilt
-    
+
     # Set mesh
     if g is not None:
         card["iqmc_mesh"]["g"] = g
@@ -1190,18 +1189,18 @@ def iQMC(
 
     score_list = card["iqmc_score_list"]
     for name in score:
-       score_list[name] = True
-    
+        score_list[name] = True
+
     if score_list["tilt-t"]:
         card["iqmc_krylov_vector_size"] += 1
         if source_t0 is None:
             source_t0 = np.zeros_like(phi0)
-    
+
     if score_list["tilt-x"]:
         card["iqmc_krylov_vector_size"] += 1
         if source_x0 is None:
             source_x0 = np.zeros_like(phi0)
-            
+
     if score_list["tilt-y"]:
         card["iqmc_krylov_vector_size"] += 1
         if source_y0 is None:
@@ -1211,12 +1210,12 @@ def iQMC(
         card["iqmc_krylov_vector_size"] += 1
         if source_z0 is None:
             source_z0 = np.zeros_like(phi0)
-            
+
     if score_list["tilt-xy"]:
         card["iqmc_krylov_vector_size"] += 1
         if source_xy0 is None:
             source_xy0 = np.zeros_like(phi0)
-            
+
     if score_list["tilt-xz"]:
         card["iqmc_krylov_vector_size"] += 1
         if source_xz0 is None:

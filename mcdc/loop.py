@@ -381,7 +381,7 @@ def gmres(mcdc):
     max_iter = mcdc["technique"]["iqmc_maxitt"]
     R = mcdc["technique"]["iqmc_krylov_restart"]
     tol = mcdc["technique"]["iqmc_tol"]
-        
+
     fixed_source = mcdc["technique"]["iqmc_fixed_source"]
     single_vector = mcdc["technique"]["iqmc_fixed_source"].size
     b = np.zeros_like(mcdc["technique"]["iqmc_total_source"])
@@ -498,12 +498,12 @@ def gmres(mcdc):
                 normr = abs(g[inner + 1])
                 rel_resid = normr / res_0
                 mcdc["technique"]["iqmc_res"] = rel_resid
-                
+
             mcdc["technique"]["iqmc_itt"] += 1
             if not mcdc["setting"]["mode_eigenvalue"]:
                 with objmode():
                     print_progress_iqmc(mcdc)
-                    
+
             if rel_resid < tol:
                 break
             if mcdc["technique"]["iqmc_itt"] >= max_iter:
@@ -534,7 +534,7 @@ def power_iteration(mcdc):
     # maximum number of iterations
     maxit = mcdc["technique"]["iqmc_maxitt"]
     score_bin = mcdc["technique"]["iqmc_score"]
-    score_bin["flux-outter"] = score_bin["flux"] .copy()
+    score_bin["flux-outter"] = score_bin["flux"].copy()
     k_old = mcdc["k_eff"]
     solver = mcdc["technique"]["iqmc_fixed_source_solver"]
 
@@ -542,7 +542,7 @@ def power_iteration(mcdc):
         kernel.generate_iqmc_material_idx(mcdc)
         kernel.prepare_qmc_source(mcdc)
         kernel.prepare_nuSigmaF(mcdc)
-    
+
     fission_source_old = score_bin["fission-source"].copy()
 
     while not simulation_end:
@@ -555,8 +555,7 @@ def power_iteration(mcdc):
         mcdc["technique"]["iqmc_itt"] = 0
 
         # update k_eff
-        mcdc["k_eff"] *= (score_bin["fission-source"].sum()
-                          / fission_source_old.sum())
+        mcdc["k_eff"] *= score_bin["fission-source"].sum() / fission_source_old.sum()
 
         # calculate diff in keff
         mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)

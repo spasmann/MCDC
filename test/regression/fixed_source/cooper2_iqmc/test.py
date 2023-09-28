@@ -221,7 +221,7 @@ def si_st_test():
         tol=tol,
         generator=generator,
         fixed_source_solver=solver,
-        score=score
+        score=score,
     )
 
     # =============================================================================

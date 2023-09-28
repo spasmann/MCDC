@@ -508,15 +508,15 @@ def make_type_technique(N_particle, G, card):
         ["tilt-xz", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-yz", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-xyz", (Ng, Nt, Nx, Ny, Nz)],
-        ["fission-power", (Ng, Nt, Nx, Ny, Nz)], # SigmaF*phi
-        ["fission-source", (Ng, Nt, Nx, Ny, Nz)], # nu*SigmaF*phi
+        ["fission-power", (Ng, Nt, Nx, Ny, Nz)],  # SigmaF*phi
+        ["fission-source", (Ng, Nt, Nx, Ny, Nz)],  # nu*SigmaF*phi
     ]
 
     if card["iQMC"]:
         if setting["mode_eigenvalue"]:
             if card["iqmc_eigenmode_solver"] == "power_iteration":
                 card["iqmc_score_list"]["fission-source"] = True
-    
+
     # Add score flags to structure
     score_list = []
     for i in range(len(scores_shapes)):
@@ -533,7 +533,7 @@ def make_type_technique(N_particle, G, card):
         if not card["iqmc_score_list"][name]:
             shape = (0,) * len(shape)
         scores_struct += [(name, float64, shape)]
-    scores_struct += [("flux",  float64, (Ng, Nt, Nx, Ny, Nz))]
+    scores_struct += [("flux", float64, (Ng, Nt, Nx, Ny, Nz))]
     scores_struct += [("effective-scattering", float64, (Ng, Nt, Nx, Ny, Nz))]
     scores_struct += [("effective-fission", float64, (Ng, Nt, Nx, Ny, Nz))]
     # TODO: make outter flux/effective fission size zero if not eigenmode
@@ -542,7 +542,6 @@ def make_type_technique(N_particle, G, card):
     scores_struct += [("effective-fission-outter", float64, (Ng, Nt, Nx, Ny, Nz))]
     scores = np.dtype(scores_struct)
     struct += [("iqmc_score", scores)]
-
 
     # Constants
     struct += [

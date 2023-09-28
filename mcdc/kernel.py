@@ -2555,6 +2555,7 @@ def scattering_source(phi, mat_id, mcdc):
     SigmaS = material["scatter"]
     return np.dot(chi_s.T, SigmaS * phi)
 
+
 @njit
 def effective_source(phi, mat_id, mcdc):
     S = scattering_source(phi, mat_id, mcdc)
@@ -2640,37 +2641,59 @@ def score_iqmc_tallies(P, distance, mcdc):
     score_bin["flux"][:, t, x, y, z] += flux
 
     # Score effective source tallies
-    score_bin["effective-scattering"][:,t,x,y,z] += scattering_source(flux, mat_id, mcdc)
-    score_bin["effective-fission"][:,t,x,y,z] += fission_source(flux, mat_id, mcdc)
-    
+    score_bin["effective-scattering"][:, t, x, y, z] += scattering_source(
+        flux, mat_id, mcdc
+    )
+    score_bin["effective-fission"][:, t, x, y, z] += fission_source(flux, mat_id, mcdc)
+
     if score_list["fission-source"]:
-        score_bin["fission-source"][:,t,x,y,z] += nu_f * SigmaF * flux
+        score_bin["fission-source"][:, t, x, y, z] += nu_f * SigmaF * flux
 
     if score_list["tilt-t"]:
         t_mid = mesh["t"][t] + (dt * 0.5)
         v = get_particle_speed(P, mcdc)
         tilt = iqmc_time_tilt(v, P["t"], t_mid, dt, dx, dy, dz, w, distance, SigmaT)
-        score_bin["tilt-t"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
+        score_bin["tilt-t"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
 
     if score_list["tilt-x"]:
         x_mid = mesh["x"][x] + (dx * 0.5)
-        tilt = iqmc_linear_tally(P["ux"], P["x"], dx, x_mid, dt, dy, dz, w, distance, SigmaT)
-        score_bin["tilt-x"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
-    
+        tilt = iqmc_linear_tally(
+            P["ux"], P["x"], dx, x_mid, dy, dz, w, distance, SigmaT
+        )
+        score_bin["tilt-x"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+
     if score_list["tilt-y"]:
         y_mid = mesh["y"][y] + (dy * 0.5)
-        tilt = iqmc_linear_tally( P["uy"], P["y"], dy, y_mid, dt, dx, dz, w, distance, SigmaT)
-        score_bin["tilt-y"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
-    
+        tilt = iqmc_linear_tally(
+            P["uy"], P["y"], dy, y_mid, dx, dz, w, distance, SigmaT
+        )
+        score_bin["tilt-y"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+
     if score_list["tilt-z"]:
         z_mid = mesh["z"][z] + (dz * 0.5)
-        tilt = iqmc_linear_tally(P["uz"], P["z"], dz, z_mid, dt, dx, dy, w, distance, SigmaT)
-        score_bin["tilt-z"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
-    
+        tilt = iqmc_linear_tally(
+            P["uz"], P["z"], dz, z_mid, dx, dy, w, distance, SigmaT
+        )
+        score_bin["tilt-z"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+
     if score_list["tilt-xy"]:
-        tilt = iqmc_bilinear_tally(P["ux"],P["x"],dx,x_mid,P["uy"],P["y"],dy,y_mid,dt,dz,w,distance,SigmaT)
-        score_bin["tilt-xy"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
-                
+        tilt = iqmc_bilinear_tally(
+            P["ux"],
+            P["x"],
+            dx,
+            x_mid,
+            P["uy"],
+            P["y"],
+            dy,
+            y_mid,
+            dt,
+            dz,
+            w,
+            distance,
+            SigmaT,
+        )
+        score_bin["tilt-xy"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+
     if score_list["tilt-xz"]:
         tilt = iqmc_bilinear_tally(
             P["ux"],
@@ -2687,8 +2710,8 @@ def score_iqmc_tallies(P, distance, mcdc):
             distance,
             SigmaT,
         )
-        score_bin["tilt-xz"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
-    
+        score_bin["tilt-xz"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+
     if score_list["tilt-yz"]:
         tilt = iqmc_bilinear_tally(
             P["uy"],
@@ -2705,8 +2728,8 @@ def score_iqmc_tallies(P, distance, mcdc):
             distance,
             SigmaT,
         )
-        score_bin["tilt-yz"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
-        
+        score_bin["tilt-yz"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+
     if score_list["tilt-xyz"]:
         tilt = iqmc_trilinear_tally(
             P["ux"],
@@ -2726,7 +2749,7 @@ def score_iqmc_tallies(P, distance, mcdc):
             distance,
             SigmaT,
         )
-        score_bin["tilt-xyz"][:,t,x,y,z] += effective_source(tilt, mat_id, mcdc)
+        score_bin["tilt-xyz"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
 
 
 @njit
@@ -2907,7 +2930,9 @@ def iqmc_reset_tallies(mcdc):
     mcdc["technique"]["iqmc_score"]["tilt-xyz"] = np.zeros_like(
         mcdc["technique"]["iqmc_score"]["tilt-xyz"]
     )
-    mcdc["technique"]["iqmc_score"]["flux"] = np.zeros_like(mcdc["technique"]["iqmc_score"]["flux"])
+    mcdc["technique"]["iqmc_score"]["flux"] = np.zeros_like(
+        mcdc["technique"]["iqmc_score"]["flux"]
+    )
     mcdc["technique"]["iqmc_score"]["effective-scattering"] = np.zeros_like(
         mcdc["technique"]["iqmc_score"]["effective-scattering"]
     )
@@ -3037,23 +3062,29 @@ def iqmc_update_source(mcdc):
 # =============================================================================
 # TODO: Not all ST tallies have been built for case where SigmaT = 0.0
 
-@njit
-def iqmc_time_tilt(v, t, t_mid, dt, dx, dy, dz, w, S, SigmaT):
-    Pexp = np.exp(S*SigmaT)
-    Nexp = np.exp(-S*SigmaT)
-    Q = Nexp*w*(-1+Pexp-(S+t*v-Pexp*t*v+(-1+Pexp)*v*t_mid)*SigmaT)
-    Q /= (v*SigmaT**2)
-    Q *= 12/(dt**3 * dx * dy * dz)
-    return Q
 
 @njit
-def iqmc_linear_tally(mu, x, dx, x_mid, dt, dy, dz, w, distance, SigmaT):
+def iqmc_time_tilt(v, t, t_mid, dt, dx, dy, dz, w, S, SigmaT):
+    Pexp = np.exp(S * SigmaT)
+    Nexp = np.exp(-S * SigmaT)
+    Q = (
+        Nexp
+        * w
+        * (-1 + Pexp - (S + t * v - Pexp * t * v + (-1 + Pexp) * v * t_mid) * SigmaT)
+    )
+    Q /= v * SigmaT**2
+    Q *= 12 / (dt**3 * dx * dy * dz)
+    return Q
+
+
+@njit
+def iqmc_linear_tally(mu, x, dx, x_mid, dy, dz, w, distance, SigmaT):
     if SigmaT.all() > 1e-12:
         a = mu * (
             w * (1 - (1 + distance * SigmaT) * np.exp(-SigmaT * distance)) / SigmaT**2
         )
         b = (x - x_mid) * (w * (1 - np.exp(-SigmaT * distance)) / SigmaT)
-        Q = 12 * (a + b) / (dt * dx**3 * dy * dz)
+        Q = 12 * (a + b) / (dx**3 * dy * dz)
     else:
         Q = mu * w * distance ** (2) / 2 + w * (x - x_mid) * distance
     return Q
@@ -3161,17 +3192,22 @@ def iqmc_tilt_source(x, y, z, t, P, Q, mcdc):
     if score_list["tilt-z"]:
         Q += score_bin["tilt-z"][:, t, x, y, z] * (P["z"] - z_mid)
     # bilinear xy
-    if score_list["tilt-xy"]: 
-        Q += (score_bin["tilt-xy"][:,t,x,y,z]*(P["x"]-x_mid)*(P["y"]-y_mid))
+    if score_list["tilt-xy"]:
+        Q += score_bin["tilt-xy"][:, t, x, y, z] * (P["x"] - x_mid) * (P["y"] - y_mid)
     # bilinear xz
-    if score_list["tilt-xz"]: 
-        Q += (score_bin["tilt-xz"][:,t,x,y,z]*(P["x"]-x_mid)*(P["z"]-z_mid))
+    if score_list["tilt-xz"]:
+        Q += score_bin["tilt-xz"][:, t, x, y, z] * (P["x"] - x_mid) * (P["z"] - z_mid)
     # bilinear yz
-    if score_list["tilt-yz"]: 
-        Q += (score_bin["tilt-yz"][:,t,x,y,z]*(P["y"]-y_mid)*(P["z"]-z_mid))
+    if score_list["tilt-yz"]:
+        Q += score_bin["tilt-yz"][:, t, x, y, z] * (P["y"] - y_mid) * (P["z"] - z_mid)
     # trilinear xyz
-    if score_list["tilt-xyz"]: 
-        Q += (score_bin["tilt-xyz"][:,t,x,y, z]*(P["x"]-x_mid)*(P["y"]-y_mid)*(P["z"] - z_mid))
+    if score_list["tilt-xyz"]:
+        Q += (
+            score_bin["tilt-xyz"][:, t, x, y, z]
+            * (P["x"] - x_mid)
+            * (P["y"] - y_mid)
+            * (P["z"] - z_mid)
+        )
 
 
 @njit
@@ -3224,46 +3260,29 @@ def iqmc_distribute_sources(mcdc):
 
     # source tilting arrays
     if score_list["tilt-t"]:
-        score_bin["tilt-t"] = np.reshape(
-            total_source[Vsize : (Vsize + size)], shape
-        )
+        score_bin["tilt-t"] = np.reshape(total_source[Vsize : (Vsize + size)], shape)
         Vsize += size
     if score_list["tilt-x"]:
-        score_bin["tilt-x"] = np.reshape(
-            total_source[Vsize : (Vsize + size)], shape
-        )
+        score_bin["tilt-x"] = np.reshape(total_source[Vsize : (Vsize + size)], shape)
         Vsize += size
     if score_list["tilt-y"]:
-        score_bin["tilt-y"] = np.reshape(
-            total_source[Vsize : (Vsize + size)], shape
-        )
+        score_bin["tilt-y"] = np.reshape(total_source[Vsize : (Vsize + size)], shape)
         Vsize += size
     if score_list["tilt-z"]:
-        score_bin["tilt-z"] = np.reshape(
-            total_source[Vsize : (Vsize + size)], shape
-        )
+        score_bin["tilt-z"] = np.reshape(total_source[Vsize : (Vsize + size)], shape)
         Vsize += size
     if score_list["tilt-xy"]:
-        score_bin["tilt-xy"] = np.reshape(
-            total_source[Vsize : (Vsize + size)], shape
-        )
+        score_bin["tilt-xy"] = np.reshape(total_source[Vsize : (Vsize + size)], shape)
         Vsize += size
     if score_list["tilt-xz"]:
-        score_bin["tilt-xz"] = np.reshape(
-            total_source[Vsize : (Vsize + size)], shape
-        )
+        score_bin["tilt-xz"] = np.reshape(total_source[Vsize : (Vsize + size)], shape)
         Vsize += size
     if score_list["tilt-yz"]:
-        score_bin["tilt-yz"] = np.reshape(
-            total_source[Vsize : (Vsize + size)], shape
-        )
+        score_bin["tilt-yz"] = np.reshape(total_source[Vsize : (Vsize + size)], shape)
         Vsize += size
     if score_list["tilt-xyz"]:
-        score_bin["tilt-xyz"] = np.reshape(
-            total_source[Vsize : (Vsize + size)], shape
-        )
+        score_bin["tilt-xyz"] = np.reshape(total_source[Vsize : (Vsize + size)], shape)
         Vsize += size
-        
 
 
 @njit
@@ -3315,44 +3334,28 @@ def iqmc_consolidate_sources(mcdc):
 
     # source tilting arrays
     if score_list["tilt-t"]:
-        total_source[Vsize : (Vsize + size)] = np.reshape(
-            score_bin["tilt-t"], size
-        )
+        total_source[Vsize : (Vsize + size)] = np.reshape(score_bin["tilt-t"], size)
         Vsize += size
     if score_list["tilt-x"]:
-        total_source[Vsize : (Vsize + size)] = np.reshape(
-            score_bin["tilt-x"], size
-        )
+        total_source[Vsize : (Vsize + size)] = np.reshape(score_bin["tilt-x"], size)
         Vsize += size
     if score_list["tilt-y"]:
-        total_source[Vsize : (Vsize + size)] = np.reshape(
-            score_bin["tilt-y"], size
-        )
+        total_source[Vsize : (Vsize + size)] = np.reshape(score_bin["tilt-y"], size)
         Vsize += size
     if score_list["tilt-z"]:
-        total_source[Vsize : (Vsize + size)] = np.reshape(
-            score_bin["tilt-z"], size
-        )
+        total_source[Vsize : (Vsize + size)] = np.reshape(score_bin["tilt-z"], size)
         Vsize += size
     if score_list["tilt-xy"]:
-        total_source[Vsize : (Vsize + size)] = np.reshape(
-            score_bin["tilt-xy"], size
-        )
+        total_source[Vsize : (Vsize + size)] = np.reshape(score_bin["tilt-xy"], size)
         Vsize += size
     if score_list["tilt-xz"]:
-        total_source[Vsize : (Vsize + size)] = np.reshape(
-            score_bin["tilt-xz"], size
-        )
+        total_source[Vsize : (Vsize + size)] = np.reshape(score_bin["tilt-xz"], size)
         Vsize += size
     if score_list["tilt-yz"]:
-        total_source[Vsize : (Vsize + size)] = np.reshape(
-            score_bin["tilt-yz"], size
-        )
+        total_source[Vsize : (Vsize + size)] = np.reshape(score_bin["tilt-yz"], size)
         Vsize += size
     if score_list["tilt-xyz"]:
-        total_source[Vsize : (Vsize + size)] = np.reshape(
-            score_bin["tilt-xyz"], size
-        )
+        total_source[Vsize : (Vsize + size)] = np.reshape(score_bin["tilt-xyz"], size)
         Vsize += size
 
 
