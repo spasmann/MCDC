@@ -107,7 +107,7 @@ def reeds_sol(Nx=80, LB=-8.0, RB=8.0):
 
 with h5py.File("output.h5", "r") as f:
     phi = f["iqmc/flux"][:]
-    q = f["iqmc/source"][:][0, 0, :, 0, 0]
+    q = f["iqmc/source/constant"][:][0, 0, :, 0, 0]
     # qdot = f["iqmc/source_x"][:][0, 0, :, 0, 0]
     x = f["iqmc/grid/x"][:]
     mesh = f["iqmc/grid/x"][:]

@@ -37,14 +37,13 @@ mcdc.cell([+s7, -s8], m4)
 # =============================================================================
 # iQMC Parameters
 # =============================================================================
-N = 10000
-Nx = 64
-maxit = 100
-tol = 1e-6
+N = 1000
+Nx = 32
+maxit = 20
+tol = 1e-4
 x = np.linspace(-8, 8, num=Nx + 1)
 generator = "halton"
 solver = "gmres"
-tilt = 0
 
 
 def reeds_source(Nx, LB=-8.0, RB=8.0):
@@ -87,7 +86,7 @@ mcdc.iQMC(
     tol=tol,
     generator=generator,
     fixed_source_solver=solver,
-    source_tilt=tilt,
+    score=["tilt-x"],
 )
 
 # =============================================================================
