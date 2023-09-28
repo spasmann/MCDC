@@ -543,7 +543,8 @@ def power_iteration(mcdc):
     tol = mcdc["technique"]["iqmc_tol"]
     # maximum number of iterations
     maxit = mcdc["technique"]["iqmc_maxitt"]
-    mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
+    score_bin = mcdc["technique"]["iqmc_score"]
+    score_bin["flux-outter"] = score_bin["flux"] .copy()
     k_old = mcdc["k_eff"]
     solver = mcdc["technique"]["iqmc_fixed_source_solver"]
 
@@ -551,6 +552,8 @@ def power_iteration(mcdc):
         kernel.generate_iqmc_material_idx(mcdc)
         kernel.prepare_qmc_source(mcdc)
         kernel.prepare_nuSigmaF(mcdc)
+    
+    fission_source_old = score_bin["fission-source"].copy()
 
     while not simulation_end:
         # iterate over scattering source
@@ -562,22 +565,16 @@ def power_iteration(mcdc):
         mcdc["technique"]["iqmc_itt"] = 0
 
         # update k_eff
-        mcdc["k_eff"] *= (
-            mcdc["technique"]["iqmc_nuSigmaF"].sum()
-            / mcdc["technique"]["iqmc_nuSigmaF_outter"].sum()
-        )
+        mcdc["k_eff"] *= (score_bin["fission-source"].sum()
+                          / fission_source_old.sum())
 
         # calculate diff in keff
         mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
         k_old = mcdc["k_eff"]
         # store outter iteration values
-        mcdc["technique"]["iqmc_flux_outter"] = mcdc["technique"]["iqmc_flux"].copy()
-        mcdc["technique"]["iqmc_effective_fission_outter"] = mcdc["technique"][
-            "iqmc_effective_fission"
-        ].copy()
-        mcdc["technique"]["iqmc_nuSigmaF_outter"] = mcdc["technique"][
-            "iqmc_nuSigmaF"
-        ].copy()
+        score_bin["flux-outter"] = score_bin["flux"].copy()
+        score_bin["effective-fission-outter"] = score_bin["effective-fission"].copy()
+        fission_source_old = score_bin["fission-source"].copy()
         mcdc["technique"]["iqmc_itt_outter"] += 1
 
         if mcdc["setting"]["progress_bar"]:

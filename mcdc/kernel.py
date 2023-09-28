@@ -2311,7 +2311,7 @@ def continuous_weight_reduction(P, distance, mcdc):
 @njit
 def prepare_nuSigmaF(mcdc):
     mesh = mcdc["technique"]["iqmc_mesh"]
-    flux = mcdc["technique"]["iqmc_score/flux"]
+    flux = mcdc["technique"]["iqmc_score"]["flux"]
     Nt = len(mesh["t"]) - 1
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
@@ -2326,7 +2326,7 @@ def prepare_nuSigmaF(mcdc):
                     material = mcdc["materials"][mat_idx]
                     nu_f = material["nu_f"]
                     SigmaF = material["fission"]
-                    mcdc["technique"]["iqmc_nuSigmaF_outter"][:, t, i, j, k] = (
+                    mcdc["technique"]["iqmc_score"]["fission-source"][:, t, i, j, k] = (
                         nu_f * SigmaF * flux[:, t, i, j, k]
                     )
 
@@ -2487,8 +2487,8 @@ def prepare_qmc_particles(mcdc):
         q = Q[:, t, x, y, z].copy()
         dV = iqmc_cell_volume(x, y, z, mesh)
         # Source tilt
-        if mcdc["technique"]["iqmc_source_tilt"]:
-            iqmc_tilt_source(x, y, z, t, P_new, q, mcdc)
+        # if mcdc["technique"]["iqmc_source_tilt"]:
+        iqmc_tilt_source(x, y, z, t, P_new, q, mcdc)
         # set particle weight
         P_new["iqmc_w"] = q * dV * N_total / N_particle
         P_new["w"] = P_new["iqmc_w"].sum()

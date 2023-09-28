@@ -1235,7 +1235,7 @@ def iQMC(
     card["iqmc_score"]["flux"] = phi0
     card["iqmc_score"]["tilt-x"] = source_x0
     card["iqmc_score"]["tilt-y"] = source_y0
-    card["iqmc_score"]["tilt-y"] = source_z0
+    card["iqmc_score"]["tilt-z"] = source_z0
     card["iqmc_score"]["tilt-xy"] = source_xy0
     card["iqmc_score"]["tilt-xz"] = source_xz0
     card["iqmc_score"]["tilt-yz"] = source_yz0

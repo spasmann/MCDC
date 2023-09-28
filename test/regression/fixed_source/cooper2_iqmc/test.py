@@ -209,8 +209,8 @@ def si_st_test():
     # fixed source in lower left corner
     fixed_source = np.zeros((Nx, Ny))
     fixed_source[0 : int(0.25 * Nx), 0 : int(0.25 * Nx)] = 1
-    tilt = 2
     phi0 = np.ones((Nx, Ny))
+    score = ["tilt-x", "tilt-y", "tilt-xy"]
 
     mcdc.iQMC(
         x=x,
@@ -221,7 +221,7 @@ def si_st_test():
         tol=tol,
         generator=generator,
         fixed_source_solver=solver,
-        source_tilt=tilt,
+        score=score
     )
 
     # =============================================================================
@@ -304,7 +304,7 @@ def gmres_st_test():
     y = np.linspace(0, 4, num=Ny + 1)
     generator = "halton"
     solver = "gmres"
-    tilt = 2
+    score = ["tilt-x", "tilt-y", "tilt-xy"]
     # fixed source in lower left corner
     fixed_source = np.zeros((Nx, Ny))
     fixed_source[0 : int(0.25 * Nx), 0 : int(0.25 * Nx)] = 1
@@ -320,7 +320,7 @@ def gmres_st_test():
         tol=tol,
         generator=generator,
         fixed_source_solver=solver,
-        source_tilt=tilt,
+        score=score,
     )
 
     # =============================================================================
@@ -362,7 +362,7 @@ def gmres_st_test():
 
 
 if __name__ == "__main__":
-    si_test()
-    gmres_test()
+    # si_test()
+    # gmres_test()
     si_st_test()
     gmres_st_test()

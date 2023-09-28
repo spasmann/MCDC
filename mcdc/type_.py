@@ -508,14 +508,14 @@ def make_type_technique(N_particle, G, card):
         ["tilt-xz", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-yz", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-xyz", (Ng, Nt, Nx, Ny, Nz)],
-        ["fission-power", (Ng, Nt, Nx, Ny, Nz)], #SigmaF*phi
+        ["fission-power", (Ng, Nt, Nx, Ny, Nz)], # SigmaF*phi
         ["fission-source", (Ng, Nt, Nx, Ny, Nz)], # nu*SigmaF*phi
     ]
 
-
-    if setting["mode_eigenvalue"]:
-        if card["eigenmode_solver"] == "power_iteration":
-            card["iqmc_score_list"]["fission-source"] = True
+    if card["iQMC"]:
+        if setting["mode_eigenvalue"]:
+            if card["iqmc_eigenmode_solver"] == "power_iteration":
+                card["iqmc_score_list"]["fission-source"] = True
     
     # Add score flags to structure
     score_list = []
