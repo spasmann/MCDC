@@ -142,6 +142,7 @@ def print_iqmc_eigenvalue_progress(mcdc):
         itt = mcdc["technique"]["iqmc_itt_outter"]
         res = mcdc["technique"]["iqmc_res_outter"]
         print("\n ", itt, " ", np.round(k_eff, 5), " ", np.round(res, 9))
+        sys.stdout.flush()
 
 
 def print_iqmc_eigenvalue_exit_code(mcdc):
@@ -207,6 +208,7 @@ def print_progress_iqmc(mcdc):
     # TODO: function was not working with numba when structured like the
     # other print_progress functions
     if master:
+        sys.stdout.write("\r")
         if mcdc["setting"]["progress_bar"]:
             itt = mcdc["technique"]["iqmc_itt"]
             res = mcdc["technique"]["iqmc_res"]
@@ -214,3 +216,4 @@ def print_progress_iqmc(mcdc):
             print("Iteration ", itt)
             print("Residual ", res)
             print("*******************************\n")
+        sys.stdout.flush()

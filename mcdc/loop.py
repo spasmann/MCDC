@@ -291,16 +291,16 @@ def loop_particle(P, mcdc):
 @njit
 def loop_iqmc(mcdc):
     # function calls from specified solvers
-    if mcdc["setting"]["mode_eigenvalue"]:
-        if mcdc["technique"]["iqmc_eigenmode_solver"] == "davidson":
-            davidson(mcdc)
-        if mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration":
-            power_iteration(mcdc)
-    else:
-        if mcdc["technique"]["iqmc_fixed_source_solver"] == "source_iteration":
-            source_iteration(mcdc)
-        if mcdc["technique"]["iqmc_fixed_source_solver"] == "gmres":
-            gmres(mcdc)
+    # if mcdc["setting"]["mode_eigenvalue"]:
+    #     if mcdc["technique"]["iqmc_eigenmode_solver"] == "davidson":
+    #         davidson(mcdc)
+    #     if mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration":
+    #         power_iteration(mcdc)
+    # else:
+    if mcdc["technique"]["iqmc_fixed_source_solver"] == "source_iteration":
+        source_iteration(mcdc)
+    if mcdc["technique"]["iqmc_fixed_source_solver"] == "gmres":
+        gmres(mcdc)
 
 
 @njit
@@ -371,8 +371,8 @@ def gmres(mcdc):
     References
     ----------
     .. [1] Yousef Saad, "Iterative Methods for Sparse Linear Systems,
-       Second Edition", SIAM, pp. 151-172, pp. 272-275, 2003
-       http://www-users.cs.umn.edu/~saad/books.html
+        Second Edition", SIAM, pp. 151-172, pp. 272-275, 2003
+        http://www-users.cs.umn.edu/~saad/books.html
     .. [2] C. T. Kelley, http://www4.ncsu.edu/~ctk/matlab_roots.html
 
     code adapted from: https://github.com/pygbe/pygbe/blob/master/pygbe/gmres.py
@@ -381,16 +381,6 @@ def gmres(mcdc):
     max_iter = mcdc["technique"]["iqmc_maxitt"]
     R = mcdc["technique"]["iqmc_krylov_restart"]
     tol = mcdc["technique"]["iqmc_tol"]
-
-    # if mcdc["technique"]["iqmc_krylov_vector_size"] > 1:
-    #     b = np.zeros_like(mcdc["technique"]["iqmc_total_source"])
-    #     b[: mcdc["technique"]["iqmc_fixed_source"].size] = np.reshape(
-    #         mcdc["technique"]["iqmc_fixed_source"],
-    #         mcdc["technique"]["iqmc_fixed_source"].size,
-    #     )
-    # else:
-    #     b = mcdc["technique"]["iqmc_fixed_source"].copy()
-    #     b = np.reshape(b, b.size)
         
     fixed_source = mcdc["technique"]["iqmc_fixed_source"]
     single_vector = mcdc["technique"]["iqmc_fixed_source"].size
@@ -535,181 +525,175 @@ def gmres(mcdc):
                 print_progress_iqmc(mcdc)
 
 
-@njit
-def power_iteration(mcdc):
-    simulation_end = False
+# @njit
+# def power_iteration(mcdc):
+#     simulation_end = False
 
-    # iteration tolerance
-    tol = mcdc["technique"]["iqmc_tol"]
-    # maximum number of iterations
-    maxit = mcdc["technique"]["iqmc_maxitt"]
-    score_bin = mcdc["technique"]["iqmc_score"]
-    score_bin["flux-outter"] = score_bin["flux"] .copy()
-    k_old = mcdc["k_eff"]
-    solver = mcdc["technique"]["iqmc_fixed_source_solver"]
+#     # iteration tolerance
+#     tol = mcdc["technique"]["iqmc_tol"]
+#     # maximum number of iterations
+#     maxit = mcdc["technique"]["iqmc_maxitt"]
+#     score_bin = mcdc["technique"]["iqmc_score"]
+#     score_bin["flux-outter"] = score_bin["flux"] .copy()
+#     k_old = mcdc["k_eff"]
+#     solver = mcdc["technique"]["iqmc_fixed_source_solver"]
 
-    if mcdc["technique"]["iqmc_source"].all() == 0.0:
-        kernel.generate_iqmc_material_idx(mcdc)
-        kernel.prepare_qmc_source(mcdc)
-        kernel.prepare_nuSigmaF(mcdc)
+#     if mcdc["technique"]["iqmc_source"].all() == 0.0:
+#         kernel.generate_iqmc_material_idx(mcdc)
+#         kernel.prepare_qmc_source(mcdc)
+#         kernel.prepare_nuSigmaF(mcdc)
     
-    fission_source_old = score_bin["fission-source"].copy()
+#     fission_source_old = score_bin["fission-source"].copy()
 
-    while not simulation_end:
-        # iterate over scattering source
-        if solver == "source_iteration":
-            source_iteration(mcdc)
-        if solver == "gmres":
-            gmres(mcdc)
-        # reset counter for inner iteration
-        mcdc["technique"]["iqmc_itt"] = 0
+#     while not simulation_end:
+#         # iterate over scattering source
+#         if solver == "source_iteration":
+#             source_iteration(mcdc)
+#         if solver == "gmres":
+#             gmres(mcdc)
+#         # reset counter for inner iteration
+#         mcdc["technique"]["iqmc_itt"] = 0
 
-        # update k_eff
-        mcdc["k_eff"] *= (score_bin["fission-source"].sum()
-                          / fission_source_old.sum())
+#         # update k_eff
+#         mcdc["k_eff"] *= (score_bin["fission-source"].sum()
+#                           / fission_source_old.sum())
 
-        # calculate diff in keff
-        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
-        k_old = mcdc["k_eff"]
-        # store outter iteration values
-        score_bin["flux-outter"] = score_bin["flux"].copy()
-        score_bin["effective-fission-outter"] = score_bin["effective-fission"].copy()
-        fission_source_old = score_bin["fission-source"].copy()
-        mcdc["technique"]["iqmc_itt_outter"] += 1
+#         # calculate diff in keff
+#         mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
+#         k_old = mcdc["k_eff"]
+#         # store outter iteration values
+#         score_bin["flux-outter"] = score_bin["flux"].copy()
+#         score_bin["effective-fission-outter"] = score_bin["effective-fission"].copy()
+#         fission_source_old = score_bin["fission-source"].copy()
+#         mcdc["technique"]["iqmc_itt_outter"] += 1
 
-        if mcdc["setting"]["progress_bar"]:
-            with objmode():
-                print_iqmc_eigenvalue_progress(mcdc)
+#         if mcdc["setting"]["progress_bar"]:
+#             with objmode():
+#                 print_iqmc_eigenvalue_progress(mcdc)
 
-        # iQMC convergence criteria
-        if (mcdc["technique"]["iqmc_itt_outter"] == maxit) or (
-            mcdc["technique"]["iqmc_res_outter"] <= tol
-        ):
-            simulation_end = True
-    if mcdc["setting"]["progress_bar"]:
-        with objmode():
-            print_iqmc_eigenvalue_exit_code(mcdc)
+#         # iQMC convergence criteria
+#         if (mcdc["technique"]["iqmc_itt_outter"] == maxit) or (
+#             mcdc["technique"]["iqmc_res_outter"] <= tol
+#         ):
+#             simulation_end = True
+#     if mcdc["setting"]["progress_bar"]:
+#         with objmode():
+#             print_iqmc_eigenvalue_exit_code(mcdc)
 
 
-@njit
-def davidson(mcdc):
-    """
-    The generalized Davidson method is a Krylov subspace method for solving
-    the generalized eigenvalue problem. The algorithm here is based on the
-    outline in:
+# @njit
+# def davidson(mcdc):
+#     """
+#     The generalized Davidson method is a Krylov subspace method for solving
+#     the generalized eigenvalue problem. The algorithm here is based on the
+#     outline in:
 
-        Subramanian, C., et al. "The Davidson method as an alternative to
-        power iterations for criticality calculations." Annals of nuclear
-        energy 38.12 (2011): 2818-2823.
+#         Subramanian, C., et al. "The Davidson method as an alternative to
+#         power iterations for criticality calculations." Annals of nuclear
+#         energy 38.12 (2011): 2818-2823.
 
-    """
-    # TODO: handle imaginary eigenvalues
+#     """
+#     # TODO: handle imaginary eigenvalues
 
-    # Davidson parameters
-    simulation_end = False
-    maxit = mcdc["technique"]["iqmc_maxitt"]
-    tol = mcdc["technique"]["iqmc_tol"]
-    # num_sweeps: number of preconditioner sweeps
-    num_sweeps = mcdc["technique"]["iqmc_preconditioner_sweeps"]
-    # m : restart parameter
-    m = mcdc["technique"]["iqmc_krylov_restart"]
-    k_old = mcdc["k_eff"]
-    # initial size of Krylov subspace
-    Vsize = 1
-    # l : number of eigenvalues to solve for
-    l = 1
-    # vector size
-    Nt = mcdc["technique"]["iqmc_total_source"].size
-    # allocate memory then use slice indexing in loop
-    V = np.zeros((Nt, m), dtype=np.float64)
-    HV = np.zeros((Nt, m), dtype=np.float64)
-    FV = np.zeros((Nt, m), dtype=np.float64)
-    # generate first guess of source if none was passed through
-    if mcdc["technique"]["iqmc_source"].all() == 0.0:
-        # generate material index
-        kernel.generate_iqmc_material_idx(mcdc)
-        # generate intial guess
-        kernel.prepare_qmc_source(mcdc)
+#     # Davidson parameters
+#     simulation_end = False
+#     maxit = mcdc["technique"]["iqmc_maxitt"]
+#     tol = mcdc["technique"]["iqmc_tol"]
+#     # num_sweeps: number of preconditioner sweeps
+#     num_sweeps = mcdc["technique"]["iqmc_preconditioner_sweeps"]
+#     # m : restart parameter
+#     m = mcdc["technique"]["iqmc_krylov_restart"]
+#     k_old = mcdc["k_eff"]
+#     # initial size of Krylov subspace
+#     Vsize = 1
+#     # l : number of eigenvalues to solve for
+#     l = 1
+#     # vector size
+#     Nt = mcdc["technique"]["iqmc_total_source"].size
+#     # allocate memory then use slice indexing in loop
+#     V = np.zeros((Nt, m), dtype=np.float64)
+#     HV = np.zeros((Nt, m), dtype=np.float64)
+#     FV = np.zeros((Nt, m), dtype=np.float64)
+#     # generate first guess of source if none was passed through
+#     if mcdc["technique"]["iqmc_source"].all() == 0.0:
+#         # generate material index
+#         kernel.generate_iqmc_material_idx(mcdc)
+#         # generate intial guess
+#         kernel.prepare_qmc_source(mcdc)
 
-    kernel.iqmc_consolidate_sources(mcdc)
-    V0 = mcdc["technique"]["iqmc_total_source"].copy()
-    V0 = kernel.preconditioner(V0, mcdc, num_sweeps=5)
-    # orthonormalize initial guess
-    V0 = V0 / np.linalg.norm(V0)
-    V[:, 0] = V0
+#     kernel.iqmc_consolidate_sources(mcdc)
+#     V0 = mcdc["technique"]["iqmc_total_source"].copy()
+#     V0 = kernel.preconditioner(V0, mcdc, num_sweeps=5)
+#     # orthonormalize initial guess
+#     V0 = V0 / np.linalg.norm(V0)
+#     V[:, 0] = V0
 
-    if m is None:
-        # unless specified there is no restart parameter
-        m = maxit + 1
+#     if m is None:
+#         # unless specified there is no restart parameter
+#         m = maxit + 1
 
-    # Davidson Routine
-    while not simulation_end:
-        # Calculate V*H*V (HxV is scattering linear operator function)
-        HV[:, Vsize - 1] = kernel.HxV(V[:, :Vsize], mcdc)
-        VHV = np.dot(cga(V[:, :Vsize].T), cga(HV[:, :Vsize]))
-        # Calculate V*F*V (FxV is fission linear operator function)
-        FV[:, Vsize - 1] = kernel.FxV(V[:, :Vsize], mcdc)
-        VFV = np.dot(cga(V[:, :Vsize].T), cga(FV[:, :Vsize]))
-        # solve for eigenvalues and vectors
-        with objmode(Lambda="complex128[:]", w="complex128[:,:]"):
-            Lambda, w = eig(VFV, b=VHV)
-            Lambda = np.array(Lambda, dtype=np.complex128)
-            w = np.array(w, dtype=np.complex128)
+#     # Davidson Routine
+#     while not simulation_end:
+#         # Calculate V*H*V (HxV is scattering linear operator function)
+#         HV[:, Vsize - 1] = kernel.HxV(V[:, :Vsize], mcdc)
+#         VHV = np.dot(cga(V[:, :Vsize].T), cga(HV[:, :Vsize]))
+#         # Calculate V*F*V (FxV is fission linear operator function)
+#         FV[:, Vsize - 1] = kernel.FxV(V[:, :Vsize], mcdc)
+#         VFV = np.dot(cga(V[:, :Vsize].T), cga(FV[:, :Vsize]))
+#         # solve for eigenvalues and vectors
+#         with objmode(Lambda="complex128[:]", w="complex128[:,:]"):
+#             Lambda, w = eig(VFV, b=VHV)
+#             Lambda = np.array(Lambda, dtype=np.complex128)
+#             w = np.array(w, dtype=np.complex128)
 
-        assert Lambda.imag.all() == 0.0
-        Lambda = Lambda.real
-        w = w.real
-        # get indices of eigenvalues from largest to smallest
-        idx = np.flip(Lambda.argsort())
-        # sort eigenvalues from largest to smallest
-        Lambda = Lambda[idx]
-        # take the l largest eigenvalues
-        Lambda = Lambda[:l]
-        # sort corresponding eigenvector (oriented by column)
-        w = w[:, idx]
-        # take the l largest eigenvectors
-        w = w[:, :l]
-        # assign keff
-        mcdc["k_eff"] = Lambda[0]
-        # Ritz vector
-        u = np.dot(cga(V[:, :Vsize]), cga(w))
-        # residual
-        res = kernel.FxV(u, mcdc) - Lambda * kernel.HxV(u, mcdc)
-        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
-        k_old = mcdc["k_eff"]
-        mcdc["technique"]["iqmc_itt_outter"] += 1
-        with objmode():
-            print_iqmc_eigenvalue_progress(mcdc)
+#         assert Lambda.imag.all() == 0.0
+#         Lambda = Lambda.real
+#         w = w.real
+#         # get indices of eigenvalues from largest to smallest
+#         idx = np.flip(Lambda.argsort())
+#         # sort eigenvalues from largest to smallest
+#         Lambda = Lambda[idx]
+#         # take the l largest eigenvalues
+#         Lambda = Lambda[:l]
+#         # sort corresponding eigenvector (oriented by column)
+#         w = w[:, idx]
+#         # take the l largest eigenvectors
+#         w = w[:, :l]
+#         # assign keff
+#         mcdc["k_eff"] = Lambda[0]
+#         # Ritz vector
+#         u = np.dot(cga(V[:, :Vsize]), cga(w))
+#         # residual
+#         res = kernel.FxV(u, mcdc) - Lambda * kernel.HxV(u, mcdc)
+#         mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
+#         k_old = mcdc["k_eff"]
+#         mcdc["technique"]["iqmc_itt_outter"] += 1
+#         with objmode():
+#             print_iqmc_eigenvalue_progress(mcdc)
 
-        # check convergence criteria
-        if (mcdc["technique"]["iqmc_itt_outter"] == maxit) or (
-            mcdc["technique"]["iqmc_res_outter"] <= tol
-        ):
-            simulation_end = True
-            break
-        else:
-            # Precondition for next iteration
-            t = kernel.preconditioner(res, mcdc, num_sweeps)
-            # check restart condition
-            if Vsize <= m - l:
-                # appends new orthogonalization to V
-                V[:, : Vsize + 1] = kernel.modified_gram_schmidt(V[:, :Vsize], t)
-                Vsize += 1
-            else:
-                # "restarts" by appending to a new array
-                Vsize = l + 1
-                V[:, :Vsize] = kernel.modified_gram_schmidt(u, t)
+#         # check convergence criteria
+#         if (mcdc["technique"]["iqmc_itt_outter"] == maxit) or (
+#             mcdc["technique"]["iqmc_res_outter"] <= tol
+#         ):
+#             simulation_end = True
+#             break
+#         else:
+#             # Precondition for next iteration
+#             t = kernel.preconditioner(res, mcdc, num_sweeps)
+#             # check restart condition
+#             if Vsize <= m - l:
+#                 # appends new orthogonalization to V
+#                 V[:, : Vsize + 1] = kernel.modified_gram_schmidt(V[:, :Vsize], t)
+#                 Vsize += 1
+#             else:
+#                 # "restarts" by appending to a new array
+#                 Vsize = l + 1
+#                 V[:, :Vsize] = kernel.modified_gram_schmidt(u, t)
 
-    with objmode():
-        print_iqmc_eigenvalue_exit_code(mcdc)
+#     with objmode():
+#         print_iqmc_eigenvalue_exit_code(mcdc)
 
     # normalize and save final scalar flux
-    # flux = np.reshape(
-    #     u / np.linalg.norm(u),
-    #     mcdc["technique"]["iqmc_flux"].shape,
-    # )
-
-    # mcdc["technique"]["iqmc_flux"] = flux
 
 
 # =============================================================================
