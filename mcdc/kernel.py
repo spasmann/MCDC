@@ -2905,60 +2905,40 @@ def generate_iqmc_material_idx(mcdc):
 
 @njit
 def iqmc_reset_tallies(mcdc):
+    score_bin = mcdc["technique"]["iqmc_score"]
+    
     mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
-    mcdc["technique"]["iqmc_score"]["tilt-t"] = np.zeros_like(
-        mcdc["technique"]["iqmc_score"]["tilt-t"]
-    )
-    mcdc["technique"]["iqmc_score"]["tilt-x"] = np.zeros_like(
-        mcdc["technique"]["iqmc_score"]["tilt-x"]
-    )
-    mcdc["technique"]["iqmc_score"]["tilt-y"] = np.zeros_like(
-        mcdc["technique"]["iqmc_score"]["tilt-y"]
-    )
-    mcdc["technique"]["iqmc_score"]["tilt-z"] = np.zeros_like(
-        mcdc["technique"]["iqmc_score"]["tilt-z"]
-    )
-    mcdc["technique"]["iqmc_score"]["tilt-xy"] = np.zeros_like(
-        mcdc["technique"]["iqmc_score"]["tilt-xy"]
-    )
-    mcdc["technique"]["iqmc_score"]["tilt-xz"] = np.zeros_like(
-        mcdc["technique"]["iqmc_score"]["tilt-xz"]
-    )
-    mcdc["technique"]["iqmc_score"]["tilt-yz"] = np.zeros_like(
-        mcdc["technique"]["iqmc_score"]["tilt-yz"]
-    )
-    mcdc["technique"]["iqmc_score"]["tilt-xyz"] = np.zeros_like(
-        mcdc["technique"]["iqmc_score"]["tilt-xyz"]
-    )
-    mcdc["technique"]["iqmc_score"]["flux"] = np.zeros_like(
-        mcdc["technique"]["iqmc_score"]["flux"]
-    )
-    mcdc["technique"]["iqmc_score"]["effective-scattering"] = np.zeros_like(
-        mcdc["technique"]["iqmc_score"]["effective-scattering"]
-    )
-    mcdc["technique"]["iqmc_score"]["effective-fission"] = np.zeros_like(
-        mcdc["technique"]["iqmc_score"]["effective-fission"]
-    )
-    mcdc["technique"]["iqmc_score"]["fission-source"] = np.zeros_like(
-        mcdc["technique"]["iqmc_score"]["fission-source"]
-    )
+    score_bin["tilt-t"] = np.zeros_like(score_bin["tilt-t"])
+    score_bin["tilt-x"] = np.zeros_like(score_bin["tilt-x"])
+    score_bin["tilt-y"] = np.zeros_like(score_bin["tilt-y"])
+    score_bin["tilt-z"] = np.zeros_like(score_bin["tilt-z"])
+    score_bin["tilt-xy"] = np.zeros_like(score_bin["tilt-xy"])
+    score_bin["tilt-xz"] = np.zeros_like(score_bin["tilt-xz"])
+    score_bin["tilt-yz"] = np.zeros_like(score_bin["tilt-yz"])
+    score_bin["tilt-xyz"] = np.zeros_like(score_bin["tilt-xyz"])
+    score_bin["flux"] = np.zeros_like(score_bin["flux"])
+    score_bin["effective-scattering"] = np.zeros_like(score_bin["effective-scattering"])
+    score_bin["effective-fission"] = np.zeros_like(score_bin["effective-fission"])
+    score_bin["fission-source"] = np.zeros_like(score_bin["fission-source"])
 
 
 @njit
 def iqmc_distribute_tallies(mcdc):
     # TODO: is there a way to do this without creating a new matrix ?
-    flux_local = mcdc["technique"]["iqmc_score"]["flux"].copy()
-    sourceT_local = mcdc["technique"]["iqmc_score"]["tilt-t"].copy()
-    sourceX_local = mcdc["technique"]["iqmc_score"]["tilt-x"].copy()
-    sourceY_local = mcdc["technique"]["iqmc_score"]["tilt-y"].copy()
-    sourceZ_local = mcdc["technique"]["iqmc_score"]["tilt-z"].copy()
-    sourceXY_local = mcdc["technique"]["iqmc_score"]["tilt-xy"].copy()
-    sourceXZ_local = mcdc["technique"]["iqmc_score"]["tilt-xz"].copy()
-    sourceYZ_local = mcdc["technique"]["iqmc_score"]["tilt-yz"].copy()
-    sourceXYZ_local = mcdc["technique"]["iqmc_score"]["tilt-xyz"].copy()
-    scatter_local = mcdc["technique"]["iqmc_score"]["effective-scattering"].copy()
-    fission_local = mcdc["technique"]["iqmc_score"]["effective-fission"].copy()
-    nuSigmaF_local = mcdc["technique"]["iqmc_score"]["fission-source"].copy()
+    score_bin = mcdc["technique"]["iqmc_score"]
+    
+    flux_local = score_bin["flux"].copy()
+    sourceT_local = score_bin["tilt-t"].copy()
+    sourceX_local = score_bin["tilt-x"].copy()
+    sourceY_local = score_bin["tilt-y"].copy()
+    sourceZ_local = score_bin["tilt-z"].copy()
+    sourceXY_local = score_bin["tilt-xy"].copy()
+    sourceXZ_local = score_bin["tilt-xz"].copy()
+    sourceYZ_local = score_bin["tilt-yz"].copy()
+    sourceXYZ_local = score_bin["tilt-xyz"].copy()
+    scatter_local = score_bin["effective-scattering"].copy()
+    fission_local = score_bin["effective-fission"].copy()
+    nuSigmaF_local = score_bin["fission-source"].copy()
     flux_total = np.zeros_like(flux_local, np.float64)
     sourceT_total = np.zeros_like(sourceT_local, np.float64)
     sourceX_total = np.zeros_like(sourceX_local, np.float64)
@@ -2984,18 +2964,18 @@ def iqmc_distribute_tallies(mcdc):
         MPI.COMM_WORLD.Allreduce(scatter_local, scatter_total, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(fission_local, fission_total, op=MPI.SUM)
         MPI.COMM_WORLD.Allreduce(nuSigmaF_local, nuSigmaF_total, op=MPI.SUM)
-    mcdc["technique"]["iqmc_score"]["flux"] = flux_total.copy()
-    mcdc["technique"]["iqmc_score"]["tilt-t"] = sourceT_total.copy()
-    mcdc["technique"]["iqmc_score"]["tilt-x"] = sourceX_total.copy()
-    mcdc["technique"]["iqmc_score"]["tilt-y"] = sourceY_total.copy()
-    mcdc["technique"]["iqmc_score"]["tilt-z"] = sourceZ_total.copy()
-    mcdc["technique"]["iqmc_score"]["tilt-xy"] = sourceXY_total.copy()
-    mcdc["technique"]["iqmc_score"]["tilt-xz"] = sourceXZ_total.copy()
-    mcdc["technique"]["iqmc_score"]["tilt-yz"] = sourceYZ_total.copy()
-    mcdc["technique"]["iqmc_score"]["tilt-xyz"] = sourceXYZ_total.copy()
-    mcdc["technique"]["iqmc_score"]["effective-scattering"] = scatter_total.copy()
-    mcdc["technique"]["iqmc_score"]["effective-fission"] = fission_total.copy()
-    mcdc["technique"]["iqmc_score"]["fission-source"] = nuSigmaF_total.copy()
+    score_bin["flux"] = flux_total.copy()
+    score_bin["tilt-t"] = sourceT_total.copy()
+    score_bin["tilt-x"] = sourceX_total.copy()
+    score_bin["tilt-y"] = sourceY_total.copy()
+    score_bin["tilt-z"] = sourceZ_total.copy()
+    score_bin["tilt-xy"] = sourceXY_total.copy()
+    score_bin["tilt-xz"] = sourceXZ_total.copy()
+    score_bin["tilt-yz"] = sourceYZ_total.copy()
+    score_bin["tilt-xyz"] = sourceXYZ_total.copy()
+    score_bin["effective-scattering"] = scatter_total.copy()
+    score_bin["effective-fission"] = fission_total.copy()
+    score_bin["fission-source"] = nuSigmaF_total.copy()
 
 
 @njit
