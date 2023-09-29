@@ -112,6 +112,9 @@ class InputDeck:
                 "tilt-xyz": np.ones([1, 1, 1, 1]),
             },
             "iqmc_score_list": {
+                "flux": True,
+                "effective-scattering":True,
+                "effective-fission": True,
                 "tilt-t": False,
                 "tilt-x": False,
                 "tilt-y": False,

@@ -499,7 +499,11 @@ def make_type_technique(N_particle, G, card):
     struct += [(("iqmc_total_source"), float64, (total_size,))]
 
     # Scores and shapes
+    # TODO: add fission power tally
     scores_shapes = [
+        ["flux", (Ng, Nt, Nx, Ny, Nz)],
+        ["effective-scattering", (Ng, Nt, Nx, Ny, Nz)],
+        ["effective-fission", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-t", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-x", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-y", (Ng, Nt, Nx, Ny, Nz)],
@@ -533,9 +537,6 @@ def make_type_technique(N_particle, G, card):
         if not card["iqmc_score_list"][name]:
             shape = (0,) * len(shape)
         scores_struct += [(name, float64, shape)]
-    scores_struct += [("flux", float64, (Ng, Nt, Nx, Ny, Nz))]
-    scores_struct += [("effective-scattering", float64, (Ng, Nt, Nx, Ny, Nz))]
-    scores_struct += [("effective-fission", float64, (Ng, Nt, Nx, Ny, Nz))]
     # TODO: make outter flux/effective fission size zero if not eigenmode
     # (causes problems with numba)
     scores_struct += [("flux-outter", float64, (Ng, Nt, Nx, Ny, Nz))]

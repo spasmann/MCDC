@@ -2615,14 +2615,14 @@ def score_iqmc_tallies(P, distance, mcdc):
     material = mcdc["materials"][P["material_ID"]]
     w = P["iqmc_w"]
     SigmaT = material["total"]
-    SigmaS = material["scatter"]
     SigmaF = material["fission"]
     nu_f = material["nu_f"]
+    mat_id = P["material_ID"]
+    
     t, x, y, z, outside = mesh_get_index(P, mesh)
     if outside:
         return
-    dV = iqmc_cell_volume(x, y, z, mesh)
-    mat_id = P["material_ID"]
+
     dt = dx = dy = dz = 1.0
     if (mesh["t"][t] != -INF) and (mesh["t"][t] != INF):
         dt = mesh["t"][t + 1] - mesh["t"][t]
@@ -2632,6 +2632,8 @@ def score_iqmc_tallies(P, distance, mcdc):
         dy = mesh["y"][y + 1] - mesh["y"][y]
     if (mesh["z"][z] != -INF) and (mesh["z"][z] != INF):
         dz = mesh["z"][z + 1] - mesh["z"][z]
+
+    dV = dx * dy * dz * dt   
 
     # Score Flux
     if SigmaT.all() > 0.0:
@@ -2906,6 +2908,11 @@ def generate_iqmc_material_idx(mcdc):
 @njit
 def iqmc_reset_tallies(mcdc):
     score_bin = mcdc["technique"]["iqmc_score"]
+    score_list = mcdc["technique"]["iqmc_score_list"]
+    # with objmode():
+    #     mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
+    #     for name in score_list.dtype.names:
+    #         score_bin[name] = np.zeros_like(score_bin[name])
     
     mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
     score_bin["tilt-t"] = np.zeros_like(score_bin["tilt-t"])
@@ -2924,8 +2931,15 @@ def iqmc_reset_tallies(mcdc):
 
 @njit
 def iqmc_distribute_tallies(mcdc):
-    # TODO: is there a way to do this without creating a new matrix ?
+    # all iQMC tallies / arrays
     score_bin = mcdc["technique"]["iqmc_score"]
+    score_list = mcdc["technique"]["iqmc_score_list"]
+    # with objmode():
+    #     for name in score_list.dtype.names:
+    #         temp_local = score_bin[name].copy()
+    #         temp_total = np.zeros_like(temp_local)
+    #         MPI.COMM_WORLD.Allreduce(temp_local, temp_total, op=MPI.SUM)
+    #         score_bin[name] = temp_total.copy()
     
     flux_local = score_bin["flux"].copy()
     sourceT_local = score_bin["tilt-t"].copy()
