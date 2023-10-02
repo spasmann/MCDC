@@ -110,6 +110,7 @@ class InputDeck:
                 "tilt-xz": np.ones([1, 1, 1, 1]),
                 "tilt-yz": np.ones([1, 1, 1, 1]),
                 "tilt-xyz": np.ones([1, 1, 1, 1]),
+                "fission-source": np.ones([1, 1, 1, 1]),
             },
             "iqmc_score_list": {
                 "flux": True,

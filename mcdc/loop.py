@@ -539,9 +539,10 @@ def power_iteration(mcdc):
     k_old = mcdc["k_eff"]
     solver = mcdc["technique"]["iqmc_fixed_source_solver"]
 
+    kernel.generate_iqmc_material_idx(mcdc)
     if mcdc["technique"]["iqmc_source"].all() == 0.0:
-        kernel.generate_iqmc_material_idx(mcdc)
         kernel.prepare_qmc_source(mcdc)
+    if mcdc["technique"]["iqmc_score"]["fission-source"].all() == 0.0:
         kernel.prepare_nuSigmaF(mcdc)
 
     fission_source_old = score_bin["fission-source"].copy()
