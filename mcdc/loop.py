@@ -324,8 +324,6 @@ def source_iteration(mcdc):
     while not simulation_end:
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
-        # update source
-        kernel.iqmc_update_source(mcdc)
         # initialize particles with LDS
         kernel.prepare_qmc_particles(mcdc)
         # reset tallies for next loop

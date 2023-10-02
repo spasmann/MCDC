@@ -1179,8 +1179,6 @@ def iQMC(
             fixed_source = np.expand_dims(fixed_source, axis=ax)
         else:
             fixed_source = np.zeros_like(phi0)
-        if fission_source0 is not None:
-            fission_source0 = np.expand_dims(fission_source0, axis=ax)
 
     if krylov_restart is None:
         krylov_restart = maxitt
