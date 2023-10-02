@@ -549,6 +549,8 @@ def dict_to_h5group(dict_, group):
     for k, v in dict_.items():
         if type(v) == dict:
             dict_to_h5group(dict_[k], group.create_group(k))
+        elif v is None:
+            next
         else:
             group[k] = v
 
@@ -572,9 +574,9 @@ def generate_hdf5(mcdc):
                 dictlist_to_h5group(input_deck.sources, input_group, "source")
                 dict_to_h5group(input_deck.tally, input_group.create_group("tally"))
                 dict_to_h5group(input_deck.setting, input_group.create_group("setting"))
-                # dict_to_h5group(
-                # input_deck.technique, input_group.create_group("technique")
-                # )
+                dict_to_h5group(
+                input_deck.technique, input_group.create_group("technique")
+                )
 
             # Tally
             T = mcdc["tally"]
@@ -630,6 +632,7 @@ def generate_hdf5(mcdc):
                 f.create_dataset("iqmc/material_idx", data=T["iqmc_material_idx"])
                 # dump x,y,z scalar flux across all groups
                 f.create_dataset("iqmc/flux", data=np.squeeze(T["iqmc_score"]["flux"]))
+                f.create_dataset("iqmc/fission_source", data=T["iqmc_score"]["fission-source"])
                 f.create_dataset("iqmc/source/constant", data=T["iqmc_source"])
                 f.create_dataset("iqmc/source/x", data=T["iqmc_score"]["tilt-x"])
                 f.create_dataset("iqmc/source/y", data=T["iqmc_score"]["tilt-y"])
