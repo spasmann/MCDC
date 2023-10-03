@@ -515,6 +515,8 @@ def gmres(mcdc):
         normr = np.linalg.norm(r)
         rel_resid = normr / res_0
         mcdc["technique"]["iqmc_res"] = rel_resid
+        mcdc["bank_source"]["size"] = 0
+        kernel.prepare_qmc_particles(mcdc)
         if rel_resid < tol:
             break
         if mcdc["technique"]["iqmc_itt"] >= max_iter:
