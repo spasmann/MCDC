@@ -2376,66 +2376,6 @@ def prepare_qmc_source(mcdc):
 
 
 @njit
-def prepare_qmc_scattering_source(mcdc):
-    """
-
-    Iterates trhough all spatial cells to calculate the iQMC scattering-source.
-    Resutls are stored in mcdc['technique']['iqmc_source'], a matrix
-    of size [G,Nt,Nx,Ny,Nz].
-
-    """
-    Q = mcdc["technique"]["iqmc_source"]
-    fixed_source = mcdc["technique"]["iqmc_fixed_source"]
-    flux = mcdc["technique"]["iqmc_score"]["flux"]
-    mesh = mcdc["technique"]["iqmc_mesh"]
-    Nt = len(mesh["t"]) - 1
-    Nx = len(mesh["x"]) - 1
-    Ny = len(mesh["y"]) - 1
-    Nz = len(mesh["z"]) - 1
-    # calculate source for every cell and group in the iqmc_mesh
-    for t in range(Nt):
-        for i in range(Nx):
-            for j in range(Ny):
-                for k in range(Nz):
-                    mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
-                    # we can vectorize the multigroup calculation here
-                    Q[:, t, i, j, k] = (
-                        scattering_source(flux[:, t, i, j, k], mat_idx, mcdc)
-                        + fixed_source[:, t, i, j, k]
-                    )
-
-
-@njit
-def prepare_qmc_fission_source(mcdc):
-    """
-
-    Iterates trhough all spatial cells to calculate the iQMC fission-source.
-    Resutls are stored in mcdc['technique']['iqmc_source'], a matrix
-    of size [G,Nt,Nx,Ny,Nz].
-
-    """
-    Q = mcdc["technique"]["iqmc_source"]
-    fixed_source = mcdc["technique"]["iqmc_fixed_source"]
-    flux = mcdc["technique"]["iqmc_score"]["flux"]
-    mesh = mcdc["technique"]["iqmc_mesh"]
-    Nt = len(mesh["t"]) - 1
-    Nx = len(mesh["x"]) - 1
-    Ny = len(mesh["y"]) - 1
-    Nz = len(mesh["z"]) - 1
-    # calculate source for every cell and group in the iqmc_mesh
-    for t in range(Nt):
-        for i in range(Nx):
-            for j in range(Ny):
-                for k in range(Nz):
-                    mat_idx = mcdc["technique"]["iqmc_material_idx"][t, i, j, k]
-                    # we can vectorize the multigroup calculation here
-                    Q[:, t, i, j, k] = (
-                        fission_source(flux[:, t, i, j, k], mat_idx, mcdc)
-                        + fixed_source[:, t, i, j, k]
-                    )
-
-
-@njit
 def prepare_qmc_particles(mcdc):
     """
     Create N_particles assigning the position, direction, and group from the
@@ -2487,7 +2427,7 @@ def prepare_qmc_particles(mcdc):
         q = Q[:, t, x, y, z].copy()
         dV = iqmc_cell_volume(x, y, z, mesh)
         # Source tilt
-        iqmc_tilt_source(x, y, z, t, P_new, q, mcdc)
+        iqmc_tilt_source(t, x, y, z, P_new, q, mcdc)
         # set particle weight
         P_new["iqmc_w"] = q * dV * N_total / N_particle
         P_new["w"] = P_new["iqmc_w"].sum()
@@ -3048,7 +2988,7 @@ def iqmc_update_source(mcdc):
         fission = mcdc["technique"]["iqmc_score"]["effective-fission-outter"]
     else:
         fission = mcdc["technique"]["iqmc_score"]["effective-fission"]
-    mcdc["technique"]["iqmc_source"] = scatter + fission / keff + fixed
+    mcdc["technique"]["iqmc_source"] = scatter + (fission / keff) + fixed
 
 
 # =============================================================================
@@ -3161,7 +3101,7 @@ def iqmc_trilinear_tally(
 
 
 @njit
-def iqmc_tilt_source(x, y, z, t, P, Q, mcdc):
+def iqmc_tilt_source(t, x, y, z, P, Q, mcdc):
     score_list = mcdc["technique"]["iqmc_score_list"]
     score_bin = mcdc["technique"]["iqmc_score"]
     mesh = mcdc["technique"]["iqmc_mesh"]

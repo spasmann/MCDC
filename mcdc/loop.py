@@ -320,7 +320,6 @@ def source_iteration(mcdc):
     kernel.iqmc_consolidate_sources(mcdc)
     total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
 
-    loop_index = 0
     while not simulation_end:
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
@@ -342,7 +341,6 @@ def source_iteration(mcdc):
         mcdc["technique"]["iqmc_res"] = kernel.qmc_res(
             mcdc["technique"]["iqmc_total_source"], total_source_old
         )
-
         # iQMC convergence criteria
         if (mcdc["technique"]["iqmc_itt"] == mcdc["technique"]["iqmc_maxitt"]) or (
             mcdc["technique"]["iqmc_res"] <= mcdc["technique"]["iqmc_tol"]
@@ -357,7 +355,6 @@ def source_iteration(mcdc):
         # set  source_old = current source
         total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
 
-        loop_index += 1
 
 
 @njit
@@ -540,6 +537,7 @@ def power_iteration(mcdc):
     kernel.generate_iqmc_material_idx(mcdc)
     if mcdc["technique"]["iqmc_source"].all() == 0.0:
         kernel.prepare_qmc_source(mcdc)
+    
     if mcdc["technique"]["iqmc_score"]["fission-source"].all() == 0.0:
         kernel.prepare_nuSigmaF(mcdc)
 
@@ -558,7 +556,7 @@ def power_iteration(mcdc):
         mcdc["k_eff"] *= score_bin["fission-source"].sum() / fission_source_old.sum()
 
         # calculate diff in keff
-        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
+        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)/k_old
         k_old = mcdc["k_eff"]
         # store outter iteration values
         score_bin["flux-outter"] = score_bin["flux"].copy()
@@ -662,7 +660,7 @@ def davidson(mcdc):
         u = np.dot(cga(V[:, :Vsize]), cga(w))
         # residual
         res = kernel.FxV(u, mcdc) - Lambda * kernel.HxV(u, mcdc)
-        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)
+        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)/k_old
         k_old = mcdc["k_eff"]
         mcdc["technique"]["iqmc_itt_outter"] += 1
         with objmode():
