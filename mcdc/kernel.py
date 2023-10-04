@@ -3115,6 +3115,7 @@ def iqmc_tilt_source(t, x, y, z, P, Q, mcdc):
     z_mid = mesh["z"][z] + (0.5 * dz)
     # linear t-component
     if score_list["tilt-t"]:
+        iqmc_slope_limiter_t(dt, t, x, y, z, score_bin["tilt-t"], score_bin["flux"])
         Q += score_bin["tilt-t"][:, t, x, y, z] * (P["t"] - t_mid)
     # linear x-component
     if score_list["tilt-x"]:
@@ -3146,6 +3147,31 @@ def iqmc_tilt_source(t, x, y, z, P, Q, mcdc):
             * (P["z"] - z_mid)
         )
 
+@njit
+def iqmc_slope_limiter_t(dt, t, x, y, z, tilt_bin, flux):
+    zero = np.zeros((flux.shape[0]))
+    if x == 0:
+        m_left = zero
+    else:
+        m_left = (flux[:,t,x,y,z] - flux[:,t-1,x,y,z]) / dt
+        
+    if x == (flux.shape[2] - 1):
+        m_right = zero
+    else:
+        m_right = (flux[:,t+1,x,y,z] - flux[:,t,x,y,z]) / dt
+        
+    num = (np.abs(m_left)*m_right + m_left*np.abs(m_right)) 
+    den = (np.abs(m_right)+np.abs(m_left))
+    
+    if (den == 0.0).any():
+        tilt_bin[:,t,x,y,z] = zero
+    
+    m_limit = num / den 
+    
+    if (m_limit == 0.0).any():
+        tilt_bin[:,t,x,y,z] = m_limit
+    elif (np.abs(tilt_bin[:,t,x,y,z]) >= np.abs(m_limit)).any():
+        tilt_bin[:,t,x,y,z] = m_limit
 
 @njit
 def iqmc_slope_limiter_x(dx, t, x, y, z, tilt_bin, flux):
