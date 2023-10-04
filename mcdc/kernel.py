@@ -3149,7 +3149,7 @@ def iqmc_tilt_source(t, x, y, z, P, Q, mcdc):
 
 @njit
 def iqmc_slope_limiter_x(dx, t, x, y, z, tilt_bin, flux):
-    zero = np.array((0.0,))
+    zero = np.zeros((flux.shape[0]))
     if x == 0:
         m_left = zero
     else:
@@ -3162,19 +3162,19 @@ def iqmc_slope_limiter_x(dx, t, x, y, z, tilt_bin, flux):
         
     num = (np.abs(m_left)*m_right + m_left*np.abs(m_right)) 
     den = (np.abs(m_right)+np.abs(m_left))
-    if den == 0.0:
+    if (den == 0.0).any():
         tilt_bin[:,t,x,y,z] = zero
     
     m_limit = num / den 
     
-    if m_limit == 0.0:
+    if (m_limit == 0.0).any():
         tilt_bin[:,t,x,y,z] = m_limit
-    elif np.abs(tilt_bin[:,t,x,y,z]) >= np.abs(m_limit):
+    elif (np.abs(tilt_bin[:,t,x,y,z]) >= np.abs(m_limit)).any():
         tilt_bin[:,t,x,y,z] = m_limit
 
 @njit
 def iqmc_slope_limiter_y(dy, t, x, y, z, tilt_bin, flux):
-    zero = np.array((0.0,))
+    zero = np.zeros((flux.shape[0]))
     if y == 0:
         m_left = zero
     else:
@@ -3187,20 +3187,20 @@ def iqmc_slope_limiter_y(dy, t, x, y, z, tilt_bin, flux):
         
     num = (np.abs(m_left)*m_right + m_left*np.abs(m_right)) 
     den = (np.abs(m_right)+np.abs(m_left))
-    if den == 0.0:
+    if (den == 0.0).any():
         tilt_bin[:,t,x,y,z] = zero
     
     m_limit = num / den 
     
-    if m_limit == 0.0:
+    if (m_limit == 0.0).any():
         tilt_bin[:,t,x,y,z] = m_limit
-    elif np.abs(tilt_bin[:,t,x,y,z]) >= np.abs(m_limit):
+    elif (np.abs(tilt_bin[:,t,x,y,z]) >= np.abs(m_limit)).any():
         tilt_bin[:,t,x,y,z] = m_limit
 
 
 @njit
 def iqmc_slope_limiter_z(dz, t, x, y, z, tilt_bin, flux):
-    zero = np.array((0.0,))
+    zero = np.zeros((flux.shape[0]))
     if z == 0:
         m_left = zero
     else:
@@ -3213,14 +3213,14 @@ def iqmc_slope_limiter_z(dz, t, x, y, z, tilt_bin, flux):
         
     num = (np.abs(m_left)*m_right + m_left*np.abs(m_right)) 
     den = (np.abs(m_right)+np.abs(m_left))
-    if den == 0.0:
+    if (den == 0.0).any():
         tilt_bin[:,t,x,y,z] = zero
     
     m_limit = num / den 
     
-    if m_limit == 0.0:
+    if (m_limit == 0.0).any():
         tilt_bin[:,t,x,y,z] = m_limit
-    elif np.abs(tilt_bin[:,t,x,y,z]) >= np.abs(m_limit):
+    elif (np.abs(tilt_bin[:,t,x,y,z]) >= np.abs(m_limit)).any():
         tilt_bin[:,t,x,y,z] = m_limit
 
 @njit
