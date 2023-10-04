@@ -3150,12 +3150,12 @@ def iqmc_tilt_source(t, x, y, z, P, Q, mcdc):
 @njit
 def iqmc_slope_limiter_t(dt, t, x, y, z, tilt_bin, flux):
     zero = np.zeros((flux.shape[0]))
-    if x == 0:
+    if t == 0:
         m_left = zero
     else:
         m_left = (flux[:,t,x,y,z] - flux[:,t-1,x,y,z]) / dt
         
-    if x == (flux.shape[2] - 1):
+    if t == (flux.shape[1] - 1):
         m_right = zero
     else:
         m_right = (flux[:,t+1,x,y,z] - flux[:,t,x,y,z]) / dt
