@@ -3190,13 +3190,16 @@ def iqmc_slope_limiter_x(dx, t, x, y, z, tilt_bin, flux):
     den = (np.abs(m_right)+np.abs(m_left))
     if (den == 0.0).any():
         tilt_bin[:,t,x,y,z] = zero
+        return
     
     m_limit = num / den 
     
     if (m_limit == 0.0).any():
         tilt_bin[:,t,x,y,z] = m_limit
+        return
     elif (np.abs(tilt_bin[:,t,x,y,z]) >= np.abs(m_limit)).any():
         tilt_bin[:,t,x,y,z] = m_limit
+        return
 
 @njit
 def iqmc_slope_limiter_y(dy, t, x, y, z, tilt_bin, flux):
