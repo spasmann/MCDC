@@ -430,6 +430,19 @@ def make_type_setting(deck):
 # Technique
 # ==============================================================================
 
+iqmc_score_list = ('flux', 
+                   'effective-scattering', 
+                   'effective-fission', 
+                   'tilt-t', 
+                   'tilt-x', 
+                   'tilt-y', 
+                   'tilt-z', 
+                   'tilt-xy', 
+                   'tilt-xz', 
+                   'tilt-yz', 
+                   'tilt-xyz', 
+                   'fission-power', 
+                   'fission-source')
 
 def make_type_technique(N_particle, G, card):
     setting = card.setting

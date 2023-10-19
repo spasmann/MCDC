@@ -8,7 +8,7 @@ import mcdc.type_ as type_
 
 from mcdc.constant import *
 from mcdc.print_ import print_error
-from mcdc.type_ import score_list
+from mcdc.type_ import score_list, iqmc_score_list
 from mcdc.loop import loop_source
 
 
@@ -2849,87 +2849,28 @@ def generate_iqmc_material_idx(mcdc):
 def iqmc_reset_tallies(mcdc):
     score_bin = mcdc["technique"]["iqmc_score"]
     score_list = mcdc["technique"]["iqmc_score_list"]
-    # with objmode():
-    #     mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
-    #     for name in score_list.dtype.names:
-    #         score_bin[name] = np.zeros_like(score_bin[name])
     
-    mcdc["technique"]["iqmc_source"] = np.zeros_like(mcdc["technique"]["iqmc_source"])
-    score_bin["tilt-t"] = np.zeros_like(score_bin["tilt-t"])
-    score_bin["tilt-x"] = np.zeros_like(score_bin["tilt-x"])
-    score_bin["tilt-y"] = np.zeros_like(score_bin["tilt-y"])
-    score_bin["tilt-z"] = np.zeros_like(score_bin["tilt-z"])
-    score_bin["tilt-xy"] = np.zeros_like(score_bin["tilt-xy"])
-    score_bin["tilt-xz"] = np.zeros_like(score_bin["tilt-xz"])
-    score_bin["tilt-yz"] = np.zeros_like(score_bin["tilt-yz"])
-    score_bin["tilt-xyz"] = np.zeros_like(score_bin["tilt-xyz"])
-    score_bin["flux"] = np.zeros_like(score_bin["flux"])
-    score_bin["effective-scattering"] = np.zeros_like(score_bin["effective-scattering"])
-    score_bin["effective-fission"] = np.zeros_like(score_bin["effective-fission"])
-    score_bin["fission-source"] = np.zeros_like(score_bin["fission-source"])
-
+    mcdc["technique"]["iqmc_source"].fill(0.0)
+    for name in literal_unroll(iqmc_score_list):
+        if score_list[name]:
+            score_bin[name].fill(0.0)
 
 @njit
 def iqmc_distribute_tallies(mcdc):
-    # all iQMC tallies / arrays
     score_bin = mcdc["technique"]["iqmc_score"]
     score_list = mcdc["technique"]["iqmc_score_list"]
-    # with objmode():
-    #     for name in score_list.dtype.names:
-    #         temp_local = score_bin[name].copy()
-    #         temp_total = np.zeros_like(temp_local)
-    #         MPI.COMM_WORLD.Allreduce(temp_local, temp_total, op=MPI.SUM)
-    #         score_bin[name] = temp_total.copy()
-    
-    flux_local = score_bin["flux"].copy()
-    sourceT_local = score_bin["tilt-t"].copy()
-    sourceX_local = score_bin["tilt-x"].copy()
-    sourceY_local = score_bin["tilt-y"].copy()
-    sourceZ_local = score_bin["tilt-z"].copy()
-    sourceXY_local = score_bin["tilt-xy"].copy()
-    sourceXZ_local = score_bin["tilt-xz"].copy()
-    sourceYZ_local = score_bin["tilt-yz"].copy()
-    sourceXYZ_local = score_bin["tilt-xyz"].copy()
-    scatter_local = score_bin["effective-scattering"].copy()
-    fission_local = score_bin["effective-fission"].copy()
-    nuSigmaF_local = score_bin["fission-source"].copy()
-    flux_total = np.zeros_like(flux_local, np.float64)
-    sourceT_total = np.zeros_like(sourceT_local, np.float64)
-    sourceX_total = np.zeros_like(sourceX_local, np.float64)
-    sourceY_total = np.zeros_like(sourceY_local, np.float64)
-    sourceZ_total = np.zeros_like(sourceZ_local, np.float64)
-    sourceXY_total = np.zeros_like(sourceXY_local, np.float64)
-    sourceXZ_total = np.zeros_like(sourceXZ_local, np.float64)
-    sourceYZ_total = np.zeros_like(sourceYZ_local, np.float64)
-    sourceXYZ_total = np.zeros_like(sourceXYZ_local, np.float64)
-    scatter_total = np.zeros_like(scatter_local, np.float64)
-    fission_total = np.zeros_like(fission_local, np.float64)
-    nuSigmaF_total = np.zeros_like(nuSigmaF_local, np.float64)
+
+    for name in literal_unroll(iqmc_score_list):
+        if score_list[name]:
+            iqmc_score_reduce_bin(score_bin[name])
+
+@njit
+def iqmc_score_reduce_bin(score):
+    # MPI Reduce
+    buff = np.zeros_like(score)
     with objmode():
-        MPI.COMM_WORLD.Allreduce(flux_local, flux_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(sourceT_local, sourceT_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(sourceX_local, sourceX_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(sourceY_local, sourceY_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(sourceZ_local, sourceZ_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(sourceXY_local, sourceXY_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(sourceXZ_local, sourceXZ_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(sourceYZ_local, sourceYZ_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(sourceXYZ_local, sourceXYZ_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(scatter_local, scatter_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(fission_local, fission_total, op=MPI.SUM)
-        MPI.COMM_WORLD.Allreduce(nuSigmaF_local, nuSigmaF_total, op=MPI.SUM)
-    score_bin["flux"] = flux_total.copy()
-    score_bin["tilt-t"] = sourceT_total.copy()
-    score_bin["tilt-x"] = sourceX_total.copy()
-    score_bin["tilt-y"] = sourceY_total.copy()
-    score_bin["tilt-z"] = sourceZ_total.copy()
-    score_bin["tilt-xy"] = sourceXY_total.copy()
-    score_bin["tilt-xz"] = sourceXZ_total.copy()
-    score_bin["tilt-yz"] = sourceYZ_total.copy()
-    score_bin["tilt-xyz"] = sourceXYZ_total.copy()
-    score_bin["effective-scattering"] = scatter_total.copy()
-    score_bin["effective-fission"] = fission_total.copy()
-    score_bin["fission-source"] = nuSigmaF_total.copy()
+        MPI.COMM_WORLD.Allreduce(np.array(score), buff, op=MPI.SUM)
+    score[:] = buff
 
 
 @njit
