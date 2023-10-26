@@ -302,6 +302,8 @@ def loop_iqmc(mcdc):
             source_iteration(mcdc)
         if mcdc["technique"]["iqmc_fixed_source_solver"] == "gmres":
             gmres(mcdc)
+        if mcdc["technique"]["iqmc_fixed_source_solver"] == "bicgstab":
+            bicgstab(mcdc)
 
 
 @njit
@@ -356,7 +358,63 @@ def source_iteration(mcdc):
         total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
 
 
+@njit
+def bicgstab(mcdc):
+    max_iter = mcdc["technique"]["iqmc_maxitt"]
+    R = mcdc["technique"]["iqmc_krylov_restart"]
+    tol = mcdc["technique"]["iqmc_tol"]
 
+    fixed_source = mcdc["technique"]["iqmc_fixed_source"]
+    single_vector = mcdc["technique"]["iqmc_fixed_source"].size
+    b = np.zeros_like(mcdc["technique"]["iqmc_total_source"])
+    b[:single_vector] = np.reshape(fixed_source, fixed_source.size)
+    # use piece-wise constant material approximations for the first source guess
+    if (
+        not mcdc["setting"]["mode_eigenvalue"]
+        and mcdc["technique"]["iqmc_source"].all() == 0.0
+    ):
+        # generate material index
+        kernel.generate_iqmc_material_idx(mcdc)
+        kernel.prepare_qmc_source(mcdc)
+
+    kernel.iqmc_consolidate_sources(mcdc)
+    X = mcdc["technique"]["iqmc_total_source"].copy()
+    r = b - kernel.AxV(X, b, mcdc)
+    r0 = np.copy(r)
+    u_old = 1
+    u = np.dot(r0.T, r)
+    alpha = 1
+    w = 1
+    v = 0
+    p = 0
+    
+    simulation_end = False
+    while not simulation_end:
+        B = np.dot((u/u_old), alpha/w)
+        p = r + np.dot(B, (p - np.dot(w, v)))
+        v = kernel.AxV(p, b, mcdc)
+        alpha = u / np.dot(r0.T, v)
+        s = r - np.dot(alpha, v)
+        t = kernel.AxV(s, b, mcdc)
+        w = np.dot(t.T, s) / np.linalg.norm(t)**2
+        u_old = u
+        u = np.dot(np.dot(-w, r0.T), t)
+        X = X + np.dot(alpha, p) + np.dot(w, s)
+        r = s - np.dot(w, t)
+            
+        mcdc["technique"]["iqmc_res"] = np.linalg.norm(r)
+        if mcdc["technique"]["iqmc_res"] <= tol*np.linalg.norm(r0):
+            simulation_end = True
+        mcdc["technique"]["iqmc_itt"] += 1
+        if mcdc["technique"]["iqmc_itt"] >= max_iter:
+            simulation_end = True
+        if not mcdc["setting"]["mode_eigenvalue"]:
+            with objmode():
+                print_progress_iqmc(mcdc)
+                
+    # recover flux from converged source         
+    kernel.AxV(X, b, mcdc)
+    
 @njit
 def gmres(mcdc):
     """
