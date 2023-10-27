@@ -94,6 +94,7 @@ class InputDeck:
             "iqmc_itt_outter": 0,
             "iqmc_maxitt": 5,
             "iqmc_N_dim": 6,
+            "iqmc_N_steps": 0,
             "iqmc_seed": 12345,
             "iqmc_source_tilt": 0,
             "iqmc_scramble": False,

@@ -1133,8 +1133,8 @@ def iQMC(
     tol=1e-6,
     N_dim=6,
     seed=12345,
+    history_bank_buff=100,
     preconditioner_sweeps=5,
-    source_tilt=0,
     generator="halton",
     fixed_source_solver="source_iteration",
     eigenmode_solver="power_iteration",
@@ -1148,8 +1148,7 @@ def iQMC(
     card["iqmc_N_dim"] = N_dim
     card["iqmc_scramble"] = scramble
     card["iqmc_seed"] = seed
-    card["iqmc_source_tilt"] = source_tilt
-
+    card["iqmc_N_steps"] = history_bank_buff 
     # Set mesh
     if g is not None:
         card["iqmc_mesh"]["g"] = g

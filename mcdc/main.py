@@ -364,6 +364,8 @@ def prepare():
                 "iqmc_w_min",
                 "iqmc_score_list",
                 "iqmc_score",
+                "iqmc_ray_history",
+                "iqmc_global_idx",
             ]:
                 mcdc["technique"][name] = input_deck.technique[name]
 

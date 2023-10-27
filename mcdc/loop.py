@@ -305,6 +305,37 @@ def loop_iqmc(mcdc):
         if mcdc["technique"]["iqmc_fixed_source_solver"] == "bicgstab":
             bicgstab(mcdc)
 
+@njit
+def iqmc_loop_source(mcdc):
+    # Progress bar indicator
+    N_prog = 0
+    # Loop over particle sources
+    work_start = mcdc["mpi_work_start"]
+    work_size = mcdc["mpi_work_size"]
+    work_end = work_start + work_size
+  
+    # loop through particles in bank source
+    for idx_work in range(work_start, work_end):
+        P = mcdc["bank_source"][idx_work]
+        # Particle loop
+        iqmc_loop_particle(P, mcdc)
+        # Progress printout
+        percent = (idx_work + 1.0) / mcdc["mpi_work_size"]
+        if mcdc["setting"]["progress_bar"] and int(percent * 100.0) > N_prog:
+            N_prog += 1
+            with objmode():
+                print_progress(percent, mcdc)
+
+
+@njit
+def iqmc_loop_particle(P, mcdc):
+    ray_history = mcdc["technique"]["iqmc_ray_history"]
+    first_index = P["iqmc_first_idx"]
+    last_index = P["iqmc_last_idx"]
+    
+    N_steps = last_index - first_index
+    for i in range(N_steps):
+        idx = 
 
 @njit
 def source_iteration(mcdc):

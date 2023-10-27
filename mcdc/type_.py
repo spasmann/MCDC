@@ -59,7 +59,9 @@ def make_type_particle(iQMC, G):
     Ng = 1
     if iQMC:
         Ng = G
-    struct += [("iqmc_w", float64, (Ng,))]
+    struct += [("iqmc_w", float64, (Ng,)),
+               ("iqmc_first_idx", int64, (1,)),
+               ("iqmc_last_idx", int64, (1,))]
     particle = np.dtype(struct)
 
 
@@ -83,7 +85,9 @@ def make_type_particle_record(iQMC, G):
     Ng = 1
     if iQMC:
         Ng = G
-    struct += [("iqmc_w", float64, (Ng,))]
+    struct += [("iqmc_w", float64, (Ng,)),
+               ("iqmc_first_idx", int64, (1,)),
+               ("iqmc_last_idx", int64, (1,))]
     particle_record = np.dtype(struct)
 
 
@@ -556,6 +560,23 @@ def make_type_technique(N_particle, G, card):
     scores_struct += [("effective-fission-outter", float64, (Ng, Nt, Nx, Ny, Nz))]
     scores = np.dtype(scores_struct)
     struct += [("iqmc_score", scores)]
+    
+    # ray data storage
+    # total number of particle steps to store
+    N_steps = card["iqmc_N_steps"]
+    # tally bin index
+    idx = [("t", int64),
+           ("x", int64),
+           ("y", int64),
+           ("z", int64),
+           ("outisde", bool_)]
+    # additional particle step data
+    point = [("mesh_idx", idx),
+             ("material_ID", int64),
+             ("distance", float64),
+             ("next_idx", int64)]
+    # combine into one struct
+    struct += [("iqmc_ray_history", point, (N_steps,))]
 
     # Constants
     struct += [
@@ -576,6 +597,7 @@ def make_type_technique(N_particle, G, card):
         ("iqmc_sweep_counter", int64),
         ("iqmc_source_tilt", int64),
         ("iqmc_w_min", float64),
+        ("iqmc_global_idx", int64),
     ]
 
     # =========================================================================

@@ -1642,7 +1642,8 @@ def move_to_event(P, mcdc):
     if mcdc["technique"]["iQMC"]:
         if mcdc["setting"]["track_particle"]:
             track_particle(P, mcdc)
-        score_iqmc_tallies(P, distance, mcdc)
+        store_ray_data(P, distance, mcdc)
+        score_iqmc_tallies(P, distance, 0, mcdc)
         continuous_weight_reduction(P, distance, mcdc)
         if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:
             P["alive"] = False
@@ -2431,6 +2432,11 @@ def prepare_qmc_particles(mcdc):
         # set particle weight
         P_new["iqmc_w"] = q * dV * N_total / N_particle
         P_new["w"] = P_new["iqmc_w"].sum()
+        # ray history data
+        idx = mcdc["technique"]["iqmc_global_idx"]
+        P_new["iqmc_first_idx"] = idx
+        P_new["iqmc_last_idx"] = idx
+        mcdc["technique"]["iqmc_global_idx"] += 1
         # add to source bank
         add_particle(P_new, mcdc["bank_source"])
 
@@ -2530,7 +2536,29 @@ def qmc_res(flux_new, flux_old):
 
 
 @njit
-def score_iqmc_tallies(P, distance, mcdc):
+def store_ray_data(P, distance, mcdc):
+    mesh = mcdc["technique"]["iqmc_mesh"]
+    bank  = mcdc["technique"]["iqmc_ray_history"]
+    idx = mcdc["technique"]["iqmc_global_idx"]
+    mcdc["technique"]["iqmc_global_idx"] += 1
+    
+    t, x, y, z, outside = mesh_get_index(P, mesh)
+    if outside:
+        return
+    
+    bank["mesh_idx"][idx] = (t, x, y, z, outside)
+    bank["material_ID"] = P["material_ID"]
+    bank["distance"] = distance
+    bank["next_idx"] = -1
+    # Attach the new last link to the old last link
+    bank[P["iqmc_last_idx"]]["next_idx"] = idx
+    # Record the new last link in the particle struct
+    P["iqmc_last_idx"] = idx
+    
+    
+
+@njit
+def score_iqmc_tallies(P, distance, idx, mcdc):
     """
 
     Tally the scalar flux and linear source tilt.
@@ -2550,18 +2578,24 @@ def score_iqmc_tallies(P, distance, mcdc):
     """
     score_list = mcdc["technique"]["iqmc_score_list"]
     score_bin = mcdc["technique"]["iqmc_score"]
-    # Get indices
     mesh = mcdc["technique"]["iqmc_mesh"]
-    material = mcdc["materials"][P["material_ID"]]
-    w = P["iqmc_w"]
+    ray_history = mcdc["technique"]["iqmc_ray_history"]
+
+    if mcdc["technique"]["iqmc_sweep_counter"] < 1:
+        mat_id = P["material_ID"]
+        t, x, y, z, outside = mesh_get_index(P, mesh)
+    else:
+        mat_id = ray_history[idx]["material_ID"]
+        t, x, y, z, outside = ray_history[idx]["mesh_idx"]
+    
+    if outside:
+        return
+    
+    material = mcdc["materials"][mat_id]
     SigmaT = material["total"]
     SigmaF = material["fission"]
     nu_f = material["nu_f"]
-    mat_id = P["material_ID"]
-    
-    t, x, y, z, outside = mesh_get_index(P, mesh)
-    if outside:
-        return
+    w = P["iqmc_w"]
 
     dt = dx = dy = dz = 1.0
     if (mesh["t"][t] != -INF) and (mesh["t"][t] != INF):
