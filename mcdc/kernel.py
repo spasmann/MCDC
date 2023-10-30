@@ -1645,10 +1645,11 @@ def move_to_event(P, mcdc):
         if mcdc["setting"]["track_particle"]:
             track_particle(P, mcdc)
         # store_ray_data(P, distance, mcdc)
-        score_iqmc_tallies(P, distance, 0, mcdc)
+        mesh = mcdc["technique"]["iqmc_mesh"]
+        t, x, y, z, outside = mesh_get_index(P, mesh)
+        store_ray_data(t, x, y, z, outside, P, distance, mcdc)
+        score_iqmc_tallies(t, x, y, z, outside, P, distance, mcdc)
         continuous_weight_reduction(P, distance, mcdc)
-        # if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:
-        #     P["alive"] = False
 
 
     # Score tracklength tallies
@@ -2573,12 +2574,10 @@ def qmc_res(flux_new, flux_old):
 
 @njit
 def store_ray_data(t, x, y, z, outside, P, distance, mcdc):
-    # mesh = mcdc["technique"]["iqmc_mesh"]
     bank  = mcdc["technique"]["iqmc_ray_history"]
     idx = mcdc["technique"]["iqmc_global_idx"]
     mcdc["technique"]["iqmc_global_idx"] += 1
     
-    # t, x, y, z, outside = mesh_get_index(P, mesh)
     bank[idx]["mesh_idx"] = (t, x, y, z, outside)
     bank[idx]["material_ID"] = P["material_ID"]
     bank[idx]["distance"] = distance
@@ -2588,24 +2587,9 @@ def store_ray_data(t, x, y, z, outside, P, distance, mcdc):
     # Record the new last link in the particle struct
     P["iqmc_last_idx"] = idx
     
-    
-def print_particle_ray_history(P, mcdc):
-    print('\n')
-    # Start at the start, of course
-    idx = P["iqmc_first_idx"]
-    # Keep going until we hit -1
-    while (idx != -1) :
-        x = mcdc["technique"]["iqmc_ray_history"][idx]["mesh_idx"][1]
-        print(f"({x:.3g})",end="")
-        idx = mcdc["technique"]["iqmc_ray_history"][idx]["next_idx"]
-        # Some arrows, for flair
-        if (idx != -1) :
-            print(" -> ",end="")
-
-    print("")
 
 @njit
-def score_iqmc_tallies(P, distance, idx, mcdc):
+def score_iqmc_tallies(t, x, y, z, outside, P, distance, mcdc):
     """
 
     Tally the scalar flux and linear source tilt.
@@ -2626,39 +2610,27 @@ def score_iqmc_tallies(P, distance, idx, mcdc):
     score_list = mcdc["technique"]["iqmc_score_list"]
     score_bin = mcdc["technique"]["iqmc_score"]
     mesh = mcdc["technique"]["iqmc_mesh"]
-    ray_history = mcdc["technique"]["iqmc_ray_history"]
+    mat_id = P["material_ID"]
 
-    if mcdc["technique"]["iqmc_sweep_counter"] < 1:
-        mat_id = P["material_ID"]
-        t, x, y, z, outside = mesh_get_index(P, mesh)
-        store_ray_data(t, x, y, z, outside, P, distance, mcdc)
-        # print('\n Transport', mat_id)
-    else:
-        mat_id = ray_history[idx]["material_ID"]
-        t, x, y, z, outside = ray_history[idx]["mesh_idx"]
-        # print('\n Trace', mat_id)
+    # if mcdc["technique"]["iqmc_sweep_counter"] < 1:
+    #     print('\n Transport', mat_id)
+    # else:
+    #     print('\n Trace', mat_id)
     
     if outside:
         return
     
-
     material = mcdc["materials"][mat_id]
     SigmaT = material["total"]
     SigmaF = material["fission"]
     nu_f = material["nu_f"]
     w = P["iqmc_w"]
     
-    dt = dx = dy = dz = 1.0
+    dV = iqmc_cell_volume(x,y,z,mesh)
+    dt = 1.0
     if (mesh["t"][t] != -INF) and (mesh["t"][t] != INF):
         dt = mesh["t"][t + 1] - mesh["t"][t]
-    if (mesh["x"][x] != -INF) and (mesh["x"][x] != INF):
-        dx = mesh["x"][x + 1] - mesh["x"][x]
-    if (mesh["y"][y] != -INF) and (mesh["y"][y] != INF):
-        dy = mesh["y"][y + 1] - mesh["y"][y]
-    if (mesh["z"][z] != -INF) and (mesh["z"][z] != INF):
-        dz = mesh["z"][z + 1] - mesh["z"][z]
-
-    dV = dx * dy * dz * dt   
+    dV *=  dt   
 
     # Score Flux
     if SigmaT.all() > 0.0:

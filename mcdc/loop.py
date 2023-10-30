@@ -336,9 +336,10 @@ def iqmc_loop_particle(P, mcdc):
     idx = P["iqmc_first_idx"]
     idx = ray_history[idx]["next_idx"]
     while (idx != -1) and P['alive']:
+        t, x, y, z, outside = ray_history[idx]["mesh_idx"]
         P["material_ID"] = ray_history[idx]["material_ID"]
         distance = ray_history[idx]["distance"]
-        kernel.score_iqmc_tallies(P, distance, idx, mcdc)
+        kernel.score_iqmc_tallies(t, x, y, z, outside, P, distance, mcdc)
         kernel.continuous_weight_reduction(P, distance, mcdc)
         idx = ray_history[idx]["next_idx"]
         if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:

@@ -63,6 +63,7 @@ def pi_test():
         tol=tol,
         generator=generator,
         eigenmode_solver=solver,
+        history_bank_buff=int(N*Nx*2),
     )
     # Setting
     mcdc.setting(N_particle=N, output_name="pi_output")
@@ -178,5 +179,5 @@ def davidson_test():
 
 
 if __name__ == "__main__":
-    # pi_test()
-    davidson_test()
+    pi_test()
+    # davidson_test()

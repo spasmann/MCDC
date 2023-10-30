@@ -61,6 +61,7 @@ def si_test():
         tol=tol,
         generator=generator,
         fixed_source_solver=solver,
+        history_bank_buff=int(N*Nx*2),
     )
 
     # =============================================================================
@@ -141,6 +142,7 @@ def gmres_test():
         tol=tol,
         generator=generator,
         fixed_source_solver=solver,
+        history_bank_buff=int(N*Nx*2),
     )
 
     # =============================================================================
@@ -362,7 +364,7 @@ def gmres_st_test():
 
 
 if __name__ == "__main__":
-    # si_test()
-    # gmres_test()
-    si_st_test()
-    gmres_st_test()
+    si_test()
+    gmres_test()
+    # si_st_test()
+    # gmres_st_test()
