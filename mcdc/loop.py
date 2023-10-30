@@ -305,6 +305,7 @@ def loop_iqmc(mcdc):
         if mcdc["technique"]["iqmc_fixed_source_solver"] == "bicgstab":
             bicgstab(mcdc)
 
+
 @njit
 def iqmc_loop_source(mcdc):
     # Progress bar indicator
@@ -326,8 +327,6 @@ def iqmc_loop_source(mcdc):
     
     mcdc["bank_source"]["size"] = mcdc["mpi_work_size"]
         
-
-
     
 @njit
 def iqmc_loop_particle(P, mcdc):
@@ -336,7 +335,11 @@ def iqmc_loop_particle(P, mcdc):
     idx = P["iqmc_first_idx"]
     idx = ray_history[idx]["next_idx"]
     while (idx != -1) and P['alive']:
-        t, x, y, z, outside = ray_history[idx]["mesh_idx"]
+        t = ray_history[idx]["mesh_idx"][0]
+        x = ray_history[idx]["mesh_idx"][1]
+        y = ray_history[idx]["mesh_idx"][2]
+        z = ray_history[idx]["mesh_idx"][3]
+        outside = ray_history[idx]["mesh_idx"][4]
         P["material_ID"] = ray_history[idx]["material_ID"]
         distance = ray_history[idx]["distance"]
         kernel.score_iqmc_tallies(t, x, y, z, outside, P, distance, mcdc)
@@ -344,6 +347,7 @@ def iqmc_loop_particle(P, mcdc):
         idx = ray_history[idx]["next_idx"]
         if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:
             P["alive"] = False
+
     
 @njit
 def source_iteration(mcdc):
@@ -403,6 +407,8 @@ def source_iteration(mcdc):
         total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
 
 
+from numba import typeof
+
 @njit
 def bicgstab(mcdc):
     max_iter = mcdc["technique"]["iqmc_maxitt"]
@@ -426,26 +432,27 @@ def bicgstab(mcdc):
     X = mcdc["technique"]["iqmc_total_source"].copy()
     r = b - kernel.AxV(X, b, mcdc)
     r0 = np.copy(r)
-    u_old = 1
+    u_old = np.float64(1.0)
     u = np.dot(r0.T, r)
-    alpha = 1
-    w = 1
-    v = 0
-    p = 0
+    alpha = np.float64(1.0)
+    w = np.float64(1.0)
+    
+    v = np.zeros(X.shape, dtype=np.float64)
+    p = np.zeros(X.shape, dtype=np.float64)
     
     simulation_end = False
     while not simulation_end:
-        B = np.dot((u/u_old), alpha/w)
-        p = r + np.dot(B, (p - np.dot(w, v)))
-        v = kernel.AxV(p, b, mcdc)
-        alpha = u / np.dot(r0.T, v)
-        s = r - np.dot(alpha, v)
-        t = kernel.AxV(s, b, mcdc)
-        w = np.dot(t.T, s) / np.linalg.norm(t)**2
-        u_old = u
-        u = np.dot(np.dot(-w, r0.T), t)
-        X = X + np.dot(alpha, p) + np.dot(w, s)
-        r = s - np.dot(w, t)
+        B = ((u/u_old)*(alpha/w))# scalar
+        p = r + (B*(p - (w*v))) # vector
+        v = kernel.AxV(p, b, mcdc) # vector
+        alpha = (u / np.dot(r0.T, v)) # scalar
+        s = r - (alpha*v) # vector
+        t = kernel.AxV(s, b, mcdc) # vector
+        w = (np.dot(t.T, s) / np.linalg.norm(t)**2) # scalar
+        u_old = u # scalar
+        u = np.dot((-w*r0.T), t) # scalar
+        X = X + (alpha*p) + (w*s) # vector
+        r = s - (w*t) # vector
             
         mcdc["technique"]["iqmc_res"] = np.linalg.norm(r)
         if mcdc["technique"]["iqmc_res"] <= tol*np.linalg.norm(r0):
@@ -459,6 +466,7 @@ def bicgstab(mcdc):
                 
     # recover flux from converged source         
     kernel.AxV(X, b, mcdc)
+    
     
 @njit
 def gmres(mcdc):

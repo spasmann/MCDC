@@ -2413,7 +2413,7 @@ def prepare_qmc_particles(mcdc):
     zb = mesh["z"][-1]
     ta = mesh["t"][0]
     tb = mesh["t"][-1]
-    # count = 0
+    
     for n in range(N_work):
         # Create new particle
         P_new = np.zeros(1, dtype=type_.particle_record)[0]
@@ -2441,14 +2441,18 @@ def prepare_qmc_particles(mcdc):
         # store ray history data
         idx = mcdc["technique"]["iqmc_global_idx"]
         mcdc["technique"]["iqmc_global_idx"] += 1
-        mcdc["technique"]["iqmc_ray_history"][idx]["mesh_idx"] =  (t, x, y, z, outside)
+        mcdc["technique"]["iqmc_ray_history"][idx]["mesh_idx"][0] =  t
+        mcdc["technique"]["iqmc_ray_history"][idx]["mesh_idx"][1] =  x
+        mcdc["technique"]["iqmc_ray_history"][idx]["mesh_idx"][2] =  y
+        mcdc["technique"]["iqmc_ray_history"][idx]["mesh_idx"][3] =  z
+        mcdc["technique"]["iqmc_ray_history"][idx]["mesh_idx"][4] =  outside
         mcdc["technique"]["iqmc_ray_history"][idx]["next_idx"] = -1
         P_new["iqmc_first_idx"] = idx
         P_new["iqmc_last_idx"] = idx
 
         # add to source bank
         add_particle(P_new, mcdc["bank_source"])
-        # count += 1
+
 
 @njit
 def iqmc_recalculate_particle_weights(mcdc):
@@ -2468,7 +2472,11 @@ def iqmc_recalculate_particle_weights(mcdc):
     for idx_work in range(N_work):
         P = bank[idx_work]
         P_idx = P["iqmc_first_idx"]
-        t,x,y,z,outside = mcdc["technique"]["iqmc_ray_history"][P_idx]["mesh_idx"]
+        t = mcdc["technique"]["iqmc_ray_history"][P_idx]["mesh_idx"][0]
+        x = mcdc["technique"]["iqmc_ray_history"][P_idx]["mesh_idx"][1]
+        y = mcdc["technique"]["iqmc_ray_history"][P_idx]["mesh_idx"][2]
+        z = mcdc["technique"]["iqmc_ray_history"][P_idx]["mesh_idx"][3]
+        outside = mcdc["technique"]["iqmc_ray_history"][P_idx]["mesh_idx"][4]
         q = Q[:, t, x, y, z].copy()
         dV = iqmc_cell_volume(x, y, z, mesh)
         # Source tilt
@@ -2578,7 +2586,11 @@ def store_ray_data(t, x, y, z, outside, P, distance, mcdc):
     idx = mcdc["technique"]["iqmc_global_idx"]
     mcdc["technique"]["iqmc_global_idx"] += 1
     
-    bank[idx]["mesh_idx"] = (t, x, y, z, outside)
+    bank[idx]["mesh_idx"][0] = t
+    bank[idx]["mesh_idx"][1] = x
+    bank[idx]["mesh_idx"][2] = y
+    bank[idx]["mesh_idx"][3] = z
+    bank[idx]["mesh_idx"][4] = outside
     bank[idx]["material_ID"] = P["material_ID"]
     bank[idx]["distance"] = distance
     bank[idx]["next_idx"] = -1
@@ -2626,11 +2638,16 @@ def score_iqmc_tallies(t, x, y, z, outside, P, distance, mcdc):
     nu_f = material["nu_f"]
     w = P["iqmc_w"]
     
-    dV = iqmc_cell_volume(x,y,z,mesh)
-    dt = 1.0
+    dt = dx = dy = dz = 1.0
     if (mesh["t"][t] != -INF) and (mesh["t"][t] != INF):
         dt = mesh["t"][t + 1] - mesh["t"][t]
-    dV *=  dt   
+    if (mesh["x"][x] != -INF) and (mesh["x"][x] != INF):
+        dx = mesh["x"][x + 1] - mesh["x"][x]
+    if (mesh["y"][y] != -INF) and (mesh["y"][y] != INF):
+        dy = mesh["y"][y + 1] - mesh["y"][y]
+    if (mesh["z"][z] != -INF) and (mesh["z"][z] != INF):
+        dz = mesh["z"][z + 1] - mesh["z"][z]
+    dV = dt*dx*dy*dz   
 
     # Score Flux
     if SigmaT.all() > 0.0:
@@ -3342,19 +3359,26 @@ def HxV(V, mcdc):
     v = V[:, -1]
     mcdc["technique"]["iqmc_total_source"] = v.copy()
     iqmc_distribute_sources(mcdc)
-    # reset bank size
-    mcdc["bank_source"]["size"] = 0
-
-    # QMC Sweep
     # prepare_qmc_scattering_source(mcdc)
     mcdc["technique"]["iqmc_source"] = (
         mcdc["technique"]["iqmc_fixed_source"]
         + mcdc["technique"]["iqmc_score"]["effective-scattering"]
     )
-    prepare_qmc_particles(mcdc)
-    iqmc_reset_tallies(mcdc)
+    # sweep particles
+    if mcdc["technique"]["iqmc_sweep_counter"] < 1:
+        # reset particle bank size
+        mcdc["bank_source"]["size"] = 0
+        # initialize particles with LDS
+        prepare_qmc_particles(mcdc)
+        # reset tallies for next loop
+        iqmc_reset_tallies(mcdc)
+        loop_source(0, mcdc)
+    else:
+        iqmc_recalculate_particle_weights(mcdc)
+        iqmc_reset_tallies(mcdc)
+        iqmc_loop_source(mcdc)
+
     mcdc["technique"]["iqmc_sweep_counter"] += 1
-    loop_source(0, mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_tallies(mcdc)
     iqmc_consolidate_sources(mcdc)
@@ -3375,20 +3399,26 @@ def FxV(V, mcdc):
     # reshape v and assign to iqmc_flux
     mcdc["technique"]["iqmc_total_source"] = v.copy()
     iqmc_distribute_sources(mcdc)
-    # reset bank size
-    mcdc["bank_source"]["size"] = 0
-
-    # QMC Sweep
     # prepare_qmc_fission_source(mcdc)
     mcdc["technique"]["iqmc_source"] = (
         mcdc["technique"]["iqmc_fixed_source"]
         + mcdc["technique"]["iqmc_score"]["effective-fission"]
     )
-    prepare_qmc_particles(mcdc)
-    iqmc_reset_tallies(mcdc)
-    mcdc["technique"]["iqmc_sweep_counter"] += 1
-    loop_source(0, mcdc)
+    # sweep particles
+    if mcdc["technique"]["iqmc_sweep_counter"] < 1:
+        # reset particle bank size
+        mcdc["bank_source"]["size"] = 0
+        # initialize particles with LDS
+        prepare_qmc_particles(mcdc)
+        # reset tallies for next loop
+        iqmc_reset_tallies(mcdc)
+        loop_source(0, mcdc)
+    else:
+        iqmc_recalculate_particle_weights(mcdc)
+        iqmc_reset_tallies(mcdc)
+        iqmc_loop_source(mcdc)
 
+    mcdc["technique"]["iqmc_sweep_counter"] += 1
     # sum resultant flux on all processors
     iqmc_distribute_tallies(mcdc)
     iqmc_consolidate_sources(mcdc)
@@ -3410,17 +3440,26 @@ def preconditioner(V, mcdc, num_sweeps=3):
     iqmc_distribute_sources(mcdc)
 
     for i in range(num_sweeps):
-        # reset bank size
-        mcdc["bank_source"]["size"] = 0
         # QMC Sweep
         mcdc["technique"]["iqmc_source"] = (
             mcdc["technique"]["iqmc_fixed_source"]
             + mcdc["technique"]["iqmc_score"]["effective-scattering"]
         )
-        prepare_qmc_particles(mcdc)
-        iqmc_reset_tallies(mcdc)
+        # sweep particles
+        if mcdc["technique"]["iqmc_sweep_counter"] < 1:
+            # reset particle bank size
+            mcdc["bank_source"]["size"] = 0
+            # initialize particles with LDS
+            prepare_qmc_particles(mcdc)
+            # reset tallies for next loop
+            iqmc_reset_tallies(mcdc)
+            loop_source(0, mcdc)
+        else:
+            iqmc_recalculate_particle_weights(mcdc)
+            iqmc_reset_tallies(mcdc)
+            iqmc_loop_source(mcdc)
+            
         mcdc["technique"]["iqmc_sweep_counter"] += 1
-        loop_source(0, mcdc)
         # sum resultant flux on all processors
         iqmc_distribute_tallies(mcdc)
 
