@@ -2599,6 +2599,15 @@ def store_ray_data(t, x, y, z, outside, P, distance, mcdc):
     # Record the new last link in the particle struct
     P["iqmc_last_idx"] = idx
     
+@njit
+def iqmc_get_ray(idx, mcdc):
+        t = mcdc["technique"]["iqmc_ray_history"][idx]["mesh_idx"][0]
+        x = mcdc["technique"]["iqmc_ray_history"][idx]["mesh_idx"][1]
+        y = mcdc["technique"]["iqmc_ray_history"][idx]["mesh_idx"][2]
+        z = mcdc["technique"]["iqmc_ray_history"][idx]["mesh_idx"][3]
+        outside = mcdc["technique"]["iqmc_ray_history"][P_idx]["mesh_idx"][4]
+        return t, x, y, z, outside
+
 
 @njit
 def score_iqmc_tallies(t, x, y, z, outside, P, distance, mcdc):

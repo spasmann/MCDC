@@ -407,8 +407,6 @@ def source_iteration(mcdc):
         total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
 
 
-from numba import typeof
-
 @njit
 def bicgstab(mcdc):
     max_iter = mcdc["technique"]["iqmc_maxitt"]
@@ -432,11 +430,10 @@ def bicgstab(mcdc):
     X = mcdc["technique"]["iqmc_total_source"].copy()
     r = b - kernel.AxV(X, b, mcdc)
     r0 = np.copy(r)
-    u_old = np.float64(1.0)
     u = np.dot(r0.T, r)
-    alpha = np.float64(1.0)
-    w = np.float64(1.0)
-    
+    u_old = 1.0
+    alpha = 1.0
+    w = 1.0
     v = np.zeros(X.shape, dtype=np.float64)
     p = np.zeros(X.shape, dtype=np.float64)
     
