@@ -310,13 +310,11 @@ def iqmc_loop_source(mcdc):
     # Progress bar indicator
     N_prog = 0
     # Loop over particle sources
-    work_start = mcdc["mpi_work_start"]
-    work_size = mcdc["mpi_work_size"]
-    work_end = work_start + work_size
+    N_work = mcdc["mpi_work_size"]
   
     # loop through particles in bank source
-    for idx_work in range(work_start, work_end):
-        P = mcdc["bank_source"][idx_work]
+    for idx_work in range(N_work):
+        P = kernel.get_particle(mcdc["bank_source"], mcdc)
         # Particle loop
         iqmc_loop_particle(P, mcdc)
         # Progress printout
@@ -325,18 +323,27 @@ def iqmc_loop_source(mcdc):
             N_prog += 1
             with objmode():
                 print_progress(percent, mcdc)
+    
+    mcdc["bank_source"]["size"] = mcdc["mpi_work_size"]
+        
 
 
+    
 @njit
 def iqmc_loop_particle(P, mcdc):
     ray_history = mcdc["technique"]["iqmc_ray_history"]
-    first_index = P["iqmc_first_idx"]
-    last_index = P["iqmc_last_idx"]
-    
-    N_steps = last_index - first_index
-    for i in range(N_steps):
-        idx = 
 
+    idx = P["iqmc_first_idx"]
+    idx = ray_history[idx]["next_idx"]
+    while (idx != -1) and P['alive']:
+        P["material_ID"] = ray_history[idx]["material_ID"]
+        distance = ray_history[idx]["distance"]
+        kernel.score_iqmc_tallies(P, distance, idx, mcdc)
+        kernel.continuous_weight_reduction(P, distance, mcdc)
+        idx = ray_history[idx]["next_idx"]
+        if np.abs(P["w"]) <= mcdc["technique"]["iqmc_w_min"]:
+            P["alive"] = False
+    
 @njit
 def source_iteration(mcdc):
     simulation_end = False
@@ -354,16 +361,22 @@ def source_iteration(mcdc):
     total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
 
     while not simulation_end:
-        # reset particle bank size
-        mcdc["bank_source"]["size"] = 0
-        # initialize particles with LDS
-        kernel.prepare_qmc_particles(mcdc)
-        # reset tallies for next loop
-        kernel.iqmc_reset_tallies(mcdc)
-        # sweep particles
-        mcdc["technique"]["iqmc_sweep_counter"] += 1
-        loop_source(0, mcdc)
 
+        # sweep particles
+        if mcdc["technique"]["iqmc_sweep_counter"] < 1:
+            # reset particle bank size
+            mcdc["bank_source"]["size"] = 0
+            # initialize particles with LDS
+            kernel.prepare_qmc_particles(mcdc)
+            # reset tallies for next loop
+            kernel.iqmc_reset_tallies(mcdc)
+            loop_source(0, mcdc)
+        else:
+            kernel.iqmc_recalculate_particle_weights(mcdc)
+            kernel.iqmc_reset_tallies(mcdc)
+            iqmc_loop_source(mcdc)
+
+        mcdc["technique"]["iqmc_sweep_counter"] += 1
         # sum resultant flux on all processors
         kernel.iqmc_distribute_tallies(mcdc)
         mcdc["technique"]["iqmc_itt"] += 1

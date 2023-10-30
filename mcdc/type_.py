@@ -60,8 +60,8 @@ def make_type_particle(iQMC, G):
     if iQMC:
         Ng = G
     struct += [("iqmc_w", float64, (Ng,)),
-               ("iqmc_first_idx", int64, (1,)),
-               ("iqmc_last_idx", int64, (1,))]
+               ("iqmc_first_idx", int64),
+               ("iqmc_last_idx", int64)]
     particle = np.dtype(struct)
 
 
@@ -86,8 +86,8 @@ def make_type_particle_record(iQMC, G):
     if iQMC:
         Ng = G
     struct += [("iqmc_w", float64, (Ng,)),
-               ("iqmc_first_idx", int64, (1,)),
-               ("iqmc_last_idx", int64, (1,))]
+               ("iqmc_first_idx", int64),
+               ("iqmc_last_idx", int64)]
     particle_record = np.dtype(struct)
 
 
