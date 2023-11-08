@@ -368,10 +368,18 @@ def prepare():
 
     if input_deck.technique["iQMC"]:
         # pass in mesh
-        mcdc["technique"]["iqmc"]["mesh"]["x"] = input_deck.technique["iqmc"]["mesh"]["x"]
-        mcdc["technique"]["iqmc"]["mesh"]["y"] = input_deck.technique["iqmc"]["mesh"]["y"]
-        mcdc["technique"]["iqmc"]["mesh"]["z"] = input_deck.technique["iqmc"]["mesh"]["z"]
-        mcdc["technique"]["iqmc"]["mesh"]["t"] = input_deck.technique["iqmc"]["mesh"]["t"]
+        mcdc["technique"]["iqmc"]["mesh"]["x"] = input_deck.technique["iqmc"]["mesh"][
+            "x"
+        ]
+        mcdc["technique"]["iqmc"]["mesh"]["y"] = input_deck.technique["iqmc"]["mesh"][
+            "y"
+        ]
+        mcdc["technique"]["iqmc"]["mesh"]["z"] = input_deck.technique["iqmc"]["mesh"][
+            "z"
+        ]
+        mcdc["technique"]["iqmc"]["mesh"]["t"] = input_deck.technique["iqmc"]["mesh"][
+            "t"
+        ]
         # pass in score list
         for name, value in input_deck.technique["iqmc"]["score_list"].items():
             mcdc["technique"]["iqmc"]["score_list"][name] = value
@@ -379,7 +387,9 @@ def prepare():
         for name, value in input_deck.technique["iqmc"]["score"].items():
             mcdc["technique"]["iqmc"]["score"][name] = value
         # LDS generator
-        mcdc["technique"]["iqmc"]["generator"] = input_deck.technique["iqmc"]["generator"]
+        mcdc["technique"]["iqmc"]["generator"] = input_deck.technique["iqmc"][
+            "generator"
+        ]
         # minimum particle weight
         mcdc["technique"]["iqmc"]["w_min"] = 1e-16  # / mcdc["setting"]["N_particle"]
         # variables to generate samples
@@ -574,7 +584,7 @@ def generate_hdf5(mcdc):
                 dict_to_h5group(input_deck.tally, input_group.create_group("tally"))
                 dict_to_h5group(input_deck.setting, input_group.create_group("setting"))
                 dict_to_h5group(
-                input_deck.technique, input_group.create_group("technique")
+                    input_deck.technique, input_group.create_group("technique")
                 )
 
             # Tally
@@ -630,8 +640,12 @@ def generate_hdf5(mcdc):
                 f.create_dataset("iqmc/grid/z", data=T["iqmc"]["mesh"]["z"])
                 f.create_dataset("iqmc/material_idx", data=T["iqmc"]["material_idx"])
                 # dump x,y,z scalar flux across all groups
-                f.create_dataset("iqmc/flux", data=np.squeeze(T["iqmc"]["score"]["flux"]))
-                f.create_dataset("iqmc/fission_source", data=T["iqmc"]["score"]["fission-source"])
+                f.create_dataset(
+                    "iqmc/flux", data=np.squeeze(T["iqmc"]["score"]["flux"])
+                )
+                f.create_dataset(
+                    "iqmc/fission_source", data=T["iqmc"]["score"]["fission-source"]
+                )
                 f.create_dataset("iqmc/source/constant", data=T["iqmc"]["source"])
                 f.create_dataset("iqmc/source/x", data=T["iqmc"]["score"]["tilt-x"])
                 f.create_dataset("iqmc/source/y", data=T["iqmc"]["score"]["tilt-y"])

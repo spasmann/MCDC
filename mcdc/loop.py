@@ -342,9 +342,9 @@ def source_iteration(mcdc):
             mcdc["technique"]["iqmc"]["total_source"], total_source_old
         )
         # iQMC convergence criteria
-        if (mcdc["technique"]["iqmc"]["itt"] == mcdc["technique"]["iqmc"]["maxitt"]) or (
-            mcdc["technique"]["iqmc"]["res"] <= mcdc["technique"]["iqmc"]["tol"]
-        ):
+        if (
+            mcdc["technique"]["iqmc"]["itt"] == mcdc["technique"]["iqmc"]["maxitt"]
+        ) or (mcdc["technique"]["iqmc"]["res"] <= mcdc["technique"]["iqmc"]["tol"]):
             simulation_end = True
 
         # Print progress
@@ -354,7 +354,6 @@ def source_iteration(mcdc):
 
         # set  source_old = current source
         total_source_old = mcdc["technique"]["iqmc"]["total_source"].copy()
-
 
 
 @njit
@@ -537,7 +536,7 @@ def power_iteration(mcdc):
     kernel.iqmc_generate_material_idx(mcdc)
     if mcdc["technique"]["iqmc"]["source"].all() == 0.0:
         kernel.iqmc_prepare_source(mcdc)
-    
+
     if mcdc["technique"]["iqmc"]["score"]["fission-source"].all() == 0.0:
         kernel.iqmc_prepare_nuSigmaF(mcdc)
 
@@ -556,7 +555,7 @@ def power_iteration(mcdc):
         mcdc["k_eff"] *= score_bin["fission-source"].sum() / fission_source_old.sum()
 
         # calculate diff in keff
-        mcdc["technique"]["iqmc"]["res_outter"] = abs(mcdc["k_eff"] - k_old)/k_old
+        mcdc["technique"]["iqmc"]["res_outter"] = abs(mcdc["k_eff"] - k_old) / k_old
         k_old = mcdc["k_eff"]
         # store outter iteration values
         score_bin["flux-outter"] = score_bin["flux"].copy()
@@ -660,7 +659,7 @@ def davidson(mcdc):
         u = np.dot(cga(V[:, :Vsize]), cga(w))
         # residual
         res = kernel.FxV(u, mcdc) - Lambda * kernel.HxV(u, mcdc)
-        mcdc["technique"]["iqmc"]["res_outter"] = abs(mcdc["k_eff"] - k_old)/k_old
+        mcdc["technique"]["iqmc"]["res_outter"] = abs(mcdc["k_eff"] - k_old) / k_old
         k_old = mcdc["k_eff"]
         mcdc["technique"]["iqmc"]["itt_outter"] += 1
         with objmode():

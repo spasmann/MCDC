@@ -432,19 +432,22 @@ def make_type_setting(deck):
 # Technique
 # ==============================================================================
 
-iqmc_score_list = ('flux', 
-                   'effective-scattering', 
-                   'effective-fission', 
-                   'tilt-t', 
-                   'tilt-x', 
-                   'tilt-y', 
-                   'tilt-z', 
-                   'tilt-xy', 
-                   'tilt-xz', 
-                   'tilt-yz', 
-                   'tilt-xyz', 
-                   'fission-power', 
-                   'fission-source')
+iqmc_score_list = (
+    "flux",
+    "effective-scattering",
+    "effective-fission",
+    "tilt-t",
+    "tilt-x",
+    "tilt-y",
+    "tilt-z",
+    "tilt-xy",
+    "tilt-xz",
+    "tilt-yz",
+    "tilt-xyz",
+    "fission-power",
+    "fission-source",
+)
+
 
 def make_type_technique(N_particle, G, card):
     setting = card.setting
@@ -492,7 +495,7 @@ def make_type_technique(N_particle, G, card):
     # Quasi Monte Carlo
     # =========================================================================
     iqmc_list = []
-    
+
     # Mesh (for qmc source tallies)
     if card["iQMC"]:
         mesh, Nx, Ny, Nz, Nt, Nmu, N_azi = make_type_mesh_(card["iqmc"]["mesh"])
@@ -580,7 +583,7 @@ def make_type_technique(N_particle, G, card):
         ("source_tilt", int64),
         ("w_min", float64),
     ]
-    
+
     struct += [("iqmc", iqmc_list)]
 
     # =========================================================================

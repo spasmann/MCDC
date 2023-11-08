@@ -2326,9 +2326,9 @@ def iqmc_prepare_nuSigmaF(mcdc):
                     material = mcdc["materials"][mat_idx]
                     nu_f = material["nu_f"]
                     SigmaF = material["fission"]
-                    mcdc["technique"]["iqmc"]["score"]["fission-source"][:, t, i, j, k] = (
-                        nu_f * SigmaF * flux[:, t, i, j, k]
-                    )
+                    mcdc["technique"]["iqmc"]["score"]["fission-source"][
+                        :, t, i, j, k
+                    ] = (nu_f * SigmaF * flux[:, t, i, j, k])
 
 
 @njit
@@ -2490,7 +2490,7 @@ def iqmc_score_tallies(P, distance, mcdc):
     SigmaF = material["fission"]
     nu_f = material["nu_f"]
     mat_id = P["material_ID"]
-    
+
     t, x, y, z, outside = mesh_get_index(P, mesh)
     if outside:
         return
@@ -2505,7 +2505,7 @@ def iqmc_score_tallies(P, distance, mcdc):
     if (mesh["z"][z] != -INF) and (mesh["z"][z] != INF):
         dz = mesh["z"][z + 1] - mesh["z"][z]
 
-    dV = dx * dy * dz * dt   
+    dV = dx * dy * dz * dt
 
     flux = iqmc_flux(SigmaT, w, distance, dV)
     score_bin["flux"][:, t, x, y, z] += flux
@@ -2514,11 +2514,13 @@ def iqmc_score_tallies(P, distance, mcdc):
     score_bin["effective-scattering"][:, t, x, y, z] += iqmc_scattering_source(
         flux, mat_id, mcdc
     )
-    score_bin["effective-fission"][:, t, x, y, z] += iqmc_fission_source(flux, mat_id, mcdc)
+    score_bin["effective-fission"][:, t, x, y, z] += iqmc_fission_source(
+        flux, mat_id, mcdc
+    )
 
     if score_list["fission-source"]:
         score_bin["fission-source"][:, t, x, y, z] += nu_f * SigmaF * flux
-        
+
     if score_list["fission-power"]:
         score_bin["fission-power"][:, t, x, y, z] += SigmaF * flux
 
@@ -2530,23 +2532,17 @@ def iqmc_score_tallies(P, distance, mcdc):
 
     if score_list["tilt-x"]:
         x_mid = mesh["x"][x] + (dx * 0.5)
-        tilt = iqmc_linear_tilt(
-            P["ux"], P["x"], dx, x_mid, dy, dz, w, distance, SigmaT
-        )
+        tilt = iqmc_linear_tilt(P["ux"], P["x"], dx, x_mid, dy, dz, w, distance, SigmaT)
         score_bin["tilt-x"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
 
     if score_list["tilt-y"]:
         y_mid = mesh["y"][y] + (dy * 0.5)
-        tilt = iqmc_linear_tilt(
-            P["uy"], P["y"], dy, y_mid, dx, dz, w, distance, SigmaT
-        )
+        tilt = iqmc_linear_tilt(P["uy"], P["y"], dy, y_mid, dx, dz, w, distance, SigmaT)
         score_bin["tilt-y"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
 
     if score_list["tilt-z"]:
         z_mid = mesh["z"][z] + (dz * 0.5)
-        tilt = iqmc_linear_tilt(
-            P["uz"], P["z"], dz, z_mid, dx, dy, w, distance, SigmaT
-        )
+        tilt = iqmc_linear_tilt(P["uz"], P["z"], dz, z_mid, dx, dy, w, distance, SigmaT)
         score_bin["tilt-z"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
 
     if score_list["tilt-xy"]:
@@ -2622,7 +2618,9 @@ def iqmc_score_tallies(P, distance, mcdc):
             distance,
             SigmaT,
         )
-        score_bin["tilt-xyz"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
+        score_bin["tilt-xyz"][:, t, x, y, z] += iqmc_effective_source(
+            tilt, mat_id, mcdc
+        )
 
 
 @njit
@@ -2780,11 +2778,12 @@ def iqmc_generate_material_idx(mcdc):
 def iqmc_reset_tallies(mcdc):
     score_bin = mcdc["technique"]["iqmc"]["score"]
     score_list = mcdc["technique"]["iqmc"]["score_list"]
-    
+
     mcdc["technique"]["iqmc"]["source"].fill(0.0)
     for name in literal_unroll(iqmc_score_list):
         if score_list[name]:
             score_bin[name].fill(0.0)
+
 
 @njit
 def iqmc_distribute_tallies(mcdc):
@@ -2794,6 +2793,7 @@ def iqmc_distribute_tallies(mcdc):
     for name in literal_unroll(iqmc_score_list):
         if score_list[name]:
             iqmc_score_reduce_bin(score_bin[name])
+
 
 @njit
 def iqmc_score_reduce_bin(score):
@@ -3010,12 +3010,13 @@ def iqmc_consolidate_sources(mcdc):
     if score_list["tilt-xyz"]:
         total_source[Vsize : (Vsize + size)] = np.reshape(score_bin["tilt-xyz"], size)
         Vsize += size
-        
-        
+
+
 # =============================================================================
 # iQMC STallies
 # =============================================================================
 # TODO: Not all ST tallies have been built for case where SigmaT = 0.0
+
 
 @njit
 def iqmc_flux(SigmaT, w, distance, dV):
@@ -3024,6 +3025,7 @@ def iqmc_flux(SigmaT, w, distance, dV):
         return w * (1 - np.exp(-(distance * SigmaT))) / (SigmaT * dV)
     else:
         return distance * w / dV
+
 
 @njit
 def iqmc_fission_source(phi, mat_id, mcdc):
@@ -3194,9 +3196,6 @@ def iqmc_trilinear_tilt(
     )
     Q *= 1278 / (dt * dx**3 * dy**3 * dz**3)
     return Q
-
-
-
 
 
 # =============================================================================
