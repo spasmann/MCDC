@@ -2867,8 +2867,8 @@ def iqmc_tilt_source(t, x, y, z, P, Q, mcdc):
 def iqmc_distribute_sources(mcdc):
     """
     This function is meant to distribute iqmc_total_source to the relevant
-    invidual source contributions, e.x. source, source-x, source-y,
-    source-z, source-xy, etc. -> source_total
+    invidual source contributions, e.x. source_total -> source, source-x,
+    source-y, source-z, source-xy, etc.
 
     Parameters
     ----------
