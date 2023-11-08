@@ -1142,25 +1142,25 @@ def iQMC(
 ):
     card = mcdc.input_deck.technique
     card["iQMC"] = True
-    card["iqmc_tol"] = tol
-    card["iqmc_maxitt"] = maxitt
-    card["iqmc_generator"] = generator
-    card["iqmc_N_dim"] = N_dim
-    card["iqmc_scramble"] = scramble
-    card["iqmc_seed"] = seed
-    card["iqmc_source_tilt"] = source_tilt
+    card["iqmc"]["tol"] = tol
+    card["iqmc"]["maxitt"] = maxitt
+    card["iqmc"]["generator"] = generator
+    card["iqmc"]["N_dim"] = N_dim
+    card["iqmc"]["scramble"] = scramble
+    card["iqmc"]["seed"] = seed
+    card["iqmc"]["source_tilt"] = source_tilt
 
     # Set mesh
     if g is not None:
-        card["iqmc_mesh"]["g"] = g
+        card["iqmc"]["mesh"]["g"] = g
     if t is not None:
-        card["iqmc_mesh"]["t"] = t
+        card["iqmc"]["mesh"]["t"] = t
     if x is not None:
-        card["iqmc_mesh"]["x"] = x
+        card["iqmc"]["mesh"]["x"] = x
     if y is not None:
-        card["iqmc_mesh"]["y"] = y
+        card["iqmc"]["mesh"]["y"] = y
     if z is not None:
-        card["iqmc_mesh"]["z"] = z
+        card["iqmc"]["mesh"]["z"] = z
 
     ax_expand = []
     if g is None:
@@ -1187,70 +1187,70 @@ def iQMC(
         source0 = np.zeros_like(phi0)
 
     if eigenmode_solver == "davidson":
-        card["iqmc_krylov_vector_size"] += 1
+        card["iqmc"]["krylov_vector_size"] += 1
 
-    score_list = card["iqmc_score_list"]
+    score_list = card["iqmc"]["score_list"]
     for name in score:
         score_list[name] = True
 
     if score_list["tilt-t"]:
-        card["iqmc_krylov_vector_size"] += 1
+        card["iqmc"]["krylov_vector_size"] += 1
         if source_t0 is None:
             source_t0 = np.zeros_like(phi0)
 
     if score_list["tilt-x"]:
-        card["iqmc_krylov_vector_size"] += 1
+        card["iqmc"]["krylov_vector_size"] += 1
         if source_x0 is None:
             source_x0 = np.zeros_like(phi0)
 
     if score_list["tilt-y"]:
-        card["iqmc_krylov_vector_size"] += 1
+        card["iqmc"]["krylov_vector_size"] += 1
         if source_y0 is None:
             source_y0 = np.zeros_like(phi0)
 
     if score_list["tilt-z"]:
-        card["iqmc_krylov_vector_size"] += 1
+        card["iqmc"]["krylov_vector_size"] += 1
         if source_z0 is None:
             source_z0 = np.zeros_like(phi0)
 
     if score_list["tilt-xy"]:
-        card["iqmc_krylov_vector_size"] += 1
+        card["iqmc"]["krylov_vector_size"] += 1
         if source_xy0 is None:
             source_xy0 = np.zeros_like(phi0)
 
     if score_list["tilt-xz"]:
-        card["iqmc_krylov_vector_size"] += 1
+        card["iqmc"]["krylov_vector_size"] += 1
         if source_xz0 is None:
             source_xz0 = np.zeros_like(phi0)
 
     if score_list["tilt-yz"]:
-        card["iqmc_krylov_vector_size"] += 1
+        card["iqmc"]["krylov_vector_size"] += 1
         if source_yz0 is None:
             source_yz0 = np.zeros_like(phi0)
             
     if score_list["tilt-xyz"]:
-        card["iqmc_krylov_vector_size"] += 1
+        card["iqmc"]["krylov_vector_size"] += 1
         if source_xyz0 is None:
             source_xyz0 = np.zeros_like(phi0)
 
     if fission_source0 is not None:
-        card["iqmc_score"]["fission-source"] = fission_source0
+        card["iqmc"]["score"]["fission-source"] = fission_source0
             
-    card["iqmc_score"]["flux"] = phi0
-    card["iqmc_score"]["tilt-t"] = source_t0
-    card["iqmc_score"]["tilt-x"] = source_x0
-    card["iqmc_score"]["tilt-y"] = source_y0
-    card["iqmc_score"]["tilt-z"] = source_z0
-    card["iqmc_score"]["tilt-xy"] = source_xy0
-    card["iqmc_score"]["tilt-xz"] = source_xz0
-    card["iqmc_score"]["tilt-yz"] = source_yz0
-    card["iqmc_score"]["tilt-xyz"] = source_xyz0
-    card["iqmc_source"] = source0
-    card["iqmc_fixed_source"] = fixed_source
-    card["iqmc_fixed_source_solver"] = fixed_source_solver
-    card["iqmc_eigenmode_solver"] = eigenmode_solver
-    card["iqmc_preconditioner_sweeps"] = preconditioner_sweeps
-    card["iqmc_krylov_restart"] = krylov_restart
+    card["iqmc"]["score"]["flux"] = phi0
+    card["iqmc"]["score"]["tilt-t"] = source_t0
+    card["iqmc"]["score"]["tilt-x"] = source_x0
+    card["iqmc"]["score"]["tilt-y"] = source_y0
+    card["iqmc"]["score"]["tilt-z"] = source_z0
+    card["iqmc"]["score"]["tilt-xy"] = source_xy0
+    card["iqmc"]["score"]["tilt-xz"] = source_xz0
+    card["iqmc"]["score"]["tilt-yz"] = source_yz0
+    card["iqmc"]["score"]["tilt-xyz"] = source_xyz0
+    card["iqmc"]["source"] = source0
+    card["iqmc"]["fixed_source"] = fixed_source
+    card["iqmc"]["fixed_source_solver"] = fixed_source_solver
+    card["iqmc"]["eigenmode_solver"] = eigenmode_solver
+    card["iqmc"]["preconditioner_sweeps"] = preconditioner_sweeps
+    card["iqmc"]["krylov_restart"] = krylov_restart
 
 
 def weight_roulette(chance, wr_threshold):

@@ -48,11 +48,11 @@ def print_banner(mcdc):
             banner += "           Mode | Numba\n"
         if mcdc["technique"]["iQMC"]:
             banner += "      Algorithm | iQMC\n"
-            rng = mcdc["technique"]["iqmc_generator"]
+            rng = mcdc["technique"]["iqmc"]["generator"]
             if mcdc["setting"]["mode_eigenvalue"]:
-                solver = mcdc["technique"]["iqmc_eigenmode_solver"]
+                solver = mcdc["technique"]["iqmc"]["eigenmode_solver"]
             else:
-                solver = mcdc["technique"]["iqmc_fixed_source_solver"]
+                solver = mcdc["technique"]["iqmc"]["fixed_source_solver"]
             banner += "            RNG | " + rng + "\n"
             banner += "         Solver | " + solver + "\n"
         else:
@@ -96,8 +96,8 @@ def print_progress_iqmc(mcdc):
     if master:
         if mcdc["setting"]["progress_bar"]:
             sys.stdout.write("\r")
-            itt = mcdc["technique"]["iqmc_itt"]
-            res = mcdc["technique"]["iqmc_res"]
+            itt = mcdc["technique"]["iqmc"]["itt"]
+            res = mcdc["technique"]["iqmc"]["res"]
             print("\n*******************************")
             print("Iteration  %2d" % (itt))
             print("Residual %10.3E" % (res))
@@ -156,8 +156,8 @@ def print_iqmc_eigenvalue_progress(mcdc):
         if mcdc["setting"]["progress_bar"]:
             sys.stdout.write("\r")
             k_eff = mcdc["k_eff"]
-            itt = mcdc["technique"]["iqmc_itt_outter"]
-            res = mcdc["technique"]["iqmc_res_outter"]
+            itt = mcdc["technique"]["iqmc"]["itt_outter"]
+            res = mcdc["technique"]["iqmc"]["res_outter"]
             print("\n %2d   %2.5f  %10.3E" % (itt, k_eff, res))
             sys.stdout.flush()
 
@@ -165,8 +165,8 @@ def print_iqmc_eigenvalue_progress(mcdc):
 def print_iqmc_eigenvalue_exit_code(mcdc):
     if master:
         sys.stdout.write("\r")
-        maxit = mcdc["technique"]["iqmc_maxitt"]
-        itt = mcdc["technique"]["iqmc_itt_outter"]
+        maxit = mcdc["technique"]["iqmc"]["maxitt"]
+        itt = mcdc["technique"]["iqmc"]["itt_outter"]
         if itt >= maxit:
             print("\n")
             print("================================")

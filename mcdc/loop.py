@@ -293,14 +293,14 @@ def loop_particle(P, mcdc):
 def loop_iqmc(mcdc):
     # function calls from specified solvers
     if mcdc["setting"]["mode_eigenvalue"]:
-        if mcdc["technique"]["iqmc_eigenmode_solver"] == "davidson":
+        if mcdc["technique"]["iqmc"]["eigenmode_solver"] == "davidson":
             davidson(mcdc)
-        if mcdc["technique"]["iqmc_eigenmode_solver"] == "power_iteration":
+        if mcdc["technique"]["iqmc"]["eigenmode_solver"] == "power_iteration":
             power_iteration(mcdc)
     else:
-        if mcdc["technique"]["iqmc_fixed_source_solver"] == "source_iteration":
+        if mcdc["technique"]["iqmc"]["fixed_source_solver"] == "source_iteration":
             source_iteration(mcdc)
-        if mcdc["technique"]["iqmc_fixed_source_solver"] == "gmres":
+        if mcdc["technique"]["iqmc"]["fixed_source_solver"] == "gmres":
             gmres(mcdc)
 
 
@@ -310,7 +310,7 @@ def source_iteration(mcdc):
     # set bank source
     if (
         not mcdc["setting"]["mode_eigenvalue"]
-        and mcdc["technique"]["iqmc_source"].all() == 0.0
+        and mcdc["technique"]["iqmc"]["source"].all() == 0.0
     ):
         # generate material index
         kernel.generate_iqmc_material_idx(mcdc)
@@ -318,7 +318,7 @@ def source_iteration(mcdc):
         kernel.prepare_qmc_source(mcdc)
 
     kernel.iqmc_consolidate_sources(mcdc)
-    total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
+    total_source_old = mcdc["technique"]["iqmc"]["total_source"].copy()
 
     while not simulation_end:
         # reset particle bank size
@@ -328,22 +328,22 @@ def source_iteration(mcdc):
         # reset tallies for next loop
         kernel.iqmc_reset_tallies(mcdc)
         # sweep particles
-        mcdc["technique"]["iqmc_sweep_counter"] += 1
+        mcdc["technique"]["iqmc"]["sweep_counter"] += 1
         loop_source(0, mcdc)
 
         # sum resultant flux on all processors
         kernel.iqmc_distribute_tallies(mcdc)
-        mcdc["technique"]["iqmc_itt"] += 1
+        mcdc["technique"]["iqmc"]["itt"] += 1
         kernel.iqmc_update_source(mcdc)
         # combine source tallies into one vector
         kernel.iqmc_consolidate_sources(mcdc)
         # calculate norm of sources
-        mcdc["technique"]["iqmc_res"] = kernel.qmc_res(
-            mcdc["technique"]["iqmc_total_source"], total_source_old
+        mcdc["technique"]["iqmc"]["res"] = kernel.qmc_res(
+            mcdc["technique"]["iqmc"]["total_source"], total_source_old
         )
         # iQMC convergence criteria
-        if (mcdc["technique"]["iqmc_itt"] == mcdc["technique"]["iqmc_maxitt"]) or (
-            mcdc["technique"]["iqmc_res"] <= mcdc["technique"]["iqmc_tol"]
+        if (mcdc["technique"]["iqmc"]["itt"] == mcdc["technique"]["iqmc"]["maxitt"]) or (
+            mcdc["technique"]["iqmc"]["res"] <= mcdc["technique"]["iqmc"]["tol"]
         ):
             simulation_end = True
 
@@ -353,7 +353,7 @@ def source_iteration(mcdc):
                 print_progress_iqmc(mcdc)
 
         # set  source_old = current source
-        total_source_old = mcdc["technique"]["iqmc_total_source"].copy()
+        total_source_old = mcdc["technique"]["iqmc"]["total_source"].copy()
 
 
 
@@ -374,25 +374,25 @@ def gmres(mcdc):
     code adapted from: https://github.com/pygbe/pygbe/blob/master/pygbe/gmres.py
 
     """
-    max_iter = mcdc["technique"]["iqmc_maxitt"]
-    R = mcdc["technique"]["iqmc_krylov_restart"]
-    tol = mcdc["technique"]["iqmc_tol"]
+    max_iter = mcdc["technique"]["iqmc"]["maxitt"]
+    R = mcdc["technique"]["iqmc"]["krylov_restart"]
+    tol = mcdc["technique"]["iqmc"]["tol"]
 
-    fixed_source = mcdc["technique"]["iqmc_fixed_source"]
-    single_vector = mcdc["technique"]["iqmc_fixed_source"].size
-    b = np.zeros_like(mcdc["technique"]["iqmc_total_source"])
+    fixed_source = mcdc["technique"]["iqmc"]["fixed_source"]
+    single_vector = mcdc["technique"]["iqmc"]["fixed_source"].size
+    b = np.zeros_like(mcdc["technique"]["iqmc"]["total_source"])
     b[:single_vector] = np.reshape(fixed_source, fixed_source.size)
     # use piece-wise constant material approximations for the first source guess
     if (
         not mcdc["setting"]["mode_eigenvalue"]
-        and mcdc["technique"]["iqmc_source"].all() == 0.0
+        and mcdc["technique"]["iqmc"]["source"].all() == 0.0
     ):
         # generate material index
         kernel.generate_iqmc_material_idx(mcdc)
         kernel.prepare_qmc_source(mcdc)
 
     kernel.iqmc_consolidate_sources(mcdc)
-    X = mcdc["technique"]["iqmc_total_source"].copy()
+    X = mcdc["technique"]["iqmc"]["total_source"].copy()
     # initial residual
     r = b - kernel.AxV(X, b, mcdc)
     normr = np.linalg.norm(r)
@@ -493,16 +493,16 @@ def gmres(mcdc):
             if inner < max_inner - 1:
                 normr = abs(g[inner + 1])
                 rel_resid = normr / res_0
-                mcdc["technique"]["iqmc_res"] = rel_resid
+                mcdc["technique"]["iqmc"]["res"] = rel_resid
 
-            mcdc["technique"]["iqmc_itt"] += 1
+            mcdc["technique"]["iqmc"]["itt"] += 1
             if not mcdc["setting"]["mode_eigenvalue"]:
                 with objmode():
                     print_progress_iqmc(mcdc)
 
             if rel_resid < tol:
                 break
-            if mcdc["technique"]["iqmc_itt"] >= max_iter:
+            if mcdc["technique"]["iqmc"]["itt"] >= max_iter:
                 break
 
         # end inner loop, back to outer loop
@@ -514,10 +514,10 @@ def gmres(mcdc):
         r = b - aux
         normr = np.linalg.norm(r)
         rel_resid = normr / res_0
-        mcdc["technique"]["iqmc_res"] = rel_resid
+        mcdc["technique"]["iqmc"]["res"] = rel_resid
         if rel_resid < tol:
             break
-        if mcdc["technique"]["iqmc_itt"] >= max_iter:
+        if mcdc["technique"]["iqmc"]["itt"] >= max_iter:
             return
 
 
@@ -526,19 +526,19 @@ def power_iteration(mcdc):
     simulation_end = False
 
     # iteration tolerance
-    tol = mcdc["technique"]["iqmc_tol"]
+    tol = mcdc["technique"]["iqmc"]["tol"]
     # maximum number of iterations
-    maxit = mcdc["technique"]["iqmc_maxitt"]
-    score_bin = mcdc["technique"]["iqmc_score"]
+    maxit = mcdc["technique"]["iqmc"]["maxitt"]
+    score_bin = mcdc["technique"]["iqmc"]["score"]
     score_bin["flux-outter"] = score_bin["flux"].copy()
     k_old = mcdc["k_eff"]
-    solver = mcdc["technique"]["iqmc_fixed_source_solver"]
+    solver = mcdc["technique"]["iqmc"]["fixed_source_solver"]
 
     kernel.generate_iqmc_material_idx(mcdc)
-    if mcdc["technique"]["iqmc_source"].all() == 0.0:
+    if mcdc["technique"]["iqmc"]["source"].all() == 0.0:
         kernel.prepare_qmc_source(mcdc)
     
-    if mcdc["technique"]["iqmc_score"]["fission-source"].all() == 0.0:
+    if mcdc["technique"]["iqmc"]["score"]["fission-source"].all() == 0.0:
         kernel.prepare_nuSigmaF(mcdc)
 
     fission_source_old = score_bin["fission-source"].copy()
@@ -550,26 +550,26 @@ def power_iteration(mcdc):
         if solver == "gmres":
             gmres(mcdc)
         # reset counter for inner iteration
-        mcdc["technique"]["iqmc_itt"] = 0
+        mcdc["technique"]["iqmc"]["itt"] = 0
 
         # update k_eff
         mcdc["k_eff"] *= score_bin["fission-source"].sum() / fission_source_old.sum()
 
         # calculate diff in keff
-        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)/k_old
+        mcdc["technique"]["iqmc"]["res_outter"] = abs(mcdc["k_eff"] - k_old)/k_old
         k_old = mcdc["k_eff"]
         # store outter iteration values
         score_bin["flux-outter"] = score_bin["flux"].copy()
         score_bin["effective-fission-outter"] = score_bin["effective-fission"].copy()
         fission_source_old = score_bin["fission-source"].copy()
-        mcdc["technique"]["iqmc_itt_outter"] += 1
+        mcdc["technique"]["iqmc"]["itt_outter"] += 1
 
         with objmode():
             print_iqmc_eigenvalue_progress(mcdc)
 
         # iQMC convergence criteria
-        if (mcdc["technique"]["iqmc_itt_outter"] == maxit) or (
-            mcdc["technique"]["iqmc_res_outter"] <= tol
+        if (mcdc["technique"]["iqmc"]["itt_outter"] == maxit) or (
+            mcdc["technique"]["iqmc"]["res_outter"] <= tol
         ):
             simulation_end = True
             with objmode():
@@ -592,32 +592,32 @@ def davidson(mcdc):
 
     # Davidson parameters
     simulation_end = False
-    maxit = mcdc["technique"]["iqmc_maxitt"]
-    tol = mcdc["technique"]["iqmc_tol"]
+    maxit = mcdc["technique"]["iqmc"]["maxitt"]
+    tol = mcdc["technique"]["iqmc"]["tol"]
     # num_sweeps: number of preconditioner sweeps
-    num_sweeps = mcdc["technique"]["iqmc_preconditioner_sweeps"]
+    num_sweeps = mcdc["technique"]["iqmc"]["preconditioner_sweeps"]
     # m : restart parameter
-    m = mcdc["technique"]["iqmc_krylov_restart"]
+    m = mcdc["technique"]["iqmc"]["krylov_restart"]
     k_old = mcdc["k_eff"]
     # initial size of Krylov subspace
     Vsize = 1
     # l : number of eigenvalues to solve for
     l = 1
     # vector size
-    Nt = mcdc["technique"]["iqmc_total_source"].size
+    Nt = mcdc["technique"]["iqmc"]["total_source"].size
     # allocate memory then use slice indexing in loop
     V = np.zeros((Nt, m), dtype=np.float64)
     HV = np.zeros((Nt, m), dtype=np.float64)
     FV = np.zeros((Nt, m), dtype=np.float64)
     # generate first guess of source if none was passed through
-    if mcdc["technique"]["iqmc_source"].all() == 0.0:
+    if mcdc["technique"]["iqmc"]["source"].all() == 0.0:
         # generate material index
         kernel.generate_iqmc_material_idx(mcdc)
         # generate intial guess
         kernel.prepare_qmc_source(mcdc)
 
     kernel.iqmc_consolidate_sources(mcdc)
-    V0 = mcdc["technique"]["iqmc_total_source"].copy()
+    V0 = mcdc["technique"]["iqmc"]["total_source"].copy()
     V0 = kernel.preconditioner(V0, mcdc, num_sweeps=5)
     # orthonormalize initial guess
     V0 = V0 / np.linalg.norm(V0)
@@ -660,15 +660,15 @@ def davidson(mcdc):
         u = np.dot(cga(V[:, :Vsize]), cga(w))
         # residual
         res = kernel.FxV(u, mcdc) - Lambda * kernel.HxV(u, mcdc)
-        mcdc["technique"]["iqmc_res_outter"] = abs(mcdc["k_eff"] - k_old)/k_old
+        mcdc["technique"]["iqmc"]["res_outter"] = abs(mcdc["k_eff"] - k_old)/k_old
         k_old = mcdc["k_eff"]
-        mcdc["technique"]["iqmc_itt_outter"] += 1
+        mcdc["technique"]["iqmc"]["itt_outter"] += 1
         with objmode():
             print_iqmc_eigenvalue_progress(mcdc)
 
         # check convergence criteria
-        if (mcdc["technique"]["iqmc_itt_outter"] >= maxit) or (
-            mcdc["technique"]["iqmc_res_outter"] <= tol
+        if (mcdc["technique"]["iqmc"]["itt_outter"] >= maxit) or (
+            mcdc["technique"]["iqmc"]["res_outter"] <= tol
         ):
             simulation_end = True
             with objmode():

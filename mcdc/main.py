@@ -293,12 +293,12 @@ def prepare():
         mcdc["setting"]["time_boundary"] = mcdc["tally"]["mesh"]["t"][-1]
 
     if input_deck.technique["iQMC"]:
-        if len(mcdc["technique"]["iqmc_mesh"]["t"]) - 1 > 1:
+        if len(mcdc["technique"]["iqmc"]["mesh"]["t"]) - 1 > 1:
             if (
                 mcdc["setting"]["time_boundary"]
-                > input_deck.technique["iqmc_mesh"]["t"][-1]
+                > input_deck.technique["iqmc"]["mesh"]["t"][-1]
             ):
-                mcdc["setting"]["time_boundary"] = input_deck.technique["iqmc_mesh"][
+                mcdc["setting"]["time_boundary"] = input_deck.technique["iqmc"]["mesh"][
                     "t"
                 ][-1]
     # =========================================================================
@@ -352,41 +352,40 @@ def prepare():
     # Quasi Monte Carlo
     # =========================================================================
 
-    for name in type_.technique.names:
-        if name[:4] == "iqmc":
-            if name not in [
-                "iqmc_mesh",
-                "iqmc_res",
-                "iqmc_lds",
-                "iqmc_generator",
-                "iqmc_sweep_counter",
-                "iqmc_total_source",
-                "iqmc_w_min",
-                "iqmc_score_list",
-                "iqmc_score",
-            ]:
-                mcdc["technique"][name] = input_deck.technique[name]
+    for name in type_.technique["iqmc"].names:
+        if name not in [
+            "mesh",
+            "res",
+            "lds",
+            "generator",
+            "sweep_counter",
+            "total_source",
+            "w_min",
+            "score_list",
+            "score",
+        ]:
+            mcdc["technique"]["iqmc"][name] = input_deck.technique["iqmc"][name]
 
     if input_deck.technique["iQMC"]:
         # pass in mesh
-        mcdc["technique"]["iqmc_mesh"]["x"] = input_deck.technique["iqmc_mesh"]["x"]
-        mcdc["technique"]["iqmc_mesh"]["y"] = input_deck.technique["iqmc_mesh"]["y"]
-        mcdc["technique"]["iqmc_mesh"]["z"] = input_deck.technique["iqmc_mesh"]["z"]
-        mcdc["technique"]["iqmc_mesh"]["t"] = input_deck.technique["iqmc_mesh"]["t"]
+        mcdc["technique"]["iqmc"]["mesh"]["x"] = input_deck.technique["iqmc"]["mesh"]["x"]
+        mcdc["technique"]["iqmc"]["mesh"]["y"] = input_deck.technique["iqmc"]["mesh"]["y"]
+        mcdc["technique"]["iqmc"]["mesh"]["z"] = input_deck.technique["iqmc"]["mesh"]["z"]
+        mcdc["technique"]["iqmc"]["mesh"]["t"] = input_deck.technique["iqmc"]["mesh"]["t"]
         # pass in score list
-        for name, value in input_deck.technique["iqmc_score_list"].items():
-            mcdc["technique"]["iqmc_score_list"][name] = value
+        for name, value in input_deck.technique["iqmc"]["score_list"].items():
+            mcdc["technique"]["iqmc"]["score_list"][name] = value
         # pass in initial tallies
-        for name, value in input_deck.technique["iqmc_score"].items():
-            mcdc["technique"]["iqmc_score"][name] = value
+        for name, value in input_deck.technique["iqmc"]["score"].items():
+            mcdc["technique"]["iqmc"]["score"][name] = value
         # LDS generator
-        mcdc["technique"]["iqmc_generator"] = input_deck.technique["iqmc_generator"]
+        mcdc["technique"]["iqmc"]["generator"] = input_deck.technique["iqmc"]["generator"]
         # minimum particle weight
-        mcdc["technique"]["iqmc_w_min"] = 1e-16  # / mcdc["setting"]["N_particle"]
+        mcdc["technique"]["iqmc"]["w_min"] = 1e-16  # / mcdc["setting"]["N_particle"]
         # variables to generate samples
-        scramble = mcdc["technique"]["iqmc_scramble"]
-        N_dim = mcdc["technique"]["iqmc_N_dim"]
-        seed = mcdc["technique"]["iqmc_seed"]
+        scramble = mcdc["technique"]["iqmc"]["scramble"]
+        N_dim = mcdc["technique"]["iqmc"]["N_dim"]
+        seed = mcdc["technique"]["iqmc"]["seed"]
         N = mcdc["setting"]["N_particle"]
         size = MPI.COMM_WORLD.Get_size()
         rank = MPI.COMM_WORLD.Get_rank()
@@ -394,20 +393,20 @@ def prepare():
         # how many samples this processor will skip in the LDS
         fast_forward = int((rank / size) * N)
         # generate LDS
-        if input_deck.technique["iqmc_generator"] == "sobol":
+        if input_deck.technique["iqmc"]["generator"] == "sobol":
             sampler = qmc.Sobol(d=N_dim, scramble=scramble)
             # skip the first entry in Sobol sequence because its 0.0
             # skip the second because it maps to ux = 0.0
             sampler.fast_forward(2)
             sampler.fast_forward(fast_forward)
-            mcdc["technique"]["iqmc_lds"] = sampler.random(N_work)
-        if input_deck.technique["iqmc_generator"] == "halton":
+            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+        if input_deck.technique["iqmc"]["generator"] == "halton":
             sampler = qmc.Halton(d=N_dim, scramble=scramble, seed=seed)
             # skip the first entry in Halton sequence because its 0.0
             sampler.fast_forward(1)
             sampler.fast_forward(fast_forward)
-            mcdc["technique"]["iqmc_lds"] = sampler.random(N_work)
-        if input_deck.technique["iqmc_generator"] == "random":
+            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+        if input_deck.technique["iqmc"]["generator"] == "random":
             # this chunk of code uses the iqmc_seed to generate a number of
             # seeds to be used  on each processor
             # this way, each processor gets different samples, but if iQMC is run
@@ -416,7 +415,7 @@ def prepare():
             np.random.seed(seed)
             seeds = np.random.randint(1e6, size=size)
             np.random.seed(seeds[rank])
-            mcdc["technique"]["iqmc_lds"] = np.random.random((N_work, N_dim))
+            mcdc["technique"]["iqmc"]["lds"] = np.random.random((N_work, N_dim))
 
     # =========================================================================
     # Derivative Source Method
@@ -625,32 +624,32 @@ def generate_hdf5(mcdc):
             if mcdc["technique"]["iQMC"]:
                 # dump iQMC mesh
                 T = mcdc["technique"]
-                f.create_dataset("iqmc/grid/t", data=T["iqmc_mesh"]["t"])
-                f.create_dataset("iqmc/grid/x", data=T["iqmc_mesh"]["x"])
-                f.create_dataset("iqmc/grid/y", data=T["iqmc_mesh"]["y"])
-                f.create_dataset("iqmc/grid/z", data=T["iqmc_mesh"]["z"])
-                f.create_dataset("iqmc/material_idx", data=T["iqmc_material_idx"])
+                f.create_dataset("iqmc/grid/t", data=T["iqmc"]["mesh"]["t"])
+                f.create_dataset("iqmc/grid/x", data=T["iqmc"]["mesh"]["x"])
+                f.create_dataset("iqmc/grid/y", data=T["iqmc"]["mesh"]["y"])
+                f.create_dataset("iqmc/grid/z", data=T["iqmc"]["mesh"]["z"])
+                f.create_dataset("iqmc/material_idx", data=T["iqmc"]["material_idx"])
                 # dump x,y,z scalar flux across all groups
-                f.create_dataset("iqmc/flux", data=np.squeeze(T["iqmc_score"]["flux"]))
-                f.create_dataset("iqmc/fission_source", data=T["iqmc_score"]["fission-source"])
-                f.create_dataset("iqmc/source/constant", data=T["iqmc_source"])
-                f.create_dataset("iqmc/source/x", data=T["iqmc_score"]["tilt-x"])
-                f.create_dataset("iqmc/source/y", data=T["iqmc_score"]["tilt-y"])
-                f.create_dataset("iqmc/source/z", data=T["iqmc_score"]["tilt-z"])
-                f.create_dataset("iqmc/source/xy", data=T["iqmc_score"]["tilt-xy"])
-                f.create_dataset("iqmc/source/xz", data=T["iqmc_score"]["tilt-xz"])
-                f.create_dataset("iqmc/source/yz", data=T["iqmc_score"]["tilt-yz"])
-                f.create_dataset("iqmc/source/xyz", data=T["iqmc_score"]["tilt-xyz"])
+                f.create_dataset("iqmc/flux", data=np.squeeze(T["iqmc"]["score"]["flux"]))
+                f.create_dataset("iqmc/fission_source", data=T["iqmc"]["score"]["fission-source"])
+                f.create_dataset("iqmc/source/constant", data=T["iqmc"]["source"])
+                f.create_dataset("iqmc/source/x", data=T["iqmc"]["score"]["tilt-x"])
+                f.create_dataset("iqmc/source/y", data=T["iqmc"]["score"]["tilt-y"])
+                f.create_dataset("iqmc/source/z", data=T["iqmc"]["score"]["tilt-z"])
+                f.create_dataset("iqmc/source/xy", data=T["iqmc"]["score"]["tilt-xy"])
+                f.create_dataset("iqmc/source/xz", data=T["iqmc"]["score"]["tilt-xz"])
+                f.create_dataset("iqmc/source/yz", data=T["iqmc"]["score"]["tilt-yz"])
+                f.create_dataset("iqmc/source/xyz", data=T["iqmc"]["score"]["tilt-xyz"])
                 # iteration data
-                f.create_dataset("iqmc/itteration_count", data=T["iqmc_itt"])
-                f.create_dataset("iqmc/final_residual", data=T["iqmc_res"])
-                f.create_dataset("iqmc/sweep_count", data=T["iqmc_sweep_counter"])
+                f.create_dataset("iqmc/itteration_count", data=T["iqmc"]["itt"])
+                f.create_dataset("iqmc/final_residual", data=T["iqmc"]["res"])
+                f.create_dataset("iqmc/sweep_count", data=T["iqmc"]["sweep_counter"])
                 if mcdc["setting"]["mode_eigenvalue"]:
                     f.create_dataset(
-                        "iqmc/outter_itteration_count", data=T["iqmc_itt_outter"]
+                        "iqmc/outter_itteration_count", data=T["iqmc"]["itt_outter"]
                     )
                     f.create_dataset(
-                        "iqmc/outter_final_residual", data=T["iqmc_res_outter"]
+                        "iqmc/outter_final_residual", data=T["iqmc"]["res_outter"]
                     )
 
             # Particle tracker
