@@ -1642,8 +1642,8 @@ def move_to_event(P, mcdc):
     if mcdc["technique"]["iQMC"]:
         if mcdc["setting"]["track_particle"]:
             track_particle(P, mcdc)
-        score_iqmc_tallies(P, distance, mcdc)
-        continuous_weight_reduction(P, distance, mcdc)
+        iqmc_score_tallies(P, distance, mcdc)
+        iqmc_continuous_weight_reduction(P, distance, mcdc)
         if np.abs(P["w"]) <= mcdc["technique"]["iqmc"]["w_min"]:
             P["alive"] = False
 
@@ -2282,7 +2282,7 @@ def weight_window(P, mcdc):
 
 
 @njit
-def continuous_weight_reduction(P, distance, mcdc):
+def iqmc_continuous_weight_reduction(P, distance, mcdc):
     """
     Continuous weight reduction technique based on particle track-length, for
     use with iQMC.
@@ -2309,7 +2309,7 @@ def continuous_weight_reduction(P, distance, mcdc):
 
 
 @njit
-def prepare_nuSigmaF(mcdc):
+def iqmc_prepare_nuSigmaF(mcdc):
     mesh = mcdc["technique"]["iqmc"]["mesh"]
     flux = mcdc["technique"]["iqmc"]["score"]["flux"]
     Nt = len(mesh["t"]) - 1
@@ -2332,7 +2332,7 @@ def prepare_nuSigmaF(mcdc):
 
 
 @njit
-def prepare_qmc_source(mcdc):
+def iqmc_prepare_source(mcdc):
     """
     Iterates trhough all spatial cells to calculate the iQMC source. The source
     is a combination of the user input Fixed-Source plus the calculated
@@ -2363,10 +2363,10 @@ def prepare_qmc_source(mcdc):
                 for k in range(Nz):
                     mat_idx = mcdc["technique"]["iqmc"]["material_idx"][t, i, j, k]
                     # we can vectorize the multigroup calculation here
-                    fission[:, t, i, j, k] = fission_source(
+                    fission[:, t, i, j, k] = iqmc_fission_source(
                         flux_fission[:, t, i, j, k], mat_idx, mcdc
                     )
-                    scatter[:, t, i, j, k] = scattering_source(
+                    scatter[:, t, i, j, k] = iqmc_scattering_source(
                         flux_scatter[:, t, i, j, k], mat_idx, mcdc
                     )
     mcdc["technique"]["iqmc"]["score"]["effective-scattering"] = scatter
@@ -2376,7 +2376,7 @@ def prepare_qmc_source(mcdc):
 
 
 @njit
-def prepare_qmc_particles(mcdc):
+def iqmc_prepare_particles(mcdc):
     """
     Create N_particles assigning the position, direction, and group from the
     QMC Low-Discrepency Sequence. Particles are added to the bank_source.
@@ -2413,14 +2413,14 @@ def prepare_qmc_particles(mcdc):
         P_new = np.zeros(1, dtype=type_.particle_record)[0]
         # assign initial group, time, and rng_seed (not used)
         P_new["g"] = 0
-        P_new["t"] = sample_qmc_position(ta, tb, lds[n, 2])
+        P_new["t"] = iqmc_sample_position(ta, tb, lds[n, 2])
         P_new["rng_seed"] = 0
         # assign direction
-        P_new["x"] = sample_qmc_position(xa, xb, lds[n, 0])
-        P_new["y"] = sample_qmc_position(ya, yb, lds[n, 4])
-        P_new["z"] = sample_qmc_position(za, zb, lds[n, 3])
+        P_new["x"] = iqmc_sample_position(xa, xb, lds[n, 0])
+        P_new["y"] = iqmc_sample_position(ya, yb, lds[n, 4])
+        P_new["z"] = iqmc_sample_position(za, zb, lds[n, 3])
         # Sample isotropic direction
-        P_new["ux"], P_new["uy"], P_new["uz"] = sample_qmc_isotropic_direction(
+        P_new["ux"], P_new["uy"], P_new["uz"] = iqmc_sample_isotropic_direction(
             lds[n, 1], lds[n, 5]
         )
         t, x, y, z, outside = mesh_get_index(P_new, mesh)
@@ -2436,7 +2436,7 @@ def prepare_qmc_particles(mcdc):
 
 
 @njit
-def fission_source(phi, mat_id, mcdc):
+def iqmc_fission_source(phi, mat_id, mcdc):
     """
     Calculate the fission source for use with iQMC.
 
@@ -2471,7 +2471,7 @@ def fission_source(phi, mat_id, mcdc):
 
 
 @njit
-def scattering_source(phi, mat_id, mcdc):
+def iqmc_scattering_source(phi, mat_id, mcdc):
     """
     Calculate the scattering source for use with iQMC.
 
@@ -2497,14 +2497,14 @@ def scattering_source(phi, mat_id, mcdc):
 
 
 @njit
-def effective_source(phi, mat_id, mcdc):
-    S = scattering_source(phi, mat_id, mcdc)
-    F = fission_source(phi, mat_id, mcdc)
+def iqmc_effective_source(phi, mat_id, mcdc):
+    S = iqmc_scattering_source(phi, mat_id, mcdc)
+    F = iqmc_fission_source(phi, mat_id, mcdc)
     return S + F
 
 
 @njit
-def qmc_res(flux_new, flux_old):
+def iqmc_res(flux_new, flux_old):
     """
 
     Calculate residual between scalar flux iterations.
@@ -2530,7 +2530,7 @@ def qmc_res(flux_new, flux_old):
 
 
 @njit
-def score_iqmc_tallies(P, distance, mcdc):
+def iqmc_score_tallies(P, distance, mcdc):
     """
 
     Tally the scalar flux and linear source tilt.
@@ -2583,10 +2583,10 @@ def score_iqmc_tallies(P, distance, mcdc):
     score_bin["flux"][:, t, x, y, z] += flux
 
     # Score effective source tallies
-    score_bin["effective-scattering"][:, t, x, y, z] += scattering_source(
+    score_bin["effective-scattering"][:, t, x, y, z] += iqmc_scattering_source(
         flux, mat_id, mcdc
     )
-    score_bin["effective-fission"][:, t, x, y, z] += fission_source(flux, mat_id, mcdc)
+    score_bin["effective-fission"][:, t, x, y, z] += iqmc_fission_source(flux, mat_id, mcdc)
 
     if score_list["fission-source"]:
         score_bin["fission-source"][:, t, x, y, z] += nu_f * SigmaF * flux
@@ -2595,28 +2595,28 @@ def score_iqmc_tallies(P, distance, mcdc):
         t_mid = mesh["t"][t] + (dt * 0.5)
         v = get_particle_speed(P, mcdc)
         tilt = iqmc_time_tilt(v, P["t"], t_mid, dt, dx, dy, dz, w, distance, SigmaT)
-        score_bin["tilt-t"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+        score_bin["tilt-t"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
 
     if score_list["tilt-x"]:
         x_mid = mesh["x"][x] + (dx * 0.5)
         tilt = iqmc_linear_tally(
             P["ux"], P["x"], dx, x_mid, dy, dz, w, distance, SigmaT
         )
-        score_bin["tilt-x"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+        score_bin["tilt-x"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
 
     if score_list["tilt-y"]:
         y_mid = mesh["y"][y] + (dy * 0.5)
         tilt = iqmc_linear_tally(
             P["uy"], P["y"], dy, y_mid, dx, dz, w, distance, SigmaT
         )
-        score_bin["tilt-y"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+        score_bin["tilt-y"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
 
     if score_list["tilt-z"]:
         z_mid = mesh["z"][z] + (dz * 0.5)
         tilt = iqmc_linear_tally(
             P["uz"], P["z"], dz, z_mid, dx, dy, w, distance, SigmaT
         )
-        score_bin["tilt-z"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+        score_bin["tilt-z"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
 
     if score_list["tilt-xy"]:
         tilt = iqmc_bilinear_tally(
@@ -2634,7 +2634,7 @@ def score_iqmc_tallies(P, distance, mcdc):
             distance,
             SigmaT,
         )
-        score_bin["tilt-xy"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+        score_bin["tilt-xy"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
 
     if score_list["tilt-xz"]:
         tilt = iqmc_bilinear_tally(
@@ -2652,7 +2652,7 @@ def score_iqmc_tallies(P, distance, mcdc):
             distance,
             SigmaT,
         )
-        score_bin["tilt-xz"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+        score_bin["tilt-xz"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
 
     if score_list["tilt-yz"]:
         tilt = iqmc_bilinear_tally(
@@ -2670,7 +2670,7 @@ def score_iqmc_tallies(P, distance, mcdc):
             distance,
             SigmaT,
         )
-        score_bin["tilt-yz"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+        score_bin["tilt-yz"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
 
     if score_list["tilt-xyz"]:
         tilt = iqmc_trilinear_tally(
@@ -2691,7 +2691,7 @@ def score_iqmc_tallies(P, distance, mcdc):
             distance,
             SigmaT,
         )
-        score_bin["tilt-xyz"][:, t, x, y, z] += effective_source(tilt, mat_id, mcdc)
+        score_bin["tilt-xyz"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
 
 
 @njit
@@ -2728,12 +2728,12 @@ def iqmc_cell_volume(x, y, z, mesh):
 
 
 @njit
-def sample_qmc_position(a, b, sample):
+def iqmc_sample_position(a, b, sample):
     return a + (b - a) * sample
 
 
 @njit
-def sample_qmc_isotropic_direction(sample1, sample2):
+def iqmc_sample_isotropic_direction(sample1, sample2):
     """
 
     Sample the an isotropic direction using samples between [0,1].
@@ -2768,7 +2768,7 @@ def sample_qmc_isotropic_direction(sample1, sample2):
 
 
 @njit
-def sample_qmc_group(sample, G):
+def iqmc_sample_group(sample, G):
     """
     Uniformly sample energy group using a random sample between [0,1].
 
@@ -2789,7 +2789,7 @@ def sample_qmc_group(sample, G):
 
 
 @njit
-def generate_iqmc_material_idx(mcdc):
+def iqmc_generate_material_idx(mcdc):
     """
     This algorithm is meant to loop through every spatial cell of the
     iQMC mesh and assign a material index according to the material_ID at
@@ -2871,50 +2871,6 @@ def iqmc_score_reduce_bin(score):
     with objmode():
         MPI.COMM_WORLD.Allreduce(np.array(score), buff, op=MPI.SUM)
     score[:] = buff
-
-
-@njit
-def lartg(f, g):
-    """
-    Originally a Lapack routine to generate a plane rotation with
-    real cosine and real sine.
-
-    Reference
-    ----------
-    https://netlib.org/lapack/explore-html/df/dd1/group___o_t_h_e_rauxiliary_ga86f8f877eaea0386cdc2c3c175d9ea88.html#:~:text=DLARTG%20generates%20a%20plane%20rotation%20with%20real%20cosine,%3D%20G%20%2F%20R%20Hence%20C%20%3E%3D%200.
-
-    Parameters
-    ----------
-    f :  The first component of vector to be rotated.
-    g :  The second component of vector to be rotated.
-
-    Returns
-    -------
-    c : The cosine of the rotation.
-    s : The sine of the rotation.
-    r : The nonzero component of the rotated vector.
-
-    """
-    r = np.sign(f) * np.sqrt(f * f + g * g)
-    c = f / r
-    s = g / r
-    return c, s, r
-
-
-@njit
-def modified_gram_schmidt(V, u):
-    """
-    Modified Gram Schmidt routine
-
-    """
-    u = np.reshape(u, (u.size, 1))
-    V = np.ascontiguousarray(V)
-    w1 = u - np.dot(V, np.dot(V.T, u))
-    v1 = w1 / np.linalg.norm(w1)
-    w2 = v1 - np.dot(V, np.dot(V.T, v1))
-    v2 = w2 / np.linalg.norm(w2)
-    V = np.append(V, v2, axis=1)
-    return V
 
 
 @njit
@@ -3252,7 +3208,7 @@ def AxV(V, b, mcdc):
     # reset bank size
     mcdc["bank_source"]["size"] = 0
     # QMC Sweep
-    prepare_qmc_particles(mcdc)
+    iqmc_prepare_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     mcdc["technique"]["iqmc"]["sweep_counter"] += 1
     loop_source(0, mcdc)
@@ -3287,7 +3243,7 @@ def HxV(V, mcdc):
         mcdc["technique"]["iqmc"]["fixed_source"]
         + mcdc["technique"]["iqmc"]["score"]["effective-scattering"]
     )
-    prepare_qmc_particles(mcdc)
+    iqmc_prepare_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     mcdc["technique"]["iqmc"]["sweep_counter"] += 1
     loop_source(0, mcdc)
@@ -3315,12 +3271,12 @@ def FxV(V, mcdc):
     mcdc["bank_source"]["size"] = 0
 
     # QMC Sweep
-    # prepare_qmc_fission_source(mcdc)
+    # prepare_qmc_iqmc_fission_source(mcdc)
     mcdc["technique"]["iqmc"]["source"] = (
         mcdc["technique"]["iqmc"]["fixed_source"]
         + mcdc["technique"]["iqmc"]["score"]["effective-fission"]
     )
-    prepare_qmc_particles(mcdc)
+    iqmc_prepare_particles(mcdc)
     iqmc_reset_tallies(mcdc)
     mcdc["technique"]["iqmc"]["sweep_counter"] += 1
     loop_source(0, mcdc)
@@ -3353,7 +3309,7 @@ def preconditioner(V, mcdc, num_sweeps=3):
             mcdc["technique"]["iqmc"]["fixed_source"]
             + mcdc["technique"]["iqmc"]["score"]["effective-scattering"]
         )
-        prepare_qmc_particles(mcdc)
+        iqmc_prepare_particles(mcdc)
         iqmc_reset_tallies(mcdc)
         mcdc["technique"]["iqmc"]["sweep_counter"] += 1
         loop_source(0, mcdc)
@@ -3792,3 +3748,47 @@ def binary_search(val, grid):
         else:
             right = mid - 1
     return int(right)
+
+
+@njit
+def lartg(f, g):
+    """
+    Originally a Lapack routine to generate a plane rotation with
+    real cosine and real sine.
+
+    Reference
+    ----------
+    https://netlib.org/lapack/explore-html/df/dd1/group___o_t_h_e_rauxiliary_ga86f8f877eaea0386cdc2c3c175d9ea88.html#:~:text=DLARTG%20generates%20a%20plane%20rotation%20with%20real%20cosine,%3D%20G%20%2F%20R%20Hence%20C%20%3E%3D%200.
+
+    Parameters
+    ----------
+    f :  The first component of vector to be rotated.
+    g :  The second component of vector to be rotated.
+
+    Returns
+    -------
+    c : The cosine of the rotation.
+    s : The sine of the rotation.
+    r : The nonzero component of the rotated vector.
+
+    """
+    r = np.sign(f) * np.sqrt(f * f + g * g)
+    c = f / r
+    s = g / r
+    return c, s, r
+
+
+@njit
+def modified_gram_schmidt(V, u):
+    """
+    Modified Gram Schmidt routine
+
+    """
+    u = np.reshape(u, (u.size, 1))
+    V = np.ascontiguousarray(V)
+    w1 = u - np.dot(V, np.dot(V.T, u))
+    v1 = w1 / np.linalg.norm(w1)
+    w2 = v1 - np.dot(V, np.dot(V.T, v1))
+    v2 = w2 / np.linalg.norm(w2)
+    V = np.append(V, v2, axis=1)
+    return V

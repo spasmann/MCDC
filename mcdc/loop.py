@@ -313,9 +313,9 @@ def source_iteration(mcdc):
         and mcdc["technique"]["iqmc"]["source"].all() == 0.0
     ):
         # generate material index
-        kernel.generate_iqmc_material_idx(mcdc)
+        kernel.iqmc_generate_material_idx(mcdc)
         # use material index to generate a first guess for the source
-        kernel.prepare_qmc_source(mcdc)
+        kernel.iqmc_prepare_source(mcdc)
 
     kernel.iqmc_consolidate_sources(mcdc)
     total_source_old = mcdc["technique"]["iqmc"]["total_source"].copy()
@@ -324,7 +324,7 @@ def source_iteration(mcdc):
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
         # initialize particles with LDS
-        kernel.prepare_qmc_particles(mcdc)
+        kernel.iqmc_prepare_particles(mcdc)
         # reset tallies for next loop
         kernel.iqmc_reset_tallies(mcdc)
         # sweep particles
@@ -338,7 +338,7 @@ def source_iteration(mcdc):
         # combine source tallies into one vector
         kernel.iqmc_consolidate_sources(mcdc)
         # calculate norm of sources
-        mcdc["technique"]["iqmc"]["res"] = kernel.qmc_res(
+        mcdc["technique"]["iqmc"]["res"] = kernel.iqmc_res(
             mcdc["technique"]["iqmc"]["total_source"], total_source_old
         )
         # iQMC convergence criteria
@@ -388,8 +388,8 @@ def gmres(mcdc):
         and mcdc["technique"]["iqmc"]["source"].all() == 0.0
     ):
         # generate material index
-        kernel.generate_iqmc_material_idx(mcdc)
-        kernel.prepare_qmc_source(mcdc)
+        kernel.iqmc_generate_material_idx(mcdc)
+        kernel.iqmc_prepare_source(mcdc)
 
     kernel.iqmc_consolidate_sources(mcdc)
     X = mcdc["technique"]["iqmc"]["total_source"].copy()
@@ -534,12 +534,12 @@ def power_iteration(mcdc):
     k_old = mcdc["k_eff"]
     solver = mcdc["technique"]["iqmc"]["fixed_source_solver"]
 
-    kernel.generate_iqmc_material_idx(mcdc)
+    kernel.iqmc_generate_material_idx(mcdc)
     if mcdc["technique"]["iqmc"]["source"].all() == 0.0:
-        kernel.prepare_qmc_source(mcdc)
+        kernel.iqmc_prepare_source(mcdc)
     
     if mcdc["technique"]["iqmc"]["score"]["fission-source"].all() == 0.0:
-        kernel.prepare_nuSigmaF(mcdc)
+        kernel.iqmc_prepare_nuSigmaF(mcdc)
 
     fission_source_old = score_bin["fission-source"].copy()
 
@@ -612,9 +612,9 @@ def davidson(mcdc):
     # generate first guess of source if none was passed through
     if mcdc["technique"]["iqmc"]["source"].all() == 0.0:
         # generate material index
-        kernel.generate_iqmc_material_idx(mcdc)
+        kernel.iqmc_generate_material_idx(mcdc)
         # generate intial guess
-        kernel.prepare_qmc_source(mcdc)
+        kernel.iqmc_prepare_source(mcdc)
 
     kernel.iqmc_consolidate_sources(mcdc)
     V0 = mcdc["technique"]["iqmc"]["total_source"].copy()
