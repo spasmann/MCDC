@@ -543,9 +543,13 @@ def power_iteration(mcdc):
     fission_source_old = score_bin["fission-source"].copy()
 
     while not simulation_end:
+        # normalize source to effective fission source
+        # mcdc["technique"]["iqmc"]["source"] /= score_bin["effective-fission"].sum()
         # iterate over scattering source
         if solver == "source_iteration":
+            mcdc["technique"]["iqmc"]["maxitt"] = 1
             source_iteration(mcdc)
+            mcdc["technique"]["iqmc"]["maxitt"] = maxit
         if solver == "gmres":
             gmres(mcdc)
         # reset counter for inner iteration
