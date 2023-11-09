@@ -2342,11 +2342,6 @@ def iqmc_prepare_source(mcdc):
     """
     flux_scatter = mcdc["technique"]["iqmc"]["score"]["flux"]
     flux_fission = mcdc["technique"]["iqmc"]["score"]["flux"]
-    if (
-        mcdc["setting"]["mode_eigenvalue"]
-        and mcdc["technique"]["iqmc"]["eigenmode_solver"] == "power_iteration"
-    ):
-        flux_fission = mcdc["technique"]["iqmc"]["score"]["flux-outter"]
     mesh = mcdc["technique"]["iqmc"]["mesh"]
     Nt = len(mesh["t"]) - 1
     Nx = len(mesh["x"]) - 1

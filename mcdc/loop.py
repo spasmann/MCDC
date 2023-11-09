@@ -529,7 +529,6 @@ def power_iteration(mcdc):
     # maximum number of iterations
     maxit = mcdc["technique"]["iqmc"]["maxitt"]
     score_bin = mcdc["technique"]["iqmc"]["score"]
-    score_bin["flux-outter"] = score_bin["flux"].copy()
     k_old = mcdc["k_eff"]
     solver = mcdc["technique"]["iqmc"]["fixed_source_solver"]
 
@@ -562,7 +561,6 @@ def power_iteration(mcdc):
         mcdc["technique"]["iqmc"]["res_outter"] = abs(mcdc["k_eff"] - k_old) / k_old
         k_old = mcdc["k_eff"]
         # store outter iteration values
-        score_bin["flux-outter"] = score_bin["flux"].copy()
         score_bin["effective-fission-outter"] = score_bin["effective-fission"].copy()
         fission_source_old = score_bin["fission-source"].copy()
         mcdc["technique"]["iqmc"]["itt_outter"] += 1
