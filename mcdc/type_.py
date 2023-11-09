@@ -532,7 +532,7 @@ def make_type_technique(N_particle, G, card):
         ["tilt-yz", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-xyz", (Ng, Nt, Nx, Ny, Nz)],
         ["fission-power", (Ng, Nt, Nx, Ny, Nz)],  # SigmaF*phi
-        ["fission-source", (Ng, Nt, Nx, Ny, Nz)],  # nu*SigmaF*phi
+        ["fission-source", (1,)] # nu*SigmaF*phi
     ]
 
     if card["iQMC"]:
@@ -579,7 +579,6 @@ def make_type_technique(N_particle, G, card):
         ("krylov_restart", int64),
         ("preconditioner_sweeps", int64),
         ("sweep_counter", int64),
-        ("source_tilt", int64),
         ("w_min", float64),
     ]
 

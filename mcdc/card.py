@@ -96,7 +96,6 @@ class InputDeck:
                 "maxitt": 5,
                 "N_dim": 6,
                 "seed": 12345,
-                "source_tilt": 0,
                 "scramble": False,
                 "fixed_source": np.ones([1, 1, 1, 1]),
                 "material_idx": np.ones([1, 1, 1, 1]),

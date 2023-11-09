@@ -542,8 +542,6 @@ def power_iteration(mcdc):
     fission_source_old = score_bin["fission-source"].copy()
 
     while not simulation_end:
-        # normalize source to effective fission source
-        # mcdc["technique"]["iqmc"]["source"] /= score_bin["effective-fission"].sum()
         # iterate over scattering source
         if solver == "source_iteration":
             mcdc["technique"]["iqmc"]["maxitt"] = 1
@@ -555,7 +553,7 @@ def power_iteration(mcdc):
         mcdc["technique"]["iqmc"]["itt"] = 0
 
         # update k_eff
-        mcdc["k_eff"] *= score_bin["fission-source"].sum() / fission_source_old.sum()
+        mcdc["k_eff"] *= score_bin["fission-source"] / fission_source_old
 
         # calculate diff in keff
         mcdc["technique"]["iqmc"]["res_outter"] = abs(mcdc["k_eff"] - k_old) / k_old

@@ -2324,11 +2324,7 @@ def iqmc_prepare_nuSigmaF(mcdc):
                     t = 0
                     mat_idx = mcdc["technique"]["iqmc"]["material_idx"][t, i, j, k]
                     material = mcdc["materials"][mat_idx]
-                    nu_f = material["nu_f"]
-                    SigmaF = material["fission"]
-                    mcdc["technique"]["iqmc"]["score"]["fission-source"][
-                        :, t, i, j, k
-                    ] = (nu_f * SigmaF * flux[:, t, i, j, k])
+                    mcdc["technique"]["iqmc"]["score"]["fission-source"] += iqmc_fission_source(flux[:, t, i, j, k], material)
 
 
 @njit
@@ -2358,10 +2354,10 @@ def iqmc_prepare_source(mcdc):
                 for k in range(Nz):
                     mat_idx = mcdc["technique"]["iqmc"]["material_idx"][t, i, j, k]
                     # we can vectorize the multigroup calculation here
-                    fission[:, t, i, j, k] = iqmc_fission_source(
+                    fission[:, t, i, j, k] = iqmc_effective_fission(
                         flux_fission[:, t, i, j, k], mat_idx, mcdc
                     )
-                    scatter[:, t, i, j, k] = iqmc_scattering_source(
+                    scatter[:, t, i, j, k] = iqmc_effective_scattering(
                         flux_scatter[:, t, i, j, k], mat_idx, mcdc
                     )
     mcdc["technique"]["iqmc"]["score"]["effective-scattering"] = scatter
@@ -2482,8 +2478,6 @@ def iqmc_score_tallies(P, distance, mcdc):
     material = mcdc["materials"][P["material_ID"]]
     w = P["iqmc"]["w"]
     SigmaT = material["total"]
-    SigmaF = material["fission"]
-    nu_f = material["nu_f"]
     mat_id = P["material_ID"]
 
     t, x, y, z, outside = mesh_get_index(P, mesh)
@@ -2506,18 +2500,18 @@ def iqmc_score_tallies(P, distance, mcdc):
     score_bin["flux"][:, t, x, y, z] += flux
 
     # Score effective source tallies
-    score_bin["effective-scattering"][:, t, x, y, z] += iqmc_scattering_source(
+    score_bin["effective-scattering"][:, t, x, y, z] += iqmc_effective_scattering(
         flux, mat_id, mcdc
     )
-    score_bin["effective-fission"][:, t, x, y, z] += iqmc_fission_source(
+    score_bin["effective-fission"][:, t, x, y, z] += iqmc_effective_fission(
         flux, mat_id, mcdc
     )
 
     if score_list["fission-source"]:
-        score_bin["fission-source"][:, t, x, y, z] += nu_f * SigmaF * flux
+        score_bin["fission-source"] += iqmc_fission_source(flux, material)
 
     if score_list["fission-power"]:
-        score_bin["fission-power"][:, t, x, y, z] += SigmaF * flux
+        score_bin["fission-power"][:, t, x, y, z] += iqmc_fission_power(flux, material)
 
     if score_list["tilt-t"]:
         t_mid = mesh["t"][t] + (dt * 0.5)
@@ -3023,7 +3017,20 @@ def iqmc_flux(SigmaT, w, distance, dV):
 
 
 @njit
-def iqmc_fission_source(phi, mat_id, mcdc):
+def iqmc_fission_source(phi, material):
+    SigmaF = material["fission"]
+    nu_f = material["nu_f"]
+    return np.sum(nu_f * SigmaF * phi)
+
+
+@njit
+def iqmc_fission_power(phi, material):
+    SigmaF = material["fission"]
+    return SigmaF * phi
+
+
+@njit
+def iqmc_effective_fission(phi, mat_id, mcdc):
     """
     Calculate the fission source for use with iQMC.
 
@@ -3058,7 +3065,7 @@ def iqmc_fission_source(phi, mat_id, mcdc):
 
 
 @njit
-def iqmc_scattering_source(phi, mat_id, mcdc):
+def iqmc_effective_scattering(phi, mat_id, mcdc):
     """
     Calculate the scattering source for use with iQMC.
 
@@ -3085,8 +3092,8 @@ def iqmc_scattering_source(phi, mat_id, mcdc):
 
 @njit
 def iqmc_effective_source(phi, mat_id, mcdc):
-    S = iqmc_scattering_source(phi, mat_id, mcdc)
-    F = iqmc_fission_source(phi, mat_id, mcdc)
+    S = iqmc_effective_scattering(phi, mat_id, mcdc)
+    F = iqmc_effective_fission(phi, mat_id, mcdc)
     return S + F
 
 
@@ -3274,7 +3281,6 @@ def FxV(V, mcdc):
     mcdc["bank_source"]["size"] = 0
 
     # QMC Sweep
-    # prepare_qmc_iqmc_fission_source(mcdc)
     mcdc["technique"]["iqmc"]["source"] = (
         mcdc["technique"]["iqmc"]["fixed_source"]
         + mcdc["technique"]["iqmc"]["score"]["effective-fission"]
