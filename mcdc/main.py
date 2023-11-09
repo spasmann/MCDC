@@ -646,6 +646,9 @@ def generate_hdf5(mcdc):
                 f.create_dataset(
                     "iqmc/fission_source", data=T["iqmc"]["score"]["fission-source"]
                 )
+                f.create_dataset(
+                    "iqmc/fission_power", data=T["iqmc"]["score"]["fission-power"]
+                )
                 f.create_dataset("iqmc/source/constant", data=T["iqmc"]["source"])
                 f.create_dataset("iqmc/source/x", data=T["iqmc"]["score"]["tilt-x"])
                 f.create_dataset("iqmc/source/y", data=T["iqmc"]["score"]["tilt-y"])
