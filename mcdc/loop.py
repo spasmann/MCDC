@@ -535,6 +535,7 @@ def power_iteration(mcdc):
     kernel.iqmc_generate_material_idx(mcdc)
     if mcdc["technique"]["iqmc"]["source"].all() == 0.0:
         kernel.iqmc_prepare_source(mcdc)
+        kernel.iqmc_update_source(mcdc)
 
     if mcdc["technique"]["iqmc"]["score"]["fission-source"].all() == 0.0:
         kernel.iqmc_prepare_nuSigmaF(mcdc)
@@ -553,7 +554,7 @@ def power_iteration(mcdc):
         mcdc["technique"]["iqmc"]["itt"] = 0
 
         # update k_eff
-        mcdc["k_eff"] *= score_bin["fission-source"] / fission_source_old
+        mcdc["k_eff"] *= score_bin["fission-source"][0] / fission_source_old[0]
 
         # calculate diff in keff
         mcdc["technique"]["iqmc"]["res_outter"] = abs(mcdc["k_eff"] - k_old) / k_old

@@ -556,7 +556,7 @@ def make_type_technique(N_particle, G, card):
         if not card["iqmc"]["score_list"][name]:
             shape = (0,) * len(shape)
         scores_struct += [(name, float64, shape)]
-    # TODO: make outter flux/effective fission size zero if not eigenmode
+    # TODO: make outter effective fission size zero if not eigenmode
     # (causes problems with numba)
     scores_struct += [("effective-fission-outter", float64, (Ng, Nt, Nx, Ny, Nz))]
     scores = np.dtype(scores_struct)

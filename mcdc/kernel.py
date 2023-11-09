@@ -2803,6 +2803,8 @@ def iqmc_update_source(mcdc):
         and mcdc["technique"]["iqmc"]["eigenmode_solver"] == "power_iteration"
     ):
         fission = mcdc["technique"]["iqmc"]["score"]["effective-fission-outter"]
+        # normalize fission source
+        # fission /= fission.sum()
     else:
         fission = mcdc["technique"]["iqmc"]["score"]["effective-fission"]
     mcdc["technique"]["iqmc"]["source"] = scatter + (fission / keff) + fixed
