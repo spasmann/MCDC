@@ -78,7 +78,7 @@ def pi_test():
     output = h5py.File("pi_output.h5", "r")
     answer = h5py.File("pi_answer.h5", "r")
 
-    a = answer["tally/iqmc_flux"][:]
+    a = answer["iqmc/flux"][:]
     b = output["iqmc/flux"][:]
     assert np.allclose(a, b)
 
@@ -178,5 +178,5 @@ def davidson_test():
 
 
 if __name__ == "__main__":
-    # pi_test()
-    davidson_test()
+    pi_test()
+    # davidson_test()

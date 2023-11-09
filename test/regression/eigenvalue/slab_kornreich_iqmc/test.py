@@ -171,5 +171,5 @@ def davidson_test():
 
 
 if __name__ == "__main__":
-    # pi_test()
-    davidson_test()
+    pi_test()
+    # davidson_test()
