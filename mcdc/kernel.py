@@ -2309,6 +2309,23 @@ def iqmc_continuous_weight_reduction(P, distance, mcdc):
 
 
 @njit
+def iqmc_preprocess(mcdc):
+    # set bank source
+    iqmc = mcdc["technique"]["iqmc"]
+    eigenmode = mcdc["setting"]["mode_eigenvalue"]
+    # generate material index
+    iqmc_generate_material_idx(mcdc)
+    if iqmc["source"].all() == 0.0:
+        # use material index to generate a first guess for the source
+        iqmc_prepare_source(mcdc)
+        iqmc_update_source(mcdc)
+    if eigenmode and iqmc["eigenmode_solver"] == "power_iteration":
+        iqmc_prepare_nuSigmaF(mcdc)
+
+    iqmc_consolidate_sources(mcdc)
+
+
+@njit
 def iqmc_prepare_nuSigmaF(mcdc):
     iqmc = mcdc["technique"]["iqmc"]
     mesh = iqmc["mesh"]

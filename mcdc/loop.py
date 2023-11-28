@@ -293,6 +293,7 @@ def loop_particle(P, mcdc):
 def loop_iqmc(mcdc):
     # function calls from specified solvers
     iqmc = mcdc["technique"]["iqmc"]
+    kernel.iqmc_preprocess(mcdc)
     if mcdc["setting"]["mode_eigenvalue"]:
         if iqmc["eigenmode_solver"] == "davidson":
             davidson(mcdc)
@@ -309,14 +310,6 @@ def loop_iqmc(mcdc):
 def source_iteration(mcdc):
     simulation_end = False
     iqmc = mcdc["technique"]["iqmc"]
-    # set bank source
-    if not mcdc["setting"]["mode_eigenvalue"] and iqmc["source"].all() == 0.0:
-        # generate material index
-        kernel.iqmc_generate_material_idx(mcdc)
-        # use material index to generate a first guess for the source
-        kernel.iqmc_prepare_source(mcdc)
-
-    kernel.iqmc_consolidate_sources(mcdc)
     total_source_old = iqmc["total_source"].copy()
 
     while not simulation_end:
@@ -377,13 +370,6 @@ def gmres(mcdc):
     single_vector = iqmc["fixed_source"].size
     b = np.zeros_like(iqmc["total_source"])
     b[:single_vector] = np.reshape(fixed_source, fixed_source.size)
-    # use piece-wise constant material approximations for the first source guess
-    if not mcdc["setting"]["mode_eigenvalue"] and iqmc["source"].all() == 0.0:
-        # generate material index
-        kernel.iqmc_generate_material_idx(mcdc)
-        kernel.iqmc_prepare_source(mcdc)
-
-    kernel.iqmc_consolidate_sources(mcdc)
     X = iqmc["total_source"].copy()
     # initial residual
     r = b - kernel.AxV(X, b, mcdc)
@@ -525,14 +511,6 @@ def power_iteration(mcdc):
     k_old = mcdc["k_eff"]
     solver = iqmc["fixed_source_solver"]
 
-    kernel.iqmc_generate_material_idx(mcdc)
-    if iqmc["source"].all() == 0.0:
-        kernel.iqmc_prepare_source(mcdc)
-        kernel.iqmc_update_source(mcdc)
-
-    if iqmc["score"]["fission-source"].all() == 0.0:
-        kernel.iqmc_prepare_nuSigmaF(mcdc)
-
     fission_source_old = score_bin["fission-source"].copy()
 
     while not simulation_end:
@@ -600,14 +578,7 @@ def davidson(mcdc):
     V = np.zeros((Nt, m), dtype=np.float64)
     HV = np.zeros((Nt, m), dtype=np.float64)
     FV = np.zeros((Nt, m), dtype=np.float64)
-    # generate first guess of source if none was passed through
-    if iqmc["source"].all() == 0.0:
-        # generate material index
-        kernel.iqmc_generate_material_idx(mcdc)
-        # generate intial guess
-        kernel.iqmc_prepare_source(mcdc)
 
-    kernel.iqmc_consolidate_sources(mcdc)
     V0 = iqmc["total_source"].copy()
     V0 = kernel.preconditioner(V0, mcdc, num_sweeps=5)
     # orthonormalize initial guess
