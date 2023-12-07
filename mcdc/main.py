@@ -656,7 +656,6 @@ def generate_hdf5(mcdc):
                 f.create_dataset("iqmc/source/xy", data=T["iqmc"]["score"]["tilt-xy"])
                 f.create_dataset("iqmc/source/xz", data=T["iqmc"]["score"]["tilt-xz"])
                 f.create_dataset("iqmc/source/yz", data=T["iqmc"]["score"]["tilt-yz"])
-                f.create_dataset("iqmc/source/xyz", data=T["iqmc"]["score"]["tilt-xyz"])
                 # iteration data
                 f.create_dataset("iqmc/itteration_count", data=T["iqmc"]["itt"])
                 f.create_dataset("iqmc/final_residual", data=T["iqmc"]["res"])

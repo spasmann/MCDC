@@ -1226,11 +1226,6 @@ def iQMC(
         if source_yz0 is None:
             source_yz0 = np.zeros_like(phi0)
 
-    if score_list["tilt-xyz"]:
-        card["iqmc"]["krylov_vector_size"] += 1
-        if source_xyz0 is None:
-            source_xyz0 = np.zeros_like(phi0)
-
     if fission_source0 is not None:
         card["iqmc"]["score"]["fission-source"] = fission_source0
 
@@ -1242,7 +1237,6 @@ def iQMC(
     card["iqmc"]["score"]["tilt-xy"] = source_xy0
     card["iqmc"]["score"]["tilt-xz"] = source_xz0
     card["iqmc"]["score"]["tilt-yz"] = source_yz0
-    card["iqmc"]["score"]["tilt-xyz"] = source_xyz0
     card["iqmc"]["source"] = source0
     card["iqmc"]["fixed_source"] = fixed_source
     card["iqmc"]["fixed_source_solver"] = fixed_source_solver

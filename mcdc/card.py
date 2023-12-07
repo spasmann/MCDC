@@ -109,7 +109,6 @@ class InputDeck:
                     "tilt-xy": np.zeros([1, 1, 1, 1]),
                     "tilt-xz": np.zeros([1, 1, 1, 1]),
                     "tilt-yz": np.zeros([1, 1, 1, 1]),
-                    "tilt-xyz": np.zeros([1, 1, 1, 1]),
                     "fission-source": np.zeros([1, 1, 1, 1]),
                 },
                 "score_list": {
@@ -123,7 +122,6 @@ class InputDeck:
                     "tilt-xy": False,
                     "tilt-xz": False,
                     "tilt-yz": False,
-                    "tilt-xyz": False,
                     "fission-power": False,
                     "fission-source": False,
                 },

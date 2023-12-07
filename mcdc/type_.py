@@ -443,7 +443,6 @@ iqmc_score_list = (
     "tilt-xy",
     "tilt-xz",
     "tilt-yz",
-    "tilt-xyz",
     "fission-power",
     "fission-source",
 )
@@ -530,7 +529,6 @@ def make_type_technique(N_particle, G, card):
         ["tilt-xy", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-xz", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-yz", (Ng, Nt, Nx, Ny, Nz)],
-        ["tilt-xyz", (Ng, Nt, Nx, Ny, Nz)],
         ["fission-power", (Ng, Nt, Nx, Ny, Nz)],  # SigmaF*phi
         ["fission-source", (1,)],  # nu*SigmaF*phi
     ]

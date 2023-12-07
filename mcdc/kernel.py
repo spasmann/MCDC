@@ -2611,29 +2611,6 @@ def iqmc_score_tallies(P, distance, mcdc):
         )
         score_bin["tilt-yz"][:, t, x, y, z] += iqmc_effective_source(tilt, mat_id, mcdc)
 
-    if score_list["tilt-xyz"]:
-        tilt = iqmc_trilinear_tilt(
-            P["ux"],
-            P["x"],
-            dx,
-            x_mid,
-            P["uy"],
-            P["y"],
-            dy,
-            y_mid,
-            P["uz"],
-            P["z"],
-            dz,
-            z_mid,
-            dt,
-            w,
-            distance,
-            SigmaT,
-        )
-        score_bin["tilt-xyz"][:, t, x, y, z] += iqmc_effective_source(
-            tilt, mat_id, mcdc
-        )
-
 
 @njit
 def iqmc_cell_volume(x, y, z, mesh):
@@ -2867,14 +2844,6 @@ def iqmc_tilt_source(t, x, y, z, P, Q, mcdc):
     # bilinear yz
     if score_list["tilt-yz"]:
         Q += score_bin["tilt-yz"][:, t, x, y, z] * (P["y"] - y_mid) * (P["z"] - z_mid)
-    # trilinear xyz
-    if score_list["tilt-xyz"]:
-        Q += (
-            score_bin["tilt-xyz"][:, t, x, y, z]
-            * (P["x"] - x_mid)
-            * (P["y"] - y_mid)
-            * (P["z"] - z_mid)
-        )
 
 
 @njit
@@ -2930,7 +2899,6 @@ def iqmc_distribute_sources(mcdc):
         "tilt-xy",
         "tilt-xz",
         "tilt-yz",
-        "tilt-xyz",
     ]
     for name in literal_unroll(tilt_list):
         if score_list[name]:
@@ -2990,7 +2958,6 @@ def iqmc_consolidate_sources(mcdc):
         "tilt-xy",
         "tilt-xz",
         "tilt-yz",
-        "tilt-xyz",
     ]
     for name in literal_unroll(tilt_list):
         if score_list[name]:
@@ -3140,60 +3107,6 @@ def iqmc_bilinear_tilt(ux, x, dx, x_mid, uy, y, dy, y_mid, dt, dz, w, S, SigmaT)
     )
 
     Q *= 144 / (dt * dx**3 * dy**3 * dz)
-    return Q
-
-
-@njit
-def iqmc_trilinear_tilt(
-    ux, x, dx, x_mid, uy, y, dy, y_mid, uz, z, dz, z_mid, dt, w, S, SigmaT
-):
-    # TODO: precompute some variables like (x-x_mid) and SigmaT*S
-    Q = (
-        (1 / SigmaT**4)
-        * w
-        * (
-            (x - x_mid)
-            * SigmaT
-            * (
-                (y - y_mid) * SigmaT * (uz + (z - z_mid) * SigmaT)
-                + uy * (2 * uz + (z - z_mid) * SigmaT)
-            )
-            + ux
-            * (
-                (y - y_mid) * SigmaT * (2 * uz + (z - z_mid) * SigmaT)
-                + 2 * uy * (3 * uz + (z - z_mid) * SigmaT)
-            )
-            + np.exp(-SigmaT * S)
-            * (
-                -(
-                    (x - x_mid)
-                    * SigmaT
-                    * (
-                        (y - y_mid)
-                        * SigmaT
-                        * ((z - z_mid) * SigmaT + uz * (1 + S * SigmaT))
-                        + uy
-                        * (
-                            (z - z_mid) * SigmaT * (1 + SigmaT * S)
-                            + uz * (2 + SigmaT * S * (2 + SigmaT * S))
-                        )
-                    )
-                )
-                - ux
-                * (
-                    (y - y_mid)
-                    * SigmaT
-                    * (
-                        (z - z_mid) * SigmaT * (1 + SigmaT * S)
-                        + uz * (2 + SigmaT * S * (2 + SigmaT * S))
-                    )
-                    + uy * ((z - z_mid) * SigmaT * (2 + SigmaT * S))
-                    + uz * (6 + SigmaT * S * (6 + SigmaT * S * (3 + SigmaT * S)))
-                )
-            )
-        )
-    )
-    Q *= 1278 / (dt * dx**3 * dy**3 * dz**3)
     return Q
 
 
