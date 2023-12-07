@@ -164,22 +164,23 @@ def print_iqmc_eigenvalue_progress(mcdc):
 
 def print_iqmc_eigenvalue_exit_code(mcdc):
     if master:
-        sys.stdout.write("\r")
-        maxit = mcdc["technique"]["iqmc"]["maxitt"]
-        itt = mcdc["technique"]["iqmc"]["itt_outter"]
-        if itt >= maxit:
-            print("\n")
-            print("================================")
-            print("\n")
-            print(
-                " Convergence to tolerance not achieved: Maximum number of iterations."
-            )
-        else:
-            print("\n")
-            print("================================")
-            print(" Successful convergence.")
-            print("\n")
-        sys.stdout.flush()
+        if mcdc["setting"]["progress_bar"]:
+            sys.stdout.write("\r")
+            maxit = mcdc["technique"]["iqmc"]["maxitt"]
+            itt = mcdc["technique"]["iqmc"]["itt_outter"]
+            if itt >= maxit:
+                print("\n")
+                print("================================")
+                print("\n")
+                print(
+                    " Convergence to tolerance not achieved: Maximum number of iterations."
+                )
+            else:
+                print("\n")
+                print("================================")
+                print(" Successful convergence.")
+                print("\n")
+            sys.stdout.flush()
 
 
 def print_runtime(mcdc):
