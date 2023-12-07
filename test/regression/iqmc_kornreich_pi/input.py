@@ -57,7 +57,7 @@ mcdc.iQMC(
     tol=tol,
     generator=generator,
     eigenmode_solver=solver,
-    score=['tilt-x']
+    score=["tilt-x"],
 )
 # Setting
 mcdc.setting(N_particle=N)

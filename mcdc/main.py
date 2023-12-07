@@ -716,18 +716,31 @@ def generate_hdf5(mcdc):
                     "iqmc/tally/flux", data=np.squeeze(T["iqmc"]["score"]["flux"])
                 )
                 f.create_dataset(
-                    "iqmc/tally/fission_source", data=T["iqmc"]["score"]["fission-source"]
+                    "iqmc/tally/fission_source",
+                    data=T["iqmc"]["score"]["fission-source"],
                 )
                 f.create_dataset(
                     "iqmc/tally/fission_power", data=T["iqmc"]["score"]["fission-power"]
                 )
                 f.create_dataset("iqmc/tally/source_constant", data=T["iqmc"]["source"])
-                f.create_dataset("iqmc/tally/source_x", data=T["iqmc"]["score"]["tilt-x"])
-                f.create_dataset("iqmc/tally/source_y", data=T["iqmc"]["score"]["tilt-y"])
-                f.create_dataset("iqmc/tally/source_z", data=T["iqmc"]["score"]["tilt-z"])
-                f.create_dataset("iqmc/tally/source_xy", data=T["iqmc"]["score"]["tilt-xy"])
-                f.create_dataset("iqmc/tally/source_xz", data=T["iqmc"]["score"]["tilt-xz"])
-                f.create_dataset("iqmc/tally/source_yz", data=T["iqmc"]["score"]["tilt-yz"])
+                f.create_dataset(
+                    "iqmc/tally/source_x", data=T["iqmc"]["score"]["tilt-x"]
+                )
+                f.create_dataset(
+                    "iqmc/tally/source_y", data=T["iqmc"]["score"]["tilt-y"]
+                )
+                f.create_dataset(
+                    "iqmc/tally/source_z", data=T["iqmc"]["score"]["tilt-z"]
+                )
+                f.create_dataset(
+                    "iqmc/tally/source_xy", data=T["iqmc"]["score"]["tilt-xy"]
+                )
+                f.create_dataset(
+                    "iqmc/tally/source_xz", data=T["iqmc"]["score"]["tilt-xz"]
+                )
+                f.create_dataset(
+                    "iqmc/tally/source_yz", data=T["iqmc"]["score"]["tilt-yz"]
+                )
                 # iteration data
                 f.create_dataset("iqmc/itteration_count", data=T["iqmc"]["itt"])
                 f.create_dataset("iqmc/final_residual", data=T["iqmc"]["res"])

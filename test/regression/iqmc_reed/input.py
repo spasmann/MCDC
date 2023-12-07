@@ -60,7 +60,7 @@ mcdc.iQMC(
     tol=tol,
     generator=generator,
     fixed_source_solver=solver,
-    score=['tilt-x']
+    score=["tilt-x"],
 )
 
 # =============================================================================
