@@ -557,7 +557,7 @@ def prepare():
         scramble = mcdc["technique"]["iqmc"]["scramble"]
         N_dim = mcdc["technique"]["iqmc"]["N_dim"]
         seed = mcdc["technique"]["iqmc"]["seed"]
-        N = mcdc["setting"]["N_particle"]
+        N_particle = mcdc["setting"]["N_particle"]
         size = MPI.COMM_WORLD.Get_size()
         rank = MPI.COMM_WORLD.Get_rank()
         N_work = math.ceil(N_particle / size)
@@ -577,12 +577,8 @@ def prepare():
             sampler.fast_forward(1)
             sampler.fast_forward(fast_forward)
             mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+            # print("LDS shape = ", mcdc["technique"]["iqmc"]["lds"].shape)
         if input_deck.technique["iqmc"]["generator"] == "random":
-            # this chunk of code uses the iqmc_seed to generate a number of
-            # seeds to be used  on each processor
-            # this way, each processor gets different samples, but if iQMC is run
-            # several times it will generate the same samples across runs
-            # 1e6 represents the maximum integer size generated
             np.random.seed(seed)
             seeds = np.random.randint(1e6, size=size)
             np.random.seed(seeds[rank])

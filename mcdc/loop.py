@@ -511,7 +511,10 @@ def source_iteration(mcdc):
         kernel.iqmc_reset_tallies(iqmc)
         # sweep particles
         iqmc["sweep_counter"] += 1
-        loop_source(0, mcdc)
+        if mcdc["technique"]["domain_decomp"]:
+            loop_source_dd(0, mcdc)
+        else:
+            loop_source(0, mcdc)
 
         # sum resultant flux on all processors
         kernel.iqmc_distribute_tallies(iqmc)

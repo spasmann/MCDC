@@ -3024,12 +3024,19 @@ def iqmc_prepare_particles(mcdc):
     N_particle = mcdc["setting"]["N_particle"]
     # number of particles this processor will handle
     N_work = mcdc["mpi_work_size"]
-
+    
+    # why is this off ?
+    size = MPI.COMM_WORLD.Get_size()
+    rank = MPI.COMM_WORLD.Get_rank()
+    N_work = math.ceil(N_particle / size)
+    mcdc["mpi_work_size"] = N_work
+    
     # low discrepency sequence
     lds = iqmc["lds"]
     # source
     Q = iqmc["source"]
     mesh = iqmc["mesh"]
+    
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
     Nz = len(mesh["z"]) - 1
