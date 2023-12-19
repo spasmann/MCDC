@@ -557,7 +557,6 @@ def prepare():
         scramble = mcdc["technique"]["iqmc"]["scramble"]
         N_dim = mcdc["technique"]["iqmc"]["N_dim"]
         seed = mcdc["technique"]["iqmc"]["seed"]
-        N_particle = mcdc["setting"]["N_particle"]
         size = MPI.COMM_WORLD.Get_size()
         rank = MPI.COMM_WORLD.Get_rank()
         N_work = math.ceil(N_particle / size)
