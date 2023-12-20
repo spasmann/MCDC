@@ -3026,10 +3026,10 @@ def iqmc_prepare_particles(mcdc):
     N_work = mcdc["mpi_work_size"]
     
     # why is this off ?
-    # size = MPI.COMM_WORLD.Get_size()
-    # rank = MPI.COMM_WORLD.Get_rank()
-    # N_work = math.ceil(N_particle / size)
-    # mcdc["mpi_work_size"] = N_work
+    size = MPI.COMM_WORLD.Get_size()
+    rank = MPI.COMM_WORLD.Get_rank()
+    N_work = math.ceil(N_particle / size)
+    mcdc["mpi_work_size"] = N_work
     
     # low discrepency sequence
     lds = iqmc["lds"]
