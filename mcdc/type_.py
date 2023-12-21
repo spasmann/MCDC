@@ -59,7 +59,8 @@ def make_type_particle(iQMC, G):
     Ng = 1
     if iQMC:
         Ng = G
-    iqmc_struct = [("w", float64, (Ng,))]
+    iqmc_struct = [("w", float64, (Ng,)),
+                   ("d_id", int32)]
     struct += [("iqmc", iqmc_struct)]
     particle = np.dtype(struct)
 
@@ -84,7 +85,8 @@ def make_type_particle_record(iQMC, G):
     Ng = 1
     if iQMC:
         Ng = G
-    iqmc_struct = [("w", float64, (Ng,))]
+    iqmc_struct = [("w", float64, (Ng,)),
+                   ("d_id", int32)]
     struct += [("iqmc", iqmc_struct)]
     particle_record = np.dtype(struct)
 
@@ -529,7 +531,7 @@ def make_type_technique(N_particle, G, card):
 
     # Low-discprenecy sequence
     N_work = math.ceil(N_particle / MPI.COMM_WORLD.Get_size())
-    iqmc_list += [("lds", float64, (N_work, N_dim))]
+    iqmc_list += [("lds", float64, (N_particle, N_dim))]
     iqmc_list += [("fixed_source", float64, (Ng, Nt, Nx, Ny, Nz))]
     # TODO: make matidx int32
     iqmc_list += [("material_idx", int64, (Nt, Nx, Ny, Nz))]
@@ -834,7 +836,7 @@ def make_type_global(card):
 
     # iQMC bank adjustment
     if card.technique["iQMC"]:
-        bank_source = particle_bank(N_work)
+        bank_source = particle_bank(N_particle)
         if card.setting["mode_eigenvalue"]:
             bank_census = particle_bank(0)
 
@@ -846,9 +848,7 @@ def make_type_global(card):
             bank_source = particle_bank(N_work)
             bank_precursor = precursor_bank(N_precursor)
 
-    if (
-        card.setting["source_file"] and not card.setting["mode_eigenvalue"]
-    ) or card.technique["iQMC"]:
+    if card.setting["source_file"] and not (card.setting["mode_eigenvalue"] or card.technique["iQMC"]):
         bank_source = particle_bank(N_work)
 
     # GLobal type

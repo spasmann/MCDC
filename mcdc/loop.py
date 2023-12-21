@@ -221,7 +221,12 @@ def loop_source_dd(seed, mcdc):
 
     work_start = mcdc["mpi_work_start"]
     work_end = work_start + mcdc["mpi_work_size"]
-    for work_idx in range(work_start, work_end):
+    
+    size = MPI.COMM_WORLD.Get_size()
+    N_particle = mcdc["setting"]["N_particle"]
+    N_work = math.ceil(N_particle / size)
+    
+    for work_idx in range(N_particle):
         seed_work = kernel.split_seed(work_idx, seed)
         # Particle tracker
         if mcdc["setting"]["track_particle"]:
@@ -237,26 +242,23 @@ def loop_source_dd(seed, mcdc):
         # Get from fixed-source?
         if mcdc["bank_source"]["size"] == 0:
             # Sample source
-            if mcdc["technique"]["repro"]:
-                P = kernel.source_particle(seed_work, mcdc)
-
-            else:
-                P = kernel.source_particle(seed_work, mcdc)
+            P = kernel.source_particle(seed_work, mcdc)
             P["w"] /= mcdc["technique"]["work_ratio"][mcdc["d_idx"]]
         # Get from source bank
         else:
             P = mcdc["bank_source"]["particles"][work_idx]
+        
+        if not kernel.particle_in_domain(P, mcdc):
+            continue
 
         # Check if it is beyond current census index
         idx_census = mcdc["idx_census"]
         if P["t"] > mcdc["setting"]["census_time"][idx_census]:
             P["t"] += SHIFT
-            if kernel.particle_in_domain(P, mcdc):
-                kernel.add_particle(P, mcdc["bank_census"])
+            kernel.add_particle(P, mcdc["bank_census"])
         else:
             # Add the source particle into the active bank
-            if kernel.particle_in_domain(P, mcdc):
-                kernel.add_particle(P, mcdc["bank_active"])
+            kernel.add_particle(P, mcdc["bank_active"])
 
         # =====================================================================
         # Run the source particle and its secondaries
@@ -266,9 +268,6 @@ def loop_source_dd(seed, mcdc):
         while mcdc["bank_active"]["size"] > 0:
             # Get particle from active bank
             P = kernel.get_particle(mcdc["bank_active"], mcdc)
-            if not kernel.particle_in_domain(P, mcdc):
-                print("particle not in domain")
-                input()
             # Apply weight window
             if mcdc["technique"]["weight_window"]:
                 kernel.weight_window(P, mcdc)
@@ -290,13 +289,6 @@ def loop_source_dd(seed, mcdc):
             N_prog += 1
             with objmode():
                 print_progress(percent, mcdc)
-    skip = mcdc["mpi_work_size_total"] - mcdc["mpi_work_start"]
-    rank = MPI.COMM_WORLD.Get_rank()
-    kernel.dd_particle_send(mcdc)
-    proc = mcdc["mpi_rank"]
-    # f = open('dd_tally'+str(proc)+'.csv','a')
-    # f.write('recieving,\n')
-    # print("Done sourcing particles, running remaining particles")
     terminated = False
     kernel.dd_particle_receive(mcdc)
     wr_new = 0
@@ -466,21 +458,6 @@ def loop_particle(P, mcdc):
             else:
                 if not (event & EVENT_LATTICE or event & EVENT_MESH):
                     kernel.shift_particle(P, SHIFT)
-                """
-                mesh = mcdc["technique"]["domain_mesh"]
-                d_idx = mcdc["d_idx"]
-                d_Nx = mcdc["technique"]["domain_mesh"]["x"].size - 1
-                d_Ny = mcdc["technique"]["domain_mesh"]["y"].size - 1
-                d_Nz = mcdc["technique"]["domain_mesh"]["z"].size - 1
-
-                d_iz = int(d_idx / (d_Nx * d_Ny))
-                d_iy = int((d_idx - d_Nx * d_Ny * d_iz) / d_Nx)
-                d_ix = int(d_idx - d_Nx * d_Ny * d_iz - d_Nx * d_iy)
-                kernel.shift_particle(P, 4 * SHIFT)
-                t2, x2, y2, z2, outside2 = kernel.mesh_get_index(P, mesh)
-                kernel.shift_particle(P, -4 * SHIFT)
-                if x2!=d_ix or y2!=d_iy or z2!=d_iz:
-                """
                 kernel.domain_crossing(P, mcdc)
 
         # Apply weight window
@@ -502,7 +479,119 @@ def loop_particle(P, mcdc):
 # iQMC Loops
 # =============================================================================
 
+@njit
+def iqmc_loop_source(mcdc):
+    """
+    This function's main purpose is to add the bank_source particles to 
+    the active bank, so that the while loop in iqmc_improved_kull can do
+    its thing 
+    """
+    # Loop over particle sources
+    # work_start = mcdc["mpi_work_start"]
+    # work_size = mcdc["mpi_work_size"]
+    # work_end = work_start + work_size
+    for P in mcdc["bank_source"]["particles"]:
+        if not kernel.particle_in_domain(P, mcdc):
+            continue
+        else:
+            kernel.add_particle(P, mcdc["bank_active"])
+    mcdc["bank_source"]["size"] = 0
+    iqmc_improved_kull(mcdc)
+    
+    
+@njit
+def iqmc_improved_kull(mcdc):
+    """
+    Implementation of the Improved KULL algorithm originally developed for 
+    IMC codes at LLNL.
+    
+    Brunner, T. A., Urbatsch, T. J., Evans, T. M., & Gentile, N. A. (2006). 
+    Comparison of four parallel algorithms for domain decomposed implicit Monte
+    Carlo. Journal of Computational Physics, 212, 527–539.
 
+    """
+    # Progress bar indicator
+    N_prog = 0
+
+    # =========================================================================
+    #       Loop through all local particles
+    # =========================================================================
+    while mcdc["bank_active"]["size"] > 0:
+        # Get particle from active bank
+        P = kernel.get_particle(mcdc["bank_active"], mcdc)
+        # Particle loop
+        loop_particle(P, mcdc)
+    
+    # =========================================================================
+    # Nonblocking send of particles to neighbor
+    # =========================================================================
+    buff = np.zeros(mcdc["bank_domain_xp"]["particles"].shape[0], 
+                    dtype=type_.particle_record)
+    with objmode(size="int64"):
+        neighbors = ["xp_neigh", "xn_neigh", 
+                     "yp_neigh", "yn_neigh",
+                     "zp_neigh", "zn_neigh"]
+        # for each nieghbor surrounding the domain
+        for name in neighbors:
+            destination_bank = "bank_domain_"+name[:2]
+            # and for each processor in that neighbor
+            for i in range(len(mcdc["technique"][name])):
+                # send an equal number of particles that crossed that domain
+                if mcdc["technique"][name].size > i:
+                    size = mcdc[destination_bank]["size"]
+                    ratio = int(size / len(mcdc["technique"][name]))
+                    start = ratio * i
+                    end = start + ratio
+                    if i == len(mcdc["technique"][name]) - 1:
+                        end = size
+                    bank = np.array(mcdc[destination_bank]["particles"][start:end])
+                    request = MPI.COMM_WORLD.isend(bank, 
+                                         dest=mcdc["technique"][name][i])
+            # reset the particle bank to zero
+            mcdc[destination_bank]["size"] = 0
+    # =========================================================================
+    # Blocking Receive
+    # =========================================================================
+        bankr = mcdc["bank_active"]["particles"][:0]
+        # while any unreceived particle buffer messages from neighbors
+        while len(neighbors) > 0:
+            # for each neighbor
+            for name in neighbors:
+                # for each processor in neighbor
+                for i in range(len(mcdc["technique"][name])):
+                # Iprobe([source, tag, status]) = Nonblocking test for a message
+                    if MPI.COMM_WORLD.iprobe(source=mcdc["technique"][name][i]):
+                        received = MPI.COMM_WORLD.recv(
+                                            source=mcdc["technique"][name][i])
+                        bankr = np.append(bankr, received)
+    # =========================================================================
+    # Wait for all nonblocking sends and transfer particles to active bank
+    # =========================================================================
+        request.waitall()
+        size = bankr.shape[0]
+        # Set output buffer
+        for i in range(size):
+            buff[i] = bankr[i]
+    for i in range(size):
+        kernel.add_particle(buff[i], mcdc["bank_active"])
+    # =====================================================================
+    # Closeout
+    # =====================================================================
+
+    # Tally history closeout for one-batch fixed-source simulation
+    if not mcdc["setting"]["mode_eigenvalue"] and mcdc["setting"]["N_batch"] == 1:
+        kernel.tally_closeout_history(mcdc)
+
+    # Progress printout
+    percent = (idx_work + 1.0) / mcdc["mpi_work_size"]
+    if mcdc["setting"]["progress_bar"] and int(percent * 100.0) > N_prog:
+        N_prog += 1
+        with objmode():
+            print_progress(percent, mcdc)
+    
+    
+    
+    
 @njit
 def loop_iqmc(mcdc):
     # function calls from specified solvers
@@ -536,7 +625,7 @@ def source_iteration(mcdc):
         # sweep particles
         iqmc["sweep_counter"] += 1
         if mcdc["technique"]["domain_decomp"]:
-            loop_source_dd(0, mcdc)
+            iqmc_improved_kull(mcdc)
         else:
             loop_source(0, mcdc)
 

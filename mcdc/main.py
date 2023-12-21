@@ -564,18 +564,18 @@ def prepare():
         fast_forward = int((rank / size) * N)
         # generate LDS
         if input_deck.technique["iqmc"]["generator"] == "sobol":
-            sampler = qmc.Sobol(d=N_dim, scramble=scramble)
+            sampler = qmc.Sobol(d=N_dim, scramble=scramble, seed=seed)
             # skip the first entry in Sobol sequence because its 0.0
             # skip the second because it maps to ux = 0.0
             sampler.fast_forward(2)
-            sampler.fast_forward(fast_forward)
-            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+            # sampler.fast_forward(fast_forward)
+            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_particle)
         if input_deck.technique["iqmc"]["generator"] == "halton":
             sampler = qmc.Halton(d=N_dim, scramble=scramble, seed=seed)
             # skip the first entry in Halton sequence because its 0.0
             sampler.fast_forward(1)
-            sampler.fast_forward(fast_forward)
-            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+            # sampler.fast_forward(fast_forward)
+            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_particle)
             # print("LDS shape = ", mcdc["technique"]["iqmc"]["lds"].shape)
         if input_deck.technique["iqmc"]["generator"] == "random":
             np.random.seed(seed)

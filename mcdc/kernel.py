@@ -24,7 +24,6 @@ from mcdc.loop import loop_source
 @njit
 def domain_crossing(P, mcdc):
     # Domain mesh crossing
-    max_size = mcdc["technique"]["exchange_rate"]  # /1e4)*mcdc["mpi_work_size"])
     if mcdc["technique"]["domain_decomp"]:
         mesh = mcdc["technique"]["domain_mesh"]
         # Determine which dimension is crossed
@@ -41,6 +40,9 @@ def domain_crossing(P, mcdc):
                     P["z"] -= SHIFT * P["uz"] / np.abs(P["uz"])
 
         # Score on tally
+        MESH = [MESH_X, MESH_Y, MESH_Z]
+        dim = ["x", "y", "z"]
+        
         if flag == MESH_X and P["ux"] > 0:
             add_particle(copy_particle(P), mcdc["bank_domain_xp"])
             if mcdc["bank_domain_xp"]["size"] == max_size:
@@ -67,6 +69,52 @@ def domain_crossing(P, mcdc):
                 dd_particle_send(mcdc)
         P["alive"] = False
 
+# @njit
+# def domain_crossing(P, mcdc):
+#     # Domain mesh crossing
+#     max_size = mcdc["technique"]["exchange_rate"]  # /1e4)*mcdc["mpi_work_size"])
+#     if mcdc["technique"]["domain_decomp"]:
+#         mesh = mcdc["technique"]["domain_mesh"]
+#         # Determine which dimension is crossed
+#         x, y, z, t, directions = mesh_crossing_evaluate(P, mesh)
+#         flag = directions[0]
+
+#         if len(directions) > 1:
+#             for direction in directions[1:]:
+#                 if direction == MESH_X:
+#                     P["x"] -= SHIFT * P["ux"] / np.abs(P["ux"])
+#                 if direction == MESH_Y:
+#                     P["y"] -= SHIFT * P["uy"] / np.abs(P["uy"])
+#                 if direction == MESH_Z:
+#                     P["z"] -= SHIFT * P["uz"] / np.abs(P["uz"])
+
+#         # Score on tally
+#         if flag == MESH_X and P["ux"] > 0:
+#             add_particle(copy_particle(P), mcdc["bank_domain_xp"])
+#             if mcdc["bank_domain_xp"]["size"] == max_size:
+#                 dd_particle_send(mcdc)
+#         if flag == MESH_X and P["ux"] < 0:
+#             add_particle(copy_particle(P), mcdc["bank_domain_xn"])
+#             if mcdc["bank_domain_xn"]["size"] == max_size:
+#                 dd_particle_send(mcdc)
+#         if flag == MESH_Y and P["uy"] > 0:
+#             add_particle(copy_particle(P), mcdc["bank_domain_yp"])
+#             if mcdc["bank_domain_yp"]["size"] == max_size:
+#                 dd_particle_send(mcdc)
+#         if flag == MESH_Y and P["uy"] < 0:
+#             add_particle(copy_particle(P), mcdc["bank_domain_yn"])
+#             if mcdc["bank_domain_yn"]["size"] == max_size:
+#                 dd_particle_send(mcdc)
+#         if flag == MESH_Z and P["uz"] > 0:
+#             add_particle(copy_particle(P), mcdc["bank_domain_zp"])
+#             if mcdc["bank_domain_zp"]["size"] == max_size:
+#                 dd_particle_send(mcdc)
+#         if flag == MESH_Z and P["uz"] < 0:
+#             add_particle(copy_particle(P), mcdc["bank_domain_zn"])
+#             if mcdc["bank_domain_zn"]["size"] == max_size:
+#                 dd_particle_send(mcdc)
+#         P["alive"] = False
+
 
 # =============================================================================
 # Send full domain bank
@@ -86,6 +134,14 @@ def dd_particle_send(mcdc):
                 len(mcdc["technique"]["zn_neigh"]),
             )
         ):
+            
+            print("My domain = ", mcdc["d_idx"])
+            print("xp_neigh = ",mcdc["technique"]["xp_neigh"])
+            print("xn_neigh = ",mcdc["technique"]["xn_neigh"])
+            
+            print("xp bank size = ",  mcdc["bank_domain_xp"]["size"])
+            print("xn bank size = ",  mcdc["bank_domain_xn"]["size"])
+            
             if mcdc["technique"]["xp_neigh"].size > i:
                 size = mcdc["bank_domain_xp"]["size"]
                 ratio = int(size / len(mcdc["technique"]["xp_neigh"]))
@@ -190,6 +246,7 @@ def dd_particle_receive(mcdc):
                 len(mcdc["technique"]["zn_neigh"]),
             )
         ):
+                
             if mcdc["technique"]["xp_neigh"].size > i:
                 received1 = MPI.COMM_WORLD.irecv(
                     source=mcdc["technique"]["xp_neigh"][i], tag=2
@@ -275,12 +332,11 @@ def particle_in_domain(P, mcdc):
     x_cell = binary_search(P["x"], mcdc["technique"]["domain_mesh"]["x"])
     y_cell = binary_search(P["y"], mcdc["technique"]["domain_mesh"]["y"])
     z_cell = binary_search(P["z"], mcdc["technique"]["domain_mesh"]["z"])
-    # print("xc",x_cell,"yc",y_cell,"zc",z_cell,"x",P["x"],"y",P["y"],"z",P["z"],"d_x",d_ix,"d_y",d_iy,"d_z",d_iz,"d_idx",d_idx)
+    
     if d_ix == x_cell:
         if d_iy == y_cell:
             if d_iz == z_cell:
                 return True
-    # print("xc",x_cell,"yc",y_cell,"zc",z_cell,"x",P["x"],"y",P["y"],"z",P["z"],"d_x",d_ix,"d_y",d_iy,"d_z",d_iz,"d_idx",d_idx)
     return False
 
 
@@ -773,8 +829,8 @@ def add_particle(P, bank):
     # Check if bank is full
     if bank["size"] == bank["particles"].shape[0]:
         with objmode():
+            print("Bank_size = ", bank["size"])
             print_error("Particle %s bank is full." % bank["tag"])
-
     # Set particle
     bank["particles"][bank["size"]] = P
 
@@ -3025,11 +3081,13 @@ def iqmc_prepare_particles(mcdc):
     # number of particles this processor will handle
     N_work = mcdc["mpi_work_size"]
     
-    # why is this off ?
     size = MPI.COMM_WORLD.Get_size()
     rank = MPI.COMM_WORLD.Get_rank()
     N_work = math.ceil(N_particle / size)
-    mcdc["mpi_work_size"] = N_work
+    # how many samples this processor will skip in the LDS
+    work_start = int((rank / size) * N_particle)
+    work_end = work_start + N_work
+    # print("Work = ", (work_start, work_end))
     
     # low discrepency sequence
     lds = iqmc["lds"]
@@ -3050,7 +3108,7 @@ def iqmc_prepare_particles(mcdc):
     za = mesh["z"][0]
     zb = mesh["z"][-1]
 
-    for n in range(N_work):
+    for n in range(N_particle):
         # Create new particle
         P_new = np.zeros(1, dtype=type_.particle_record)[0]
         # assign initial group, time, and rng_seed (not used)
