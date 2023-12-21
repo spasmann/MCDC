@@ -562,49 +562,43 @@ def iqmc_improved_kull(mcdc):
                 # and for each processor in that neighbor
                 for i in range(len(mcdc["technique"][name])):
                     # send an equal number of particles that crossed that domain
-                    if mcdc["technique"][name].size > i:
-                        size = len(bank)
-                        ratio = int(size / len(mcdc["technique"][name]))
-                        start = ratio * i
-                        end = start + ratio
-                        if i == len(mcdc["technique"][name]) - 1:
-                            end = size
-                        bank = np.array(bank[start:end])
-                        request = MPI.COMM_WORLD.isend(bank, 
-                                             dest=mcdc["technique"][name][i])
+                    size = len(bank)
+                    ratio = int(size / len(mcdc["technique"][name]))
+                    start = ratio * i
+                    end = start + ratio
+                    if i == len(mcdc["technique"][name]) - 1:
+                        end = size
+                    bank = np.array(bank[start:end])
+                    # print('proc ', mcdc["mpi_rank"], "sent message to ", mcdc["technique"][name][i])
+                    request = MPI.COMM_WORLD.isend(bank, 
+                                         dest=mcdc["technique"][name][i])
                 # reset the particle bank to zero
                 mcdc["bank_source"]["size"] = 0
     # =========================================================================
     # Blocking Receive
     # =========================================================================
             bankr = mcdc["bank_active"]["particles"][:0]
-            # while any unreceived particle buffer messages from neighbors
-            while len(neighbors) > 0:
-                # for each neighbor
-                for name in neighbors:
-                    # for each processor in neighbor
-                    if len(mcdc["technique"][name]) > 0:
-                        for i in range(len(mcdc["technique"][name])):
-                        # Iprobe([source, tag, status]) = Nonblocking test for a message
-                            if MPI.COMM_WORLD.iprobe(source=mcdc["technique"][name][i]):
-                                received = MPI.COMM_WORLD.recv(
-                                                    source=mcdc["technique"][name][i])
-                                bankr = np.append(bankr, received)
-                                neighbors.remove(name)
-                    else:
-                        neighbors.remove(name)
+
+            # for each neighbor
+            for name in neighbors:
+                # for each processor in neighbor
+                for source in mcdc["technique"][name]:
+                    # Nonblocking test for a message
+                    if MPI.COMM_WORLD.iprobe(source=source):
+                        # print('proc ', mcdc["mpi_rank"], "received message from ", source)
+                        received = MPI.COMM_WORLD.recv(source=source)
+                        bankr = np.append(bankr, received)
+
     # =========================================================================
     # Wait for all nonblocking sends and transfer particles to active bank
     # =========================================================================
-            # request.waitall()
+            request.wait()
+            # MPI.REQUEST_NULL.waitall()
             size = bankr.shape[0]
             # Set output buffer
             # print("bankr size = ", size)
             for i in range(size):
                 kernel.add_particle(bankr[i], mcdc["bank_active"])
-        # for i in range(size):
-            # kernel.add_particle(buff[i], mcdc["bank_active"])
-    # print("active bank size = ", mcdc["bank_active"]["size"])
 
 
 def get_domain_bank(d_id, bank_source):
