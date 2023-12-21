@@ -40,33 +40,24 @@ def domain_crossing(P, mcdc):
                     P["z"] -= SHIFT * P["uz"] / np.abs(P["uz"])
 
         # Score on tally
-        MESH = [MESH_X, MESH_Y, MESH_Z]
-        dim = ["x", "y", "z"]
-        
         if flag == MESH_X and P["ux"] > 0:
-            add_particle(copy_particle(P), mcdc["bank_domain_xp"])
-            if mcdc["bank_domain_xp"]["size"] == max_size:
-                dd_particle_send(mcdc)
+            P["iqmc"]["d_id"] = 0
+            add_particle(copy_particle(P), mcdc["bank_source"])
         if flag == MESH_X and P["ux"] < 0:
-            add_particle(copy_particle(P), mcdc["bank_domain_xn"])
-            if mcdc["bank_domain_xn"]["size"] == max_size:
-                dd_particle_send(mcdc)
+            P["iqmc"]["d_id"] = 1
+            add_particle(copy_particle(P), mcdc["bank_source"])
         if flag == MESH_Y and P["uy"] > 0:
-            add_particle(copy_particle(P), mcdc["bank_domain_yp"])
-            if mcdc["bank_domain_yp"]["size"] == max_size:
-                dd_particle_send(mcdc)
+            P["iqmc"]["d_id"] = 2
+            add_particle(copy_particle(P), mcdc["bank_source"])
         if flag == MESH_Y and P["uy"] < 0:
-            add_particle(copy_particle(P), mcdc["bank_domain_yn"])
-            if mcdc["bank_domain_yn"]["size"] == max_size:
-                dd_particle_send(mcdc)
+            P["iqmc"]["d_id"] = 3
+            add_particle(copy_particle(P), mcdc["bank_source"])
         if flag == MESH_Z and P["uz"] > 0:
-            add_particle(copy_particle(P), mcdc["bank_domain_zp"])
-            if mcdc["bank_domain_zp"]["size"] == max_size:
-                dd_particle_send(mcdc)
+            P["iqmc"]["d_id"] = 4
+            add_particle(copy_particle(P), mcdc["bank_source"])
         if flag == MESH_Z and P["uz"] < 0:
-            add_particle(copy_particle(P), mcdc["bank_domain_zn"])
-            if mcdc["bank_domain_zn"]["size"] == max_size:
-                dd_particle_send(mcdc)
+            P["iqmc"]["d_id"] = 5
+            add_particle(copy_particle(P), mcdc["bank_source"])
         P["alive"] = False
 
 # @njit
@@ -134,13 +125,6 @@ def dd_particle_send(mcdc):
                 len(mcdc["technique"]["zn_neigh"]),
             )
         ):
-            
-            print("My domain = ", mcdc["d_idx"])
-            print("xp_neigh = ",mcdc["technique"]["xp_neigh"])
-            print("xn_neigh = ",mcdc["technique"]["xn_neigh"])
-            
-            print("xp bank size = ",  mcdc["bank_domain_xp"]["size"])
-            print("xn bank size = ",  mcdc["bank_domain_xn"]["size"])
             
             if mcdc["technique"]["xp_neigh"].size > i:
                 size = mcdc["bank_domain_xp"]["size"]
@@ -866,6 +850,7 @@ def get_particle(bank, mcdc):
 
     if mcdc["technique"]["iQMC"]:
         P["iqmc"]["w"] = P_rec["iqmc"]["w"]
+        P["iqmc"]["d_id"] = P_rec["iqmc"]["d_id"]
 
     P["alive"] = True
     P["sensitivity_ID"] = P_rec["sensitivity_ID"]
@@ -1490,6 +1475,9 @@ def copy_particle(P):
     P_new["w"] = P["w"]
     P_new["rng_seed"] = P["rng_seed"]
     P_new["sensitivity_ID"] = P["sensitivity_ID"]
+    P_new["iqmc"]["w"] = P["iqmc"]["w"]
+    P_new["iqmc"]["d_id"] = P["iqmc"]["d_id"]
+    
     return P_new
 
 
@@ -3128,6 +3116,8 @@ def iqmc_prepare_particles(mcdc):
         dV = iqmc_cell_volume(x, y, z, mesh)
         # Source tilt
         iqmc_tilt_source(t, x, y, z, P_new, q, mcdc)
+        # set domain crossing flag 
+        P_new["iqmc"]["d_id"] = -1
         # set particle weight
         P_new["iqmc"]["w"] = q * dV * N_total / N_particle
         P_new["w"] = P_new["iqmc"]["w"].sum()

@@ -488,15 +488,36 @@ def iqmc_loop_source(mcdc):
     """
     # Loop over particle sources
     # work_start = mcdc["mpi_work_start"]
-    # work_size = mcdc["mpi_work_size"]
+    work_size = mcdc["mpi_work_size"]
     # work_end = work_start + work_size
+    N_prog = 0
+    
+    # add particles generated from bank source to active bank
     for P in mcdc["bank_source"]["particles"]:
         if not kernel.particle_in_domain(P, mcdc):
             continue
         else:
             kernel.add_particle(P, mcdc["bank_active"])
+    # reset bank source
     mcdc["bank_source"]["size"] = 0
-    iqmc_improved_kull(mcdc)
+    # loop through active particles
+    while mcdc["bank_active"]["size"] > 0:
+        iqmc_improved_kull(mcdc)
+    
+        # =====================================================================
+        # Closeout
+        # =====================================================================
+    
+        # Tally history closeout for one-batch fixed-source simulation
+        if not mcdc["setting"]["mode_eigenvalue"] and mcdc["setting"]["N_batch"] == 1:
+            kernel.tally_closeout_history(mcdc)
+    
+        # Progress printout
+        percent = (work_size- mcdc["bank_active"]["size"]) / work_size
+        if mcdc["setting"]["progress_bar"] and int(percent * 100.0) > N_prog:
+            N_prog += 1
+            with objmode():
+                print_progress(percent, mcdc)
     
     
 @njit
@@ -522,76 +543,79 @@ def iqmc_improved_kull(mcdc):
         # Particle loop
         loop_particle(P, mcdc)
     
+    if mcdc["bank_source"]["size"] > 0:
+        # print("bank source size = ", mcdc["bank_source"]["size"])
     # =========================================================================
     # Nonblocking send of particles to neighbor
     # =========================================================================
-    buff = np.zeros(mcdc["bank_domain_xp"]["particles"].shape[0], 
-                    dtype=type_.particle_record)
-    with objmode(size="int64"):
-        neighbors = ["xp_neigh", "xn_neigh", 
-                     "yp_neigh", "yn_neigh",
-                     "zp_neigh", "zn_neigh"]
-        # for each nieghbor surrounding the domain
-        for name in neighbors:
-            destination_bank = "bank_domain_"+name[:2]
-            # and for each processor in that neighbor
-            for i in range(len(mcdc["technique"][name])):
-                # send an equal number of particles that crossed that domain
-                if mcdc["technique"][name].size > i:
-                    size = mcdc[destination_bank]["size"]
-                    ratio = int(size / len(mcdc["technique"][name]))
-                    start = ratio * i
-                    end = start + ratio
-                    if i == len(mcdc["technique"][name]) - 1:
-                        end = size
-                    bank = np.array(mcdc[destination_bank]["particles"][start:end])
-                    request = MPI.COMM_WORLD.isend(bank, 
-                                         dest=mcdc["technique"][name][i])
-            # reset the particle bank to zero
-            mcdc[destination_bank]["size"] = 0
+        # buff = np.zeros(mcdc["bank_domain_xp"]["particles"].shape[0], 
+                        # dtype=type_.particle_record)
+        with objmode(size="int64"):
+            neighbors = ["xp_neigh", "xn_neigh", 
+                         "yp_neigh", "yn_neigh",
+                         "zp_neigh", "zn_neigh"]
+            d_id = 0
+            # for each nieghbor surrounding the domain
+            for name in neighbors:
+                bank = get_domain_bank(d_id, mcdc["bank_source"])
+                d_id += 1
+                # and for each processor in that neighbor
+                for i in range(len(mcdc["technique"][name])):
+                    # send an equal number of particles that crossed that domain
+                    if mcdc["technique"][name].size > i:
+                        size = len(bank)
+                        ratio = int(size / len(mcdc["technique"][name]))
+                        start = ratio * i
+                        end = start + ratio
+                        if i == len(mcdc["technique"][name]) - 1:
+                            end = size
+                        bank = np.array(bank[start:end])
+                        request = MPI.COMM_WORLD.isend(bank, 
+                                             dest=mcdc["technique"][name][i])
+                # reset the particle bank to zero
+                mcdc["bank_source"]["size"] = 0
     # =========================================================================
     # Blocking Receive
     # =========================================================================
-        bankr = mcdc["bank_active"]["particles"][:0]
-        # while any unreceived particle buffer messages from neighbors
-        while len(neighbors) > 0:
-            # for each neighbor
-            for name in neighbors:
-                # for each processor in neighbor
-                for i in range(len(mcdc["technique"][name])):
-                # Iprobe([source, tag, status]) = Nonblocking test for a message
-                    if MPI.COMM_WORLD.iprobe(source=mcdc["technique"][name][i]):
-                        received = MPI.COMM_WORLD.recv(
-                                            source=mcdc["technique"][name][i])
-                        bankr = np.append(bankr, received)
+            bankr = mcdc["bank_active"]["particles"][:0]
+            # while any unreceived particle buffer messages from neighbors
+            while len(neighbors) > 0:
+                # for each neighbor
+                for name in neighbors:
+                    # for each processor in neighbor
+                    if len(mcdc["technique"][name]) > 0:
+                        for i in range(len(mcdc["technique"][name])):
+                        # Iprobe([source, tag, status]) = Nonblocking test for a message
+                            if MPI.COMM_WORLD.iprobe(source=mcdc["technique"][name][i]):
+                                received = MPI.COMM_WORLD.recv(
+                                                    source=mcdc["technique"][name][i])
+                                bankr = np.append(bankr, received)
+                                neighbors.remove(name)
+                    else:
+                        neighbors.remove(name)
     # =========================================================================
     # Wait for all nonblocking sends and transfer particles to active bank
     # =========================================================================
-        request.waitall()
-        size = bankr.shape[0]
-        # Set output buffer
-        for i in range(size):
-            buff[i] = bankr[i]
-    for i in range(size):
-        kernel.add_particle(buff[i], mcdc["bank_active"])
-    # =====================================================================
-    # Closeout
-    # =====================================================================
+            # request.waitall()
+            size = bankr.shape[0]
+            # Set output buffer
+            # print("bankr size = ", size)
+            for i in range(size):
+                kernel.add_particle(bankr[i], mcdc["bank_active"])
+        # for i in range(size):
+            # kernel.add_particle(buff[i], mcdc["bank_active"])
+    # print("active bank size = ", mcdc["bank_active"]["size"])
 
-    # Tally history closeout for one-batch fixed-source simulation
-    if not mcdc["setting"]["mode_eigenvalue"] and mcdc["setting"]["N_batch"] == 1:
-        kernel.tally_closeout_history(mcdc)
 
-    # Progress printout
-    percent = (idx_work + 1.0) / mcdc["mpi_work_size"]
-    if mcdc["setting"]["progress_bar"] and int(percent * 100.0) > N_prog:
-        N_prog += 1
-        with objmode():
-            print_progress(percent, mcdc)
-    
-    
-    
-    
+def get_domain_bank(d_id, bank_source):
+    buff = np.zeros(0, dtype=type_.particle_record)
+    for P in bank_source["particles"]:
+        if P["iqmc"]["d_id"] == d_id:
+            P["iqmc"]["d_id"] = -1
+            buff = np.append(buff, kernel.copy_particle(P))
+    return buff
+
+
 @njit
 def loop_iqmc(mcdc):
     # function calls from specified solvers
@@ -625,7 +649,7 @@ def source_iteration(mcdc):
         # sweep particles
         iqmc["sweep_counter"] += 1
         if mcdc["technique"]["domain_decomp"]:
-            iqmc_improved_kull(mcdc)
+            iqmc_loop_source(mcdc)
         else:
             loop_source(0, mcdc)
 
