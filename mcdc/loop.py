@@ -569,11 +569,9 @@ def iqmc_improved_kull(mcdc):
                     end = start + ratio
                     if i == len(mcdc["technique"][name]) - 1:
                         end = size
-                    bank = np.array(bank[start:end])
-                    # print('proc ', mcdc["mpi_rank"], "sent message to ", mcdc["technique"][name][i])
-                    # request = MPI.COMM_WORLD.isend(bank, 
-                                         # dest=mcdc["technique"][name][i])
-                    requests.append(MPI.COMM_WORLD.isend(bank, 
+                    send_bank = np.array(bank[start:end])
+                    print('rank ', mcdc["mpi_rank"], "sent message to ", mcdc["technique"][name][i])
+                    requests.append(MPI.COMM_WORLD.isend(send_bank, 
                                           dest=mcdc["technique"][name][i]))
                                              
                 # reset the particle bank to zero
@@ -582,26 +580,30 @@ def iqmc_improved_kull(mcdc):
     # =========================================================================
     # Blocking Receive
     # =========================================================================
+    # Here I break slightly from the original "improved KULL" algorithim
+    # I use a blocking probe but this serves the same purpose as a 
+    # nonblocking prob + while loop. 
+    # source: https://stackoverflow.com/questions/43823458/mpi-iprobe-vs-mpi-probe
             bankr = mcdc["bank_active"]["particles"][:0]
-
+            # bankr = []
             # for each neighbor
             for name in neighbors:
                 # for each processor in neighbor
                 for source in mcdc["technique"][name]:
-                    # Nonblocking test for a message
-                    if MPI.COMM_WORLD.iprobe(source=source):
-                        # print('proc ', mcdc["mpi_rank"], "received message from ", source)
+                    # blocking test for a message:
+                    if MPI.COMM_WORLD.probe(source=source):
                         received = MPI.COMM_WORLD.recv(source=source)
-                        bankr = np.append(bankr, received)
+                        print('rank ', mcdc["mpi_rank"], "received shape ", received.shape)
+                        # bankr = np.append(bankr, received)
+                        # bankr.extend(received)
                     else:
-                        print("Error: missed recv")
+                        print("ERROR: missed recv on rank ", mcdc["mpi_rank"], "from source ", source)
 
     # =========================================================================
     # Wait for all nonblocking sends and transfer particles to active bank
     # =========================================================================
-            # request.wait()
-            MPI.REQUEST_NULL.waitall(requests)
-            size = bankr.shape[0]
+            MPI.Request.waitall(requests)
+            size = len(bankr)
             # Set output buffer
             # print("bankr size = ", size)
             for i in range(size):
