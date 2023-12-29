@@ -554,6 +554,7 @@ def iqmc_improved_kull(mcdc):
             neighbors = ["xp_neigh", "xn_neigh", 
                          "yp_neigh", "yn_neigh",
                          "zp_neigh", "zn_neigh"]
+            requests = []
             d_id = 0
             # for each nieghbor surrounding the domain
             for name in neighbors:
@@ -570,10 +571,14 @@ def iqmc_improved_kull(mcdc):
                         end = size
                     bank = np.array(bank[start:end])
                     # print('proc ', mcdc["mpi_rank"], "sent message to ", mcdc["technique"][name][i])
-                    request = MPI.COMM_WORLD.isend(bank, 
-                                         dest=mcdc["technique"][name][i])
+                    # request = MPI.COMM_WORLD.isend(bank, 
+                                         # dest=mcdc["technique"][name][i])
+                    requests.append(MPI.COMM_WORLD.isend(bank, 
+                                          dest=mcdc["technique"][name][i]))
+                                             
                 # reset the particle bank to zero
                 mcdc["bank_source"]["size"] = 0
+
     # =========================================================================
     # Blocking Receive
     # =========================================================================
@@ -588,12 +593,14 @@ def iqmc_improved_kull(mcdc):
                         # print('proc ', mcdc["mpi_rank"], "received message from ", source)
                         received = MPI.COMM_WORLD.recv(source=source)
                         bankr = np.append(bankr, received)
+                    else:
+                        print("Error: missed recv")
 
     # =========================================================================
     # Wait for all nonblocking sends and transfer particles to active bank
     # =========================================================================
-            request.wait()
-            # MPI.REQUEST_NULL.waitall()
+            # request.wait()
+            MPI.REQUEST_NULL.waitall(requests)
             size = bankr.shape[0]
             # Set output buffer
             # print("bankr size = ", size)
