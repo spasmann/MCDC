@@ -1116,13 +1116,13 @@ def domain_decomp(
     z=None,
     t=None,
     exchange_rate=100,
-    bank_size=1e5,
+    bank_size=100,
     work_ratio=None,
     repro=True,
 ):
     card = mcdc.input_deck.technique
     card["domain_decomp"] = True
-    card["domain_bank_size"] = int(1e5)
+    card["domain_bank_size"] = bank_size
     card["exchange_rate"] = int(exchange_rate)
     card["repro"] = repro
     dom_num = 1

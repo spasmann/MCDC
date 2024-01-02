@@ -828,7 +828,6 @@ def make_type_global(card):
         bank_domain_yn = particle_bank(0)
         bank_domain_zp = particle_bank(0)
         bank_domain_zn = particle_bank(0)
-        bank_lost = particle_bank(0)
     # Particle tracker
     N_track = 0
     if card.setting["track_particle"]:

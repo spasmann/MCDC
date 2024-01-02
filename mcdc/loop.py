@@ -523,98 +523,11 @@ def iqmc_loop_source(mcdc):
                     print_progress(percent, mcdc)
         
         if mcdc["technique"]["domain_decomp"]:
-            iqmc_improved_kull(mcdc)
+            kernel.iqmc_improved_kull(mcdc)
                 
     # Tally history closeout for one-batch fixed-source simulation
     if not mcdc["setting"]["mode_eigenvalue"] and mcdc["setting"]["N_batch"] == 1:
         kernel.tally_closeout_history(mcdc)
-    
-@njit
-def iqmc_improved_kull(mcdc):
-    """
-    Implementation of the Improved KULL algorithm originally developed for 
-    IMC codes at LLNL.
-    
-    Brunner, T. A., Urbatsch, T. J., Evans, T. M., & Gentile, N. A. (2006). 
-    Comparison of four parallel algorithms for domain decomposed implicit Monte
-    Carlo. Journal of Computational Physics, 212, 527–539.
-
-    """
-    # =========================================================================
-    # Nonblocking send of particles to neighbor
-    # =========================================================================
-    with objmode(size="int64"):
-        neighbors = ["xp_neigh", "xn_neigh", 
-                     "yp_neigh", "yn_neigh",
-                     "zp_neigh", "zn_neigh"]
-        requests = []
-        # d_id = 0
-        # for each nieghbor surrounding the domain
-        for name in neighbors:
-            # bank = get_domain_bank(d_id, mcdc["bank_source"])
-            bank = mcdc["bank_domain_"+name[:2]]
-            # d_id += 1
-            # and for each processor in that neighbor
-            for i in range(len(mcdc["technique"][name])):
-                # send an equal number of particles that crossed that domain
-                # size = len(bank)
-                size = bank["size"]
-                ratio = int(size / len(mcdc["technique"][name]))
-                start = ratio * i
-                end = start + ratio
-                if i == len(mcdc["technique"][name]) - 1:
-                    end = size
-                send_bank = np.array(bank["particles"][start:end])
-                print('rank ', mcdc["mpi_rank"], "sent message to ", mcdc["technique"][name][i])
-                requests.append(MPI.COMM_WORLD.isend(send_bank, 
-                                      dest=mcdc["technique"][name][i]))
-            bank["size"] = 0
-
-    # =========================================================================
-    # Blocking Receive
-    # =========================================================================
-    # Here I break slightly from the original "improved KULL" algorithim
-    # I use a blocking probe but this serves the same purpose as a 
-    # nonblocking prob + while loop. 
-    # source: https://stackoverflow.com/questions/43823458/mpi-iprobe-vs-mpi-probe
-        bankr = np.zeros(0, dtype=type_.particle_record)
-        # for each neighbor
-        for name in neighbors:
-            # for each processor in neighbor
-            for source in mcdc["technique"][name]:
-                # blocking test for a message:
-                if MPI.COMM_WORLD.probe(source=source):
-                    received = MPI.COMM_WORLD.recv(source=source)
-                    print('rank ', mcdc["mpi_rank"], "received shape ", received.shape)
-                    bankr = np.append(bankr, received)
-                else:
-                    print("ERROR: missed recv on rank ", mcdc["mpi_rank"], "from source ", source)
-
-    # =========================================================================
-    # Wait for all nonblocking sends and transfer particles to active bank
-    # and add particles to source bank
-    # =========================================================================
-        MPI.Request.waitall(requests)
-        # reset the particle bank to zero
-        mcdc["bank_source"]["size"] = 0
-        # place received particles in bank_source
-        for i in range(len(bankr)):
-            kernel.add_particle(bankr[i], mcdc["bank_source"])
-
-
-def get_domain_bank(d_id, bank_source):
-    """
-    No longer being used.
-    
-    This function loops through all particles in a bank and builds a separate 
-    bank of only particles that have crossed into this domain
-    """
-    buff = np.zeros(0, dtype=type_.particle_record)
-    for P in bank_source["particles"]:
-        if P["iqmc"]["d_id"] == d_id:
-            P["iqmc"]["d_id"] = -1
-            buff = np.append(buff, kernel.copy_particle(P))
-    return buff
 
 
 @njit
@@ -650,10 +563,6 @@ def source_iteration(mcdc):
         # sweep particles
         iqmc["sweep_counter"] += 1
         iqmc_loop_source(mcdc)
-        # if mcdc["technique"]["domain_decomp"]:
-        #     iqmc_loop_source(mcdc)
-        # else:
-        #     loop_source(0, mcdc)
 
         # sum resultant flux on all processors
         kernel.iqmc_distribute_tallies(iqmc)
