@@ -480,6 +480,23 @@ def loop_particle(P, mcdc):
 # =============================================================================
 
 @njit
+def loop_iqmc(mcdc):
+    # function calls from specified solvers
+    iqmc = mcdc["technique"]["iqmc"]
+    kernel.iqmc_preprocess(mcdc)
+    if mcdc["setting"]["mode_eigenvalue"]:
+        if iqmc["eigenmode_solver"] == "davidson":
+            davidson(mcdc)
+        if iqmc["eigenmode_solver"] == "power_iteration":
+            power_iteration(mcdc)
+    else:
+        if iqmc["fixed_source_solver"] == "source_iteration":
+            source_iteration(mcdc)
+        if iqmc["fixed_source_solver"] == "gmres":
+            gmres(mcdc)
+
+            
+@njit
 def iqmc_loop_source(mcdc):
     """
     This function's main purpose is to add the bank_source particles to 
@@ -490,7 +507,7 @@ def iqmc_loop_source(mcdc):
     # loop through active particles
     while mcdc["bank_source"]["size"] > 0:
         N_prog = 0
-        work_size = mcdc["bank_source"]["size"].copy()
+        work_size = mcdc["bank_source"]["size"]
         for idx_work in range(work_size):
             P = mcdc["bank_source"]["particles"][idx_work]
             mcdc["bank_source"]["size"] -= 1
@@ -526,25 +543,8 @@ def iqmc_loop_source(mcdc):
             kernel.iqmc_improved_kull(mcdc)
                 
     # Tally history closeout for one-batch fixed-source simulation
-    if not mcdc["setting"]["mode_eigenvalue"] and mcdc["setting"]["N_batch"] == 1:
-        kernel.tally_closeout_history(mcdc)
-
-
-@njit
-def loop_iqmc(mcdc):
-    # function calls from specified solvers
-    iqmc = mcdc["technique"]["iqmc"]
-    kernel.iqmc_preprocess(mcdc)
-    if mcdc["setting"]["mode_eigenvalue"]:
-        if iqmc["eigenmode_solver"] == "davidson":
-            davidson(mcdc)
-        if iqmc["eigenmode_solver"] == "power_iteration":
-            power_iteration(mcdc)
-    else:
-        if iqmc["fixed_source_solver"] == "source_iteration":
-            source_iteration(mcdc)
-        if iqmc["fixed_source_solver"] == "gmres":
-            gmres(mcdc)
+    # if not mcdc["setting"]["mode_eigenvalue"] and mcdc["setting"]["N_batch"] == 1:
+        # kernel.tally_closeout_history(mcdc)
 
 
 @njit
