@@ -42,22 +42,22 @@ def domain_crossing(P, mcdc):
         # Score on tally
         if flag == MESH_X and P["ux"] > 0:
             P["iqmc"]["d_id"] = 0
-            add_particle(copy_particle(P), mcdc["bank_source"])
+            add_particle(copy_particle(P), mcdc["bank_domain_xp"])
         if flag == MESH_X and P["ux"] < 0:
             P["iqmc"]["d_id"] = 1
-            add_particle(copy_particle(P), mcdc["bank_source"])
+            add_particle(copy_particle(P), mcdc["bank_domain_xn"])
         if flag == MESH_Y and P["uy"] > 0:
             P["iqmc"]["d_id"] = 2
-            add_particle(copy_particle(P), mcdc["bank_source"])
+            add_particle(copy_particle(P), mcdc["bank_domain_yp"])
         if flag == MESH_Y and P["uy"] < 0:
             P["iqmc"]["d_id"] = 3
-            add_particle(copy_particle(P), mcdc["bank_source"])
+            add_particle(copy_particle(P), mcdc["bank_domain_yn"])
         if flag == MESH_Z and P["uz"] > 0:
             P["iqmc"]["d_id"] = 4
-            add_particle(copy_particle(P), mcdc["bank_source"])
+            add_particle(copy_particle(P), mcdc["bank_domain_zp"])
         if flag == MESH_Z and P["uz"] < 0:
             P["iqmc"]["d_id"] = 5
-            add_particle(copy_particle(P), mcdc["bank_source"])
+            add_particle(copy_particle(P), mcdc["bank_domain_zn"])
         P["alive"] = False
 
 # @njit
