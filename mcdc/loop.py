@@ -504,11 +504,11 @@ def iqmc_loop_source(mcdc):
     the active bank, so that the while loop in iqmc_improved_kull can do
     its thing
     """
-
     # loop through active particles
     while mcdc["bank_source"]["size"] > 0:
         N_prog = 0
         work_size = mcdc["bank_source"]["size"]
+        print("work size = ", work_size)
         for idx_work in range(work_size):
             P = mcdc["bank_source"]["particles"][idx_work]
             mcdc["bank_source"]["size"] -= 1
@@ -539,13 +539,9 @@ def iqmc_loop_source(mcdc):
                 N_prog += 1
                 with objmode():
                     print_progress(percent, mcdc)
-
+                
         if mcdc["technique"]["domain_decomp"]:
             kernel.iqmc_improved_kull(mcdc)
-
-    # Tally history closeout for one-batch fixed-source simulation
-    # if not mcdc["setting"]["mode_eigenvalue"] and mcdc["setting"]["N_batch"] == 1:
-    # kernel.tally_closeout_history(mcdc)
 
 
 @njit
