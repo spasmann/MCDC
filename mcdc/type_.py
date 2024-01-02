@@ -59,8 +59,7 @@ def make_type_particle(iQMC, G):
     Ng = 1
     if iQMC:
         Ng = G
-    iqmc_struct = [("w", float64, (Ng,)),
-                   ("d_id", int32)]
+    iqmc_struct = [("w", float64, (Ng,)), ("d_id", int32)]
     struct += [("iqmc", iqmc_struct)]
     particle = np.dtype(struct)
 
@@ -85,8 +84,7 @@ def make_type_particle_record(iQMC, G):
     Ng = 1
     if iQMC:
         Ng = G
-    iqmc_struct = [("w", float64, (Ng,)),
-                   ("d_id", int32)]
+    iqmc_struct = [("w", float64, (Ng,)), ("d_id", int32)]
     struct += [("iqmc", iqmc_struct)]
     particle_record = np.dtype(struct)
 
@@ -847,7 +845,9 @@ def make_type_global(card):
             bank_source = particle_bank(N_work)
             bank_precursor = precursor_bank(N_precursor)
 
-    if card.setting["source_file"] and not (card.setting["mode_eigenvalue"] or card.technique["iQMC"]):
+    if card.setting["source_file"] and not (
+        card.setting["mode_eigenvalue"] or card.technique["iQMC"]
+    ):
         bank_source = particle_bank(N_work)
 
     # GLobal type

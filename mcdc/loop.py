@@ -221,11 +221,11 @@ def loop_source_dd(seed, mcdc):
 
     work_start = mcdc["mpi_work_start"]
     work_end = work_start + mcdc["mpi_work_size"]
-    
+
     size = MPI.COMM_WORLD.Get_size()
     N_particle = mcdc["setting"]["N_particle"]
     N_work = math.ceil(N_particle / size)
-    
+
     for work_idx in range(N_particle):
         seed_work = kernel.split_seed(work_idx, seed)
         # Particle tracker
@@ -247,7 +247,7 @@ def loop_source_dd(seed, mcdc):
         # Get from source bank
         else:
             P = mcdc["bank_source"]["particles"][work_idx]
-        
+
         if not kernel.particle_in_domain(P, mcdc):
             continue
 
@@ -479,6 +479,7 @@ def loop_particle(P, mcdc):
 # iQMC Loops
 # =============================================================================
 
+
 @njit
 def loop_iqmc(mcdc):
     # function calls from specified solvers
@@ -495,15 +496,15 @@ def loop_iqmc(mcdc):
         if iqmc["fixed_source_solver"] == "gmres":
             gmres(mcdc)
 
-            
+
 @njit
 def iqmc_loop_source(mcdc):
     """
-    This function's main purpose is to add the bank_source particles to 
+    This function's main purpose is to add the bank_source particles to
     the active bank, so that the while loop in iqmc_improved_kull can do
-    its thing 
+    its thing
     """
-    
+
     # loop through active particles
     while mcdc["bank_source"]["size"] > 0:
         N_prog = 0
@@ -511,17 +512,17 @@ def iqmc_loop_source(mcdc):
         for idx_work in range(work_size):
             P = mcdc["bank_source"]["particles"][idx_work]
             mcdc["bank_source"]["size"] -= 1
-            # # # # 
+            # # # #
             # this chunk of code only exists until I can separate the LDS by domain
-            if mcdc["technique"]["domain_decomp"]:                  #
-                if not kernel.particle_in_domain(P, mcdc):          #
-                    continue                                        #
-                else:                                               #                       
-                    kernel.add_particle(P, mcdc["bank_active"])     #
-            else:                                                   #
-                kernel.add_particle(P, mcdc["bank_active"])         #
+            if mcdc["technique"]["domain_decomp"]:  #
+                if not kernel.particle_in_domain(P, mcdc):  #
+                    continue  #
+                else:  #
+                    kernel.add_particle(P, mcdc["bank_active"])  #
+            else:  #
+                kernel.add_particle(P, mcdc["bank_active"])  #
             # # # #  #
-            
+
             # Loop until active bank is exhausted
             while mcdc["bank_active"]["size"] > 0:
                 # Get particle from active bank
@@ -538,13 +539,13 @@ def iqmc_loop_source(mcdc):
                 N_prog += 1
                 with objmode():
                     print_progress(percent, mcdc)
-        
+
         if mcdc["technique"]["domain_decomp"]:
             kernel.iqmc_improved_kull(mcdc)
-                
+
     # Tally history closeout for one-batch fixed-source simulation
     # if not mcdc["setting"]["mode_eigenvalue"] and mcdc["setting"]["N_batch"] == 1:
-        # kernel.tally_closeout_history(mcdc)
+    # kernel.tally_closeout_history(mcdc)
 
 
 @njit

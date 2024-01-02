@@ -60,6 +60,7 @@ def domain_crossing(P, mcdc):
             add_particle(copy_particle(P), mcdc["bank_domain_zn"])
         P["alive"] = False
 
+
 # @njit
 # def domain_crossing(P, mcdc):
 #     # Domain mesh crossing
@@ -125,7 +126,7 @@ def domain_crossing(P, mcdc):
 #                 len(mcdc["technique"]["zn_neigh"]),
 #             )
 #         ):
-            
+
 #             if mcdc["technique"]["xp_neigh"].size > i:
 #                 size = mcdc["bank_domain_xp"]["size"]
 #                 ratio = int(size / len(mcdc["technique"]["xp_neigh"]))
@@ -230,7 +231,7 @@ def domain_crossing(P, mcdc):
 #                 len(mcdc["technique"]["zn_neigh"]),
 #             )
 #         ):
-                
+
 #             if mcdc["technique"]["xp_neigh"].size > i:
 #                 received1 = MPI.COMM_WORLD.irecv(
 #                     source=mcdc["technique"]["xp_neigh"][i], tag=2
@@ -316,7 +317,7 @@ def particle_in_domain(P, mcdc):
     x_cell = binary_search(P["x"], mcdc["technique"]["domain_mesh"]["x"])
     y_cell = binary_search(P["y"], mcdc["technique"]["domain_mesh"]["y"])
     z_cell = binary_search(P["z"], mcdc["technique"]["domain_mesh"]["z"])
-    
+
     if d_ix == x_cell:
         if d_iy == y_cell:
             if d_iz == z_cell:
@@ -1473,7 +1474,7 @@ def copy_particle(P):
     P_new["sensitivity_ID"] = P["sensitivity_ID"]
     P_new["iqmc"]["w"] = P["iqmc"]["w"]
     P_new["iqmc"]["d_id"] = P["iqmc"]["d_id"]
-    
+
     return P_new
 
 
@@ -2945,13 +2946,14 @@ def weight_window(P, mcdc):
 # Quasi Monte Carlo
 # ==============================================================================
 
+
 @njit
 def iqmc_improved_kull(mcdc):
     """
-    Implementation of the Improved KULL algorithm originally developed for 
+    Implementation of the Improved KULL algorithm originally developed for
     IMC codes at LLNL.
-    
-    Brunner, T. A., Urbatsch, T. J., Evans, T. M., & Gentile, N. A. (2006). 
+
+    Brunner, T. A., Urbatsch, T. J., Evans, T. M., & Gentile, N. A. (2006).
     Comparison of four parallel algorithms for domain decomposed implicit Monte
     Carlo. Journal of Computational Physics, 212, 527–539.
 
@@ -2960,13 +2962,18 @@ def iqmc_improved_kull(mcdc):
     # Nonblocking send of particles to neighbor
     # =========================================================================
     with objmode():
-        neighbors = ["xp_neigh", "xn_neigh", 
-                     "yp_neigh", "yn_neigh",
-                     "zp_neigh", "zn_neigh"]
+        neighbors = [
+            "xp_neigh",
+            "xn_neigh",
+            "yp_neigh",
+            "yn_neigh",
+            "zp_neigh",
+            "zn_neigh",
+        ]
         requests = []
         # for each nieghbor surrounding the domain
         for name in neighbors:
-            bank = mcdc["bank_domain_"+name[:2]]
+            bank = mcdc["bank_domain_" + name[:2]]
             # and for each processor in that neighbor
             for i in range(len(mcdc["technique"][name])):
                 # send an equal number of particles that crossed that domain
@@ -2978,18 +2985,19 @@ def iqmc_improved_kull(mcdc):
                     end = size
                 send_bank = np.array(bank["particles"][start:end])
                 # print('rank ', mcdc["mpi_rank"], "sent message to ", mcdc["technique"][name][i])
-                requests.append(MPI.COMM_WORLD.isend(send_bank, 
-                                      dest=mcdc["technique"][name][i]))
+                requests.append(
+                    MPI.COMM_WORLD.isend(send_bank, dest=mcdc["technique"][name][i])
+                )
             # reset domain transfer bank to zero
             # bank["size"] = 0
 
-    # =========================================================================
-    # Blocking Receive
-    # =========================================================================
-    # Here I break slightly from the original "improved KULL" algorithim
-    # I use a blocking probe but this serves the same purpose as a 
-    # nonblocking prob + while loop. 
-    # source: https://stackoverflow.com/questions/43823458/mpi-iprobe-vs-mpi-probe
+        # =========================================================================
+        # Blocking Receive
+        # =========================================================================
+        # Here I break slightly from the original "improved KULL" algorithim
+        # I use a blocking probe but this serves the same purpose as a
+        # nonblocking prob + while loop.
+        # source: https://stackoverflow.com/questions/43823458/mpi-iprobe-vs-mpi-probe
         bankr = np.zeros(0, dtype=type_.particle_record)
         # for each neighbor
         for name in neighbors:
@@ -3001,10 +3009,10 @@ def iqmc_improved_kull(mcdc):
                     # print('rank ', mcdc["mpi_rank"], "received shape ", received.shape)
                     bankr = np.append(bankr, received)
 
-    # =========================================================================
-    # Wait for all nonblocking sends and transfer particles to active bank
-    # and add particles to source bank
-    # =========================================================================
+        # =========================================================================
+        # Wait for all nonblocking sends and transfer particles to active bank
+        # and add particles to source bank
+        # =========================================================================
         MPI.Request.waitall(requests)
         # reset the particle bank to zero
         mcdc["bank_source"]["size"] = 0
@@ -3020,6 +3028,7 @@ def iqmc_improved_kull(mcdc):
     mcdc["bank_domain_yn"]["size"] = 0
     mcdc["bank_domain_zp"]["size"] = 0
     mcdc["bank_domain_zn"]["size"] = 0
+
 
 @njit
 def iqmc_continuous_weight_reduction(P, distance, mcdc):
@@ -3139,7 +3148,7 @@ def iqmc_prepare_particles(mcdc):
     N_particle = mcdc["setting"]["N_particle"]
     # number of particles this processor will handle
     N_work = mcdc["mpi_work_size"]
-    
+
     # size = MPI.COMM_WORLD.Get_size()
     # rank = MPI.COMM_WORLD.Get_rank()
     size = mcdc["mpi_size"]
@@ -3149,13 +3158,13 @@ def iqmc_prepare_particles(mcdc):
     work_start = int((rank / size) * N_particle)
     work_end = work_start + N_work
     # print("Work = ", (work_start, work_end))
-    
+
     # low discrepency sequence
     lds = iqmc["lds"]
     # source
     Q = iqmc["source"]
     mesh = iqmc["mesh"]
-    
+
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
     Nz = len(mesh["z"]) - 1
@@ -3189,7 +3198,7 @@ def iqmc_prepare_particles(mcdc):
         dV = iqmc_cell_volume(x, y, z, mesh)
         # Source tilt
         iqmc_tilt_source(t, x, y, z, P_new, q, mcdc)
-        # set domain crossing flag 
+        # set domain crossing flag
         P_new["iqmc"]["d_id"] = -1
         # set particle weight
         P_new["iqmc"]["w"] = q * dV * N_total / N_particle
