@@ -584,8 +584,8 @@ def iqmc_improved_kull(mcdc):
     # I use a blocking probe but this serves the same purpose as a 
     # nonblocking prob + while loop. 
     # source: https://stackoverflow.com/questions/43823458/mpi-iprobe-vs-mpi-probe
-            bankr = mcdc["bank_active"]["particles"][:0]
-            # bankr = []
+            # bankr = mcdc["bank_active"]["particles"][:0]
+            bankr = np.zeros(0, dtype=type_.particle_record)
             # for each neighbor
             for name in neighbors:
                 # for each processor in neighbor
@@ -594,8 +594,7 @@ def iqmc_improved_kull(mcdc):
                     if MPI.COMM_WORLD.probe(source=source):
                         received = MPI.COMM_WORLD.recv(source=source)
                         print('rank ', mcdc["mpi_rank"], "received shape ", received.shape)
-                        # bankr = np.append(bankr, received)
-                        # bankr.extend(received)
+                        bankr = np.append(bankr, received)
                     else:
                         print("ERROR: missed recv on rank ", mcdc["mpi_rank"], "from source ", source)
 
@@ -603,11 +602,9 @@ def iqmc_improved_kull(mcdc):
     # Wait for all nonblocking sends and transfer particles to active bank
     # =========================================================================
             MPI.Request.waitall(requests)
-            size = len(bankr)
-            # Set output buffer
-            # print("bankr size = ", size)
-            for i in range(size):
-                kernel.add_particle(bankr[i], mcdc["bank_active"])
+            # place received particles in bank_source
+            for i in range(len(bankr)):
+                kernel.add_particle(bankr[i], mcdc["bank_source"])
 
 
 def get_domain_bank(d_id, bank_source):
