@@ -225,7 +225,6 @@ def dd_particle_receive(mcdc):
                 len(mcdc["technique"]["zn_neigh"]),
             )
         ):
-
             if mcdc["technique"]["xp_neigh"].size > i:
                 received1 = MPI.COMM_WORLD.irecv(
                     source=mcdc["technique"]["xp_neigh"][i], tag=2
@@ -1665,7 +1664,8 @@ def surface_distance(P, surface, trans, mcdc):
 
         t_max = surface["t"][idx + 1]
         d_max = (t_max - P["t"]) * v
-
+        if (G * ux + H * uy + I_ * uz + J1 / v) == 0:
+            J1 = 1e-25
         distance = -surface_evaluate(P, surface, trans) / (
             G * ux + H * uy + I_ * uz + J1 / v
         )
@@ -1805,7 +1805,10 @@ def mesh_get_angular_index(P, mesh):
     uz = P["uz"]
 
     P_mu = uz
-    P_azi = math.acos(ux / math.sqrt(ux * ux + uy * uy))
+    if ux + uy != 0:
+        P_azi = math.acos(ux / math.sqrt(ux * ux + uy * uy))
+    else:
+        P_azi = 0
     if uy < 0.0:
         P_azi *= -1
 
@@ -2981,12 +2984,10 @@ def iqmc_improved_kull(mcdc):
                 if i == len(mcdc["technique"][name]) - 1:
                     end = size
                 send_bank = np.array(bank["particles"][start:end])
-                print('rank ', mcdc["mpi_rank"], "sent message to rank ", mcdc["technique"][name][i] , " of size ", send_bank.shape)
+                # print('rank ', mcdc["mpi_rank"], "sent message to rank ", mcdc["technique"][name][i] , " of size ", send_bank.shape)
                 requests.append(
                     MPI.COMM_WORLD.isend(send_bank, dest=mcdc["technique"][name][i])
                 )
-            # reset domain transfer bank to zero
-            bank["size"] = 0
 
         # =========================================================================
         # Blocking Receive
@@ -3003,7 +3004,7 @@ def iqmc_improved_kull(mcdc):
                 # blocking test for a message:
                 if MPI.COMM_WORLD.probe(source=source):
                     received = MPI.COMM_WORLD.recv(source=source)
-                    print('rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
+                    # print('rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
                     bankr = np.append(bankr, received)
 
         # =========================================================================
@@ -3011,17 +3012,13 @@ def iqmc_improved_kull(mcdc):
         # and add particles to source bank
         # =========================================================================
         MPI.Request.waitall(requests)
-        # reset the particle bank to zero
-        # mcdc["bank_source"]["size"] = 0
-        # place received particles in bank_source
-        # for i in range(len(bankr)):
-            # add_particle(bankr[i], mcdc["bank_source"])
         size = bankr.shape[0]
         # Set output buffer
         for i in range(size):
             buff[i] = bankr[i]
-
+    # reset the particle bank to zero
     mcdc["bank_source"]["size"] = 0
+    # place received particles in bank_source
     for i in range(size):
         add_particle(buff[i], mcdc["bank_source"])
 
@@ -3033,7 +3030,6 @@ def iqmc_improved_kull(mcdc):
     mcdc["bank_domain_yn"]["size"] = 0
     mcdc["bank_domain_zp"]["size"] = 0
     mcdc["bank_domain_zn"]["size"] = 0
-    # print('rank ', mcdc["mpi_rank"], "bank_source length = ", mcdc["bank_source"]["size"])
 
 
 @njit
@@ -3166,30 +3162,30 @@ def iqmc_prepare_particles(mcdc):
     # total number of spatial cells
     N_total = Nx * Ny * Nz
     # outter mesh boundaries for sampling position
-    if mcdc["technique"]["domain_decomp"]:
-        d_idx = mcdc["d_idx"]
-        d_Nx = mcdc["technique"]["domain_mesh"]["x"].size - 1
-        d_Ny = mcdc["technique"]["domain_mesh"]["y"].size - 1
-        d_Nz = mcdc["technique"]["domain_mesh"]["z"].size - 1
-        d_iz = int(d_idx / (d_Nx * d_Ny))
-        d_iy = int((d_idx - d_Nx * d_Ny * d_iz) / d_Nx)
-        d_ix = int(d_idx - d_Nx * d_Ny * d_iz - d_Nx * d_iy)
-        xa = dd_mesh["x"][d_ix]
-        xb = dd_mesh["x"][d_ix + 1]
-        ya = dd_mesh["y"][d_iy]
-        yb = dd_mesh["y"][d_iy + 1]
-        za = dd_mesh["z"][d_iz]
-        zb = dd_mesh["z"][d_iz + 1]
-        distribute_work(N_particle, mcdc)
-    else:
-        xa = mesh["x"][0]
-        xb = mesh["x"][-1]
-        ya = mesh["y"][0]
-        yb = mesh["y"][-1]
-        za = mesh["z"][0]
-        zb = mesh["z"][-1]
-
-    for n in range(mcdc["mpi_work_size"]):
+    # if mcdc["technique"]["domain_decomp"]:
+    #     d_idx = mcdc["d_idx"]
+    #     d_Nx = mcdc["technique"]["domain_mesh"]["x"].size - 1
+    #     d_Ny = mcdc["technique"]["domain_mesh"]["y"].size - 1
+    #     d_Nz = mcdc["technique"]["domain_mesh"]["z"].size - 1
+    #     d_iz = int(d_idx / (d_Nx * d_Ny))
+    #     d_iy = int((d_idx - d_Nx * d_Ny * d_iz) / d_Nx)
+    #     d_ix = int(d_idx - d_Nx * d_Ny * d_iz - d_Nx * d_iy)
+    #     xa = dd_mesh["x"][d_ix]
+    #     xb = dd_mesh["x"][d_ix + 1]
+    #     ya = dd_mesh["y"][d_iy]
+    #     yb = dd_mesh["y"][d_iy + 1]
+    #     za = dd_mesh["z"][d_iz]
+    #     zb = dd_mesh["z"][d_iz + 1]
+    #     distribute_work(N_particle, mcdc)
+    # else:
+    xa = mesh["x"][0]
+    xb = mesh["x"][-1]
+    ya = mesh["y"][0]
+    yb = mesh["y"][-1]
+    za = mesh["z"][0]
+    zb = mesh["z"][-1]
+    # for n in range(mcdc["mpi_work_size"]):
+    for n in range(N_particle):
         # Create new particle
         P_new = np.zeros(1, dtype=type_.particle_record)[0]
         # assign initial group, time, and rng_seed (not used)
@@ -3209,8 +3205,6 @@ def iqmc_prepare_particles(mcdc):
         dV = iqmc_cell_volume(x, y, z, mesh)
         # Source tilt
         iqmc_tilt_source(t, x, y, z, P_new, q, mcdc)
-        # set domain crossing flag
-        P_new["iqmc"]["d_id"] = -1
         # set particle weight
         P_new["iqmc"]["w"] = q * dV * N_total / N_particle
         P_new["w"] = P_new["iqmc"]["w"].sum()

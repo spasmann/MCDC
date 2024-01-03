@@ -555,30 +555,30 @@ def prepare():
         N_start = int(mcdc["mpi_work_start"])
         # generate LDS
         if input_deck.technique["iqmc"]["generator"] == "sobol":
-            if input_deck.technique["domain_decomp"]:
-                sampler = qmc.Sobol(d=N_dim, scramble=True)
-            else:
-                sampler = qmc.Sobol(d=N_dim, scramble=False)
-                # skip the first entry in Sobol sequence because its 0.0
-                # skip the second because it maps to ux = 0.0
-                sampler.fast_forward(2)
-                sampler.fast_forward(N_start)
-            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+            # if input_deck.technique["domain_decomp"]:
+            # sampler = qmc.Sobol(d=N_dim, scramble=True)
+            # else:
+            sampler = qmc.Sobol(d=N_dim, scramble=False)
+            # skip the first entry in Sobol sequence because its 0.0
+            # skip the second because it maps to ux = 0.0
+            sampler.fast_forward(2)
+            # sampler.fast_forward(N_start)
+            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_particle)
         if input_deck.technique["iqmc"]["generator"] == "halton":
-            if input_deck.technique["domain_decomp"]:
-                sampler = qmc.Halton(d=N_dim, scramble=True)
-            else:
-                sampler = qmc.Halton(d=N_dim, scramble=False)
-                # skip the first entry in Halton sequence because its 0.0
-                sampler.fast_forward(1)
-                sampler.fast_forward(N_start)
-            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+            # if input_deck.technique["domain_decomp"]:
+            # sampler = qmc.Halton(d=N_dim, scramble=True)
+            # else:
+            sampler = qmc.Halton(d=N_dim, scramble=False)
+            # skip the first entry in Halton sequence because its 0.0
+            sampler.fast_forward(1)
+            # sampler.fast_forward(N_start)
+            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_particle)
             # print("LDS shape = ", mcdc["technique"]["iqmc"]["lds"].shape)
         if input_deck.technique["iqmc"]["generator"] == "random":
             np.random.seed(seed)
             seeds = np.random.randint(1e6, size=mcdc["mpi_size"])
             np.random.seed(seeds[mcdc["mpi_rank"]])
-            iqmc["lds"] = np.random.random((N_work, N_dim))
+            iqmc["lds"] = np.random.random((N_particle, N_dim))
 
     # =========================================================================
     # Derivative Source Method

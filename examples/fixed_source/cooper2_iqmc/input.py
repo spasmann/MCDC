@@ -33,9 +33,9 @@ mcdc.cell([+sx2, -sx3, +sy1, -sy2], m_barrier)
 # =============================================================================
 # iQMC Parameters
 # =============================================================================
-N = 100
+N = 10000
 Nx = Ny = 40
-maxit = 30
+maxit = 20
 tol = 1e-6
 x = np.linspace(0, 4, num=Nx + 1)
 y = np.linspace(0, 4, num=Ny + 1)
@@ -64,12 +64,12 @@ mcdc.iQMC(
 # Set tally, setting, and run mcdc
 # =============================================================================
 # Setting
-mcdc.setting(N_particle=N)
+mcdc.setting(N_particle=N, output_name="dd_output")
 
 mcdc.domain_decomp(
     x=np.linspace(0.0, 4.0, 3),
     y=np.linspace(0.0, 4.0, 3),
-    bank_size=int(N / 5),
+    bank_size=int(N),
 )
 
 # Run

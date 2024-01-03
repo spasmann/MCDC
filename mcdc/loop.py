@@ -499,15 +499,10 @@ def loop_iqmc(mcdc):
 
 @njit
 def iqmc_loop_source(mcdc):
-    """
-    This function's main purpose is to add the bank_source particles to
-    the active bank, so that the while loop in iqmc_improved_kull can do
-    its thing
-    """
-    loop = np.int32(1)
     # while any stored particles on any processor
-    while loop:
-    # while mcdc["bank_source"]["size"] > 0:
+    work_remaining = kernel.allreduce(mcdc["bank_source"]["size"])
+    counter = 1
+    while work_remaining:
         N_prog = 0
         work_size = mcdc["bank_source"]["size"]
         # particle loop
@@ -517,15 +512,15 @@ def iqmc_loop_source(mcdc):
             # =================================================================
             # this chunk of code only exists until I can separate the LDS by domain
             # =================================================================
-            # if mcdc["technique"]["domain_decomp"]:
-            #     if not kernel.particle_in_domain(P, mcdc):
-            #         continue
-            #     else:
-            #         kernel.add_particle(P, mcdc["bank_active"])
-            # else:
-            #     kernel.add_particle(P, mcdc["bank_active"])
+            if mcdc["technique"]["domain_decomp"]:
+                if not kernel.particle_in_domain(P, mcdc):
+                    continue
+                else:
+                    kernel.add_particle(P, mcdc["bank_active"])
+            else:
+                kernel.add_particle(P, mcdc["bank_active"])
             # =================================================================
-            kernel.add_particle(P, mcdc["bank_active"])
+            # kernel.add_particle(P, mcdc["bank_active"])
 
             # Loop until active bank is exhausted
             while mcdc["bank_active"]["size"] > 0:
@@ -536,23 +531,18 @@ def iqmc_loop_source(mcdc):
                     mcdc["particle_track_particle_ID"] += 1
                 # Particle loop
                 loop_particle(P, mcdc)
-
             # Progress printout
-            # percent = (idx_work + 1.0) / work_size
-            # if mcdc["setting"]["progress_bar"] and int(percent * 100.0) > N_prog:
-            #     N_prog += 1
-            #     with objmode():
-            #         print_progress(percent, mcdc)
-
-        # send / receive particles 
+            percent = (idx_work + 1.0) / work_size
+            if mcdc["setting"]["progress_bar"] and int(percent * 100.0) > N_prog:
+                N_prog += 1
+                with objmode():
+                    print_progress(percent, mcdc)
+            counter += 1
+        # send / receive particles
         if mcdc["technique"]["domain_decomp"]:
             kernel.iqmc_improved_kull(mcdc)
 
-        with objmode(loop="int32"):
-            if mcdc["bank_source"]["size"] == 0:
-                loop = 0
-            MPI.COMM_WORLD.allreduce(loop)
-            loop = np.int32(loop)
+        work_remaining = kernel.allreduce(mcdc["bank_source"]["size"])
 
 
 @njit
