@@ -560,6 +560,8 @@ def prepare():
         size = MPI.COMM_WORLD.Get_size()
         rank = MPI.COMM_WORLD.Get_rank()
         N_work = math.ceil(N_particle / size)
+        # how many samples this processor will skip in the LDS
+        fast_forward = int((rank / size) * N)
         # generate LDS
         if input_deck.technique["iqmc"]["generator"] == "sobol":
             if input_deck.technique["domain_decomp"]:
@@ -569,6 +571,7 @@ def prepare():
                 # skip the first entry in Sobol sequence because its 0.0
                 # skip the second because it maps to ux = 0.0
                 sampler.fast_forward(2)
+                sampler.fast_forward(fast_forward)
             mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
         if input_deck.technique["iqmc"]["generator"] == "halton":
             if input_deck.technique["domain_decomp"]:
@@ -577,6 +580,7 @@ def prepare():
                 sampler = qmc.Halton(d=N_dim, scramble=False)
                 # skip the first entry in Halton sequence because its 0.0
                 sampler.fast_forward(1)
+                sampler.fast_forward(fast_forward)
             mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
             # print("LDS shape = ", mcdc["technique"]["iqmc"]["lds"].shape)
         if input_deck.technique["iqmc"]["generator"] == "random":
