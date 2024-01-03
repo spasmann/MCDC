@@ -33,14 +33,14 @@ mcdc.cell([+sx2, -sx3, +sy1, -sy2], m_barrier)
 # =============================================================================
 # iQMC Parameters
 # =============================================================================
-N = 10000
+N = 1e4
 Nx = Ny = 40
-maxit = 20
+maxit = 30
 tol = 1e-6
 x = np.linspace(0, 4, num=Nx + 1)
 y = np.linspace(0, 4, num=Ny + 1)
 generator = "halton"
-solver = "gmres"
+solver = "source_iteration"
 
 # fixed source in lower left corner
 fixed_source = np.zeros((Nx, Ny))
@@ -57,20 +57,13 @@ mcdc.iQMC(
     tol=tol,
     generator=generator,
     fixed_source_solver=solver,
-    # score=["tilt-x", "tilt-y"],
+    score=["tilt-x", "tilt-y"],
 )
 
 # =============================================================================
 # Set tally, setting, and run mcdc
 # =============================================================================
 # Setting
-mcdc.setting(N_particle=N, output_name="dd_output")
-
-mcdc.domain_decomp(
-    x=np.linspace(0.0, 4.0, 3),
-    y=np.linspace(0.0, 4.0, 3),
-    bank_size=int(N),
-)
-
+mcdc.setting(N_particle=N)
 # Run
 mcdc.run()
