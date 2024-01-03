@@ -96,11 +96,11 @@ mcdc.iQMC(
 # Setting
 mcdc.setting(N_particle=N)
 
-# mcdc.domain_decomp(
-#     x=np.linspace(-8.0, 8.0, 5),
-#     work_ratio=([1,1,1,1]),
-#     bank_size=int(N / 5),
-# )
+mcdc.domain_decomp(
+    x=np.linspace(-8.0, 8.0, 5),
+    work_ratio=([1, 1, 1, 1]),
+    bank_size=int(N / 5),
+)
 
 # Run
 mcdc.run()

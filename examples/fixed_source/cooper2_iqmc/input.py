@@ -33,7 +33,7 @@ mcdc.cell([+sx2, -sx3, +sy1, -sy2], m_barrier)
 # =============================================================================
 # iQMC Parameters
 # =============================================================================
-N = 1e4
+N = 100
 Nx = Ny = 40
 maxit = 30
 tol = 1e-6
@@ -57,7 +57,7 @@ mcdc.iQMC(
     tol=tol,
     generator=generator,
     fixed_source_solver=solver,
-    score=["tilt-x", "tilt-y"],
+    # score=["tilt-x", "tilt-y"],
 )
 
 # =============================================================================
@@ -65,6 +65,7 @@ mcdc.iQMC(
 # =============================================================================
 # Setting
 mcdc.setting(N_particle=N)
+
 mcdc.domain_decomp(
     x=np.linspace(0.0, 4.0, 3),
     y=np.linspace(0.0, 4.0, 3),

@@ -3163,11 +3163,12 @@ def iqmc_prepare_particles(mcdc):
         d_iy = int((d_idx - d_Nx * d_Ny * d_iz) / d_Nx)
         d_ix = int(d_idx - d_Nx * d_Ny * d_iz - d_Nx * d_iy)
         xa = dd_mesh["x"][d_ix]
-        xb = dd_mesh["x"][d_ix+1]
+        xb = dd_mesh["x"][d_ix + 1]
         ya = dd_mesh["y"][d_iy]
-        yb = dd_mesh["y"][d_iy+1]
+        yb = dd_mesh["y"][d_iy + 1]
         za = dd_mesh["z"][d_iz]
-        zb = dd_mesh["z"][d_iz+1]
+        zb = dd_mesh["z"][d_iz + 1]
+        distribute_work(N_particle, mcdc)
     else:
         xa = mesh["x"][0]
         xb = mesh["x"][-1]

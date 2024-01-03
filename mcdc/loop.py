@@ -523,8 +523,8 @@ def iqmc_loop_source(mcdc):
             #         kernel.add_particle(P, mcdc["bank_active"])
             # else:
             #     kernel.add_particle(P, mcdc["bank_active"])
-            kernel.add_particle(P, mcdc["bank_active"])
             # =================================================================
+            kernel.add_particle(P, mcdc["bank_active"])
 
             # Loop until active bank is exhausted
             while mcdc["bank_active"]["size"] > 0:
@@ -542,14 +542,15 @@ def iqmc_loop_source(mcdc):
                 N_prog += 1
                 with objmode():
                     print_progress(percent, mcdc)
-                
+
         if mcdc["technique"]["domain_decomp"]:
             kernel.iqmc_improved_kull(mcdc)
 
         # with objmode(loop="int64"):
-            # if mcdc["bank_source"]["size"] == 0:
-                # loop = 0
-            # MPI.COMM_WORLD.allreduce(loop)
+        # if mcdc["bank_source"]["size"] == 0:
+        # loop = 0
+        # MPI.COMM_WORLD.allreduce(loop)
+
 
 @njit
 def source_iteration(mcdc):
