@@ -37,13 +37,13 @@ mcdc.cell([+s7, -s8], m4)
 # =============================================================================
 # iQMC Parameters
 # =============================================================================
-N = 500
+N = 5000
 Nx = 32
-maxit = 5
+maxit = 20
 tol = 1e-9
 x = np.linspace(-8, 8, num=Nx + 1)
 generator = "halton"
-solver = "source_iteration"
+solver = "gmres"
 
 
 def reeds_source(Nx, LB=-8.0, RB=8.0):
@@ -95,10 +95,11 @@ mcdc.iQMC(
 
 # Setting
 mcdc.setting(N_particle=N)
+
 # mcdc.domain_decomp(
-    # x=np.linspace(-8.0, 8.0, 4),
-    # work_ratio=([1, 1, 1]),
-    # bank_size=int(N / 5),
+#     x=np.linspace(-8.0, 8.0, 5),
+#     work_ratio=([1,1,1,1]),
+#     bank_size=int(N / 5),
 # )
 
 # Run

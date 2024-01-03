@@ -529,7 +529,7 @@ def make_type_technique(N_particle, G, card):
 
     # Low-discprenecy sequence
     N_work = math.ceil(N_particle / MPI.COMM_WORLD.Get_size())
-    iqmc_list += [("lds", float64, (N_particle, N_dim))]
+    iqmc_list += [("lds", float64, (N_work, N_dim))]
     iqmc_list += [("fixed_source", float64, (Ng, Nt, Nx, Ny, Nz))]
     # TODO: make matidx int32
     iqmc_list += [("material_idx", int64, (Nt, Nx, Ny, Nz))]

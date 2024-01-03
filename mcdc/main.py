@@ -554,31 +554,33 @@ def prepare():
         # minimum particle weight
         mcdc["technique"]["iqmc"]["w_min"] = 1e-16  # / mcdc["setting"]["N_particle"]
         # variables to generate samples
-        scramble = mcdc["technique"]["iqmc"]["scramble"]
+        # scramble = mcdc["technique"]["iqmc"]["scramble"]
+        # seed = mcdc["technique"]["iqmc"]["seed"]
         N_dim = mcdc["technique"]["iqmc"]["N_dim"]
-        seed = mcdc["technique"]["iqmc"]["seed"]
         size = MPI.COMM_WORLD.Get_size()
         rank = MPI.COMM_WORLD.Get_rank()
         N_work = math.ceil(N_particle / size)
-        # how many samples this processor will skip in the LDS
-        fast_forward = int((rank / size) * N)
         # generate LDS
         if input_deck.technique["iqmc"]["generator"] == "sobol":
-            sampler = qmc.Sobol(d=N_dim, scramble=scramble, seed=seed)
-            # skip the first entry in Sobol sequence because its 0.0
-            # skip the second because it maps to ux = 0.0
-            sampler.fast_forward(2)
-            # sampler.fast_forward(fast_forward)
-            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_particle)
+            if input_deck.technique["domain_decomp"]:
+                sampler = qmc.Sobol(d=N_dim, scramble=True)
+            else:
+                sampler = qmc.Sobol(d=N_dim, scramble=False)
+                # skip the first entry in Sobol sequence because its 0.0
+                # skip the second because it maps to ux = 0.0
+                sampler.fast_forward(2)
+            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
         if input_deck.technique["iqmc"]["generator"] == "halton":
-            sampler = qmc.Halton(d=N_dim, scramble=scramble, seed=seed)
-            # skip the first entry in Halton sequence because its 0.0
-            sampler.fast_forward(1)
-            # sampler.fast_forward(fast_forward)
-            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_particle)
+            if input_deck.technique["domain_decomp"]:
+                sampler = qmc.Halton(d=N_dim, scramble=True)
+            else:
+                sampler = qmc.Halton(d=N_dim, scramble=False)
+                # skip the first entry in Halton sequence because its 0.0
+                sampler.fast_forward(1)
+            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
             # print("LDS shape = ", mcdc["technique"]["iqmc"]["lds"].shape)
         if input_deck.technique["iqmc"]["generator"] == "random":
-            np.random.seed(seed)
+            # np.random.seed(seed)
             seeds = np.random.randint(1e6, size=size)
             np.random.seed(seeds[rank])
             mcdc["technique"]["iqmc"]["lds"] = np.random.random((N_work, N_dim))

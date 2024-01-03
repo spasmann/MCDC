@@ -3141,20 +3141,16 @@ def iqmc_prepare_particles(mcdc):
     # total number of particles
     N_particle = mcdc["setting"]["N_particle"]
     # number of particles this processor will handle
-    N_work = mcdc["mpi_work_size"]
-
     size = mcdc["mpi_size"]
-    rank = mcdc["mpi_rank"]
     N_work = math.ceil(N_particle / size)
     # how many samples this processor will skip in the LDS
-    work_start = int((rank / size) * N_particle)
-    work_end = work_start + N_work
-    # print("Work = ", (work_start, work_end))
-
+    # work_start = int((rank / size) * N_particle)
+    # work_end = work_start + N_work
     # low discrepency sequence
     lds = iqmc["lds"]
     # source
     Q = iqmc["source"]
+    dd_mesh = mcdc["technique"]["domain_mesh"]
     mesh = iqmc["mesh"]
 
     Nx = len(mesh["x"]) - 1
@@ -3163,14 +3159,29 @@ def iqmc_prepare_particles(mcdc):
     # total number of spatial cells
     N_total = Nx * Ny * Nz
     # outter mesh boundaries for sampling position
-    xa = mesh["x"][0]
-    xb = mesh["x"][-1]
-    ya = mesh["y"][0]
-    yb = mesh["y"][-1]
-    za = mesh["z"][0]
-    zb = mesh["z"][-1]
+    if mcdc["technique"]["domain_decomp"]:
+        d_idx = mcdc["d_idx"]
+        d_Nx = mcdc["technique"]["domain_mesh"]["x"].size - 1
+        d_Ny = mcdc["technique"]["domain_mesh"]["y"].size - 1
+        d_Nz = mcdc["technique"]["domain_mesh"]["z"].size - 1
+        d_iz = int(d_idx / (d_Nx * d_Ny))
+        d_iy = int((d_idx - d_Nx * d_Ny * d_iz) / d_Nx)
+        d_ix = int(d_idx - d_Nx * d_Ny * d_iz - d_Nx * d_iy)
+        xa = dd_mesh["x"][d_ix]
+        xb = dd_mesh["x"][d_ix+1]
+        ya = dd_mesh["y"][d_iy]
+        yb = dd_mesh["y"][d_iy+1]
+        za = dd_mesh["z"][d_iz]
+        zb = dd_mesh["z"][d_iz+1]
+    else:
+        xa = mesh["x"][0]
+        xb = mesh["x"][-1]
+        ya = mesh["y"][0]
+        yb = mesh["y"][-1]
+        za = mesh["z"][0]
+        zb = mesh["z"][-1]
 
-    for n in range(N_particle):
+    for n in range(N_work):
         # Create new particle
         P_new = np.zeros(1, dtype=type_.particle_record)[0]
         # assign initial group, time, and rng_seed (not used)

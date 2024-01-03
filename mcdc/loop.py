@@ -497,8 +497,6 @@ def loop_iqmc(mcdc):
             gmres(mcdc)
 
 
-from numba import typeof
-
 @njit
 def iqmc_loop_source(mcdc):
     """
@@ -507,9 +505,9 @@ def iqmc_loop_source(mcdc):
     its thing
     """
     # loop through active particles
-    loop = 1
-    while loop:
-    # while mcdc["bank_source"]["size"] > 0:
+    # loop = 1
+    # while loop:
+    while mcdc["bank_source"]["size"] > 0:
         N_prog = 0
         work_size = mcdc["bank_source"]["size"]
         for idx_work in range(work_size):
@@ -518,13 +516,14 @@ def iqmc_loop_source(mcdc):
             # =================================================================
             # this chunk of code only exists until I can separate the LDS by domain
             # =================================================================
-            if mcdc["technique"]["domain_decomp"]:
-                if not kernel.particle_in_domain(P, mcdc):
-                    continue
-                else:
-                    kernel.add_particle(P, mcdc["bank_active"])
-            else:
-                kernel.add_particle(P, mcdc["bank_active"])
+            # if mcdc["technique"]["domain_decomp"]:
+            #     if not kernel.particle_in_domain(P, mcdc):
+            #         continue
+            #     else:
+            #         kernel.add_particle(P, mcdc["bank_active"])
+            # else:
+            #     kernel.add_particle(P, mcdc["bank_active"])
+            kernel.add_particle(P, mcdc["bank_active"])
             # =================================================================
 
             # Loop until active bank is exhausted
@@ -547,10 +546,10 @@ def iqmc_loop_source(mcdc):
         if mcdc["technique"]["domain_decomp"]:
             kernel.iqmc_improved_kull(mcdc)
 
-        with objmode(loop="int64"):
-            if mcdc["bank_source"]["size"] == 0:
-                loop = 0
-            MPI.COMM_WORLD.allreduce(loop)
+        # with objmode(loop="int64"):
+            # if mcdc["bank_source"]["size"] == 0:
+                # loop = 0
+            # MPI.COMM_WORLD.allreduce(loop)
 
 @njit
 def source_iteration(mcdc):
