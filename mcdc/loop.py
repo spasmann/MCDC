@@ -497,6 +497,8 @@ def loop_iqmc(mcdc):
             gmres(mcdc)
 
 
+from numba import typeof
+
 @njit
 def iqmc_loop_source(mcdc):
     """
@@ -505,23 +507,25 @@ def iqmc_loop_source(mcdc):
     its thing
     """
     # loop through active particles
-    while mcdc["bank_source"]["size"] > 0:
+    loop = 1
+    while loop:
+    # while mcdc["bank_source"]["size"] > 0:
         N_prog = 0
         work_size = mcdc["bank_source"]["size"]
-        print("work size = ", work_size)
         for idx_work in range(work_size):
             P = mcdc["bank_source"]["particles"][idx_work]
             mcdc["bank_source"]["size"] -= 1
-            # # # #
+            # =================================================================
             # this chunk of code only exists until I can separate the LDS by domain
-            if mcdc["technique"]["domain_decomp"]:  #
-                if not kernel.particle_in_domain(P, mcdc):  #
-                    continue  #
-                else:  #
-                    kernel.add_particle(P, mcdc["bank_active"])  #
-            else:  #
-                kernel.add_particle(P, mcdc["bank_active"])  #
-            # # # #  #
+            # =================================================================
+            if mcdc["technique"]["domain_decomp"]:
+                if not kernel.particle_in_domain(P, mcdc):
+                    continue
+                else:
+                    kernel.add_particle(P, mcdc["bank_active"])
+            else:
+                kernel.add_particle(P, mcdc["bank_active"])
+            # =================================================================
 
             # Loop until active bank is exhausted
             while mcdc["bank_active"]["size"] > 0:
@@ -543,6 +547,10 @@ def iqmc_loop_source(mcdc):
         if mcdc["technique"]["domain_decomp"]:
             kernel.iqmc_improved_kull(mcdc)
 
+        with objmode(loop="int64"):
+            if mcdc["bank_source"]["size"] == 0:
+                loop = 0
+            MPI.COMM_WORLD.allreduce(loop)
 
 @njit
 def source_iteration(mcdc):

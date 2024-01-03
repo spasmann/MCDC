@@ -2955,7 +2955,6 @@ def iqmc_improved_kull(mcdc):
     # =========================================================================
     # Nonblocking send of particles to neighbor
     # =========================================================================
-    print()
     with objmode():
         neighbors = [
             "xp_neigh",
@@ -2979,7 +2978,7 @@ def iqmc_improved_kull(mcdc):
                 if i == len(mcdc["technique"][name]) - 1:
                     end = size
                 send_bank = np.array(bank["particles"][start:end])
-                print('rank ', mcdc["mpi_rank"], "sent message to rank ", mcdc["technique"][name][i] , " of size ", send_bank.shape)
+                # print('rank ', mcdc["mpi_rank"], "sent message to rank ", mcdc["technique"][name][i] , " of size ", send_bank.shape)
                 requests.append(
                     MPI.COMM_WORLD.isend(send_bank, dest=mcdc["technique"][name][i])
                 )
@@ -3001,7 +3000,7 @@ def iqmc_improved_kull(mcdc):
                 # blocking test for a message:
                 if MPI.COMM_WORLD.probe(source=source):
                     received = MPI.COMM_WORLD.recv(source=source)
-                    print('rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
+                    # print('rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
                     bankr = np.append(bankr, received)
 
         # =========================================================================
