@@ -504,12 +504,13 @@ def iqmc_loop_source(mcdc):
     the active bank, so that the while loop in iqmc_improved_kull can do
     its thing
     """
-    # loop through active particles
-    # loop = 1
-    # while loop:
-    while mcdc["bank_source"]["size"] > 0:
+    loop = np.int32(1)
+    # while any stored particles on any processor
+    while loop:
+    # while mcdc["bank_source"]["size"] > 0:
         N_prog = 0
         work_size = mcdc["bank_source"]["size"]
+        # particle loop
         for idx_work in range(work_size):
             P = mcdc["bank_source"]["particles"][idx_work]
             mcdc["bank_source"]["size"] -= 1
@@ -537,19 +538,21 @@ def iqmc_loop_source(mcdc):
                 loop_particle(P, mcdc)
 
             # Progress printout
-            percent = (idx_work + 1.0) / work_size
-            if mcdc["setting"]["progress_bar"] and int(percent * 100.0) > N_prog:
-                N_prog += 1
-                with objmode():
-                    print_progress(percent, mcdc)
+            # percent = (idx_work + 1.0) / work_size
+            # if mcdc["setting"]["progress_bar"] and int(percent * 100.0) > N_prog:
+            #     N_prog += 1
+            #     with objmode():
+            #         print_progress(percent, mcdc)
 
+        # send / receive particles 
         if mcdc["technique"]["domain_decomp"]:
             kernel.iqmc_improved_kull(mcdc)
 
-        # with objmode(loop="int64"):
-        # if mcdc["bank_source"]["size"] == 0:
-        # loop = 0
-        # MPI.COMM_WORLD.allreduce(loop)
+        with objmode(loop="int32"):
+            if mcdc["bank_source"]["size"] == 0:
+                loop = 0
+            MPI.COMM_WORLD.allreduce(loop)
+            loop = np.int32(loop)
 
 
 @njit

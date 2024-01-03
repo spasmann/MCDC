@@ -206,89 +206,89 @@ def domain_crossing(P, mcdc):
 # =============================================================================
 
 
-# @njit
-# def dd_particle_receive(mcdc):
-#     buff = np.zeros(
-#         mcdc["bank_domain_xp"]["particles"].shape[0], dtype=type_.particle_record
-#     )
+@njit
+def dd_particle_receive(mcdc):
+    buff = np.zeros(
+        mcdc["bank_domain_xp"]["particles"].shape[0], dtype=type_.particle_record
+    )
 
-#     with objmode(size="int64"):
-#         bankr = mcdc["bank_active"]["particles"][:0]
-#         size_old = bankr.shape[0]
-#         for i in range(
-#             max(
-#                 len(mcdc["technique"]["xp_neigh"]),
-#                 len(mcdc["technique"]["xn_neigh"]),
-#                 len(mcdc["technique"]["yp_neigh"]),
-#                 len(mcdc["technique"]["yn_neigh"]),
-#                 len(mcdc["technique"]["zp_neigh"]),
-#                 len(mcdc["technique"]["zn_neigh"]),
-#             )
-#         ):
+    with objmode(size="int64"):
+        bankr = mcdc["bank_active"]["particles"][:0]
+        size_old = bankr.shape[0]
+        for i in range(
+            max(
+                len(mcdc["technique"]["xp_neigh"]),
+                len(mcdc["technique"]["xn_neigh"]),
+                len(mcdc["technique"]["yp_neigh"]),
+                len(mcdc["technique"]["yn_neigh"]),
+                len(mcdc["technique"]["zp_neigh"]),
+                len(mcdc["technique"]["zn_neigh"]),
+            )
+        ):
 
-#             if mcdc["technique"]["xp_neigh"].size > i:
-#                 received1 = MPI.COMM_WORLD.irecv(
-#                     source=mcdc["technique"]["xp_neigh"][i], tag=2
-#                 )
-#                 if received1.Get_status():
-#                     bankr = np.append(bankr, received1.wait())
-#                 else:
-#                     MPI.Request.cancel(received1)
+            if mcdc["technique"]["xp_neigh"].size > i:
+                received1 = MPI.COMM_WORLD.irecv(
+                    source=mcdc["technique"]["xp_neigh"][i], tag=2
+                )
+                if received1.Get_status():
+                    bankr = np.append(bankr, received1.wait())
+                else:
+                    MPI.Request.cancel(received1)
 
-#             if mcdc["technique"]["xn_neigh"].size > i:
-#                 received2 = MPI.COMM_WORLD.irecv(
-#                     source=mcdc["technique"]["xn_neigh"][i], tag=1
-#                 )
-#                 if received2.Get_status():
-#                     bankr = np.append(bankr, received2.wait())
-#                 else:
-#                     MPI.Request.cancel(received2)
+            if mcdc["technique"]["xn_neigh"].size > i:
+                received2 = MPI.COMM_WORLD.irecv(
+                    source=mcdc["technique"]["xn_neigh"][i], tag=1
+                )
+                if received2.Get_status():
+                    bankr = np.append(bankr, received2.wait())
+                else:
+                    MPI.Request.cancel(received2)
 
-#             if mcdc["technique"]["yp_neigh"].size > i:
-#                 received3 = MPI.COMM_WORLD.irecv(
-#                     source=mcdc["technique"]["yp_neigh"][i], tag=4
-#                 )
-#                 if received3.Get_status():
-#                     bankr = np.append(bankr, received3.wait())
-#                 else:
-#                     MPI.Request.cancel(received3)
+            if mcdc["technique"]["yp_neigh"].size > i:
+                received3 = MPI.COMM_WORLD.irecv(
+                    source=mcdc["technique"]["yp_neigh"][i], tag=4
+                )
+                if received3.Get_status():
+                    bankr = np.append(bankr, received3.wait())
+                else:
+                    MPI.Request.cancel(received3)
 
-#             if mcdc["technique"]["yn_neigh"].size > i:
-#                 received4 = MPI.COMM_WORLD.irecv(
-#                     source=mcdc["technique"]["yn_neigh"][i], tag=3
-#                 )
-#                 if received4.Get_status():
-#                     bankr = np.append(bankr, received4.wait())
-#                 else:
-#                     MPI.Request.cancel(received4)
+            if mcdc["technique"]["yn_neigh"].size > i:
+                received4 = MPI.COMM_WORLD.irecv(
+                    source=mcdc["technique"]["yn_neigh"][i], tag=3
+                )
+                if received4.Get_status():
+                    bankr = np.append(bankr, received4.wait())
+                else:
+                    MPI.Request.cancel(received4)
 
-#             if mcdc["technique"]["zp_neigh"].size > i:
-#                 received5 = MPI.COMM_WORLD.irecv(
-#                     source=mcdc["technique"]["zp_neigh"][i], tag=6
-#                 )
-#                 if received5.Get_status():
-#                     bankr = np.append(bankr, received5.wait())
-#                 else:
-#                     MPI.Request.cancel(received5)
+            if mcdc["technique"]["zp_neigh"].size > i:
+                received5 = MPI.COMM_WORLD.irecv(
+                    source=mcdc["technique"]["zp_neigh"][i], tag=6
+                )
+                if received5.Get_status():
+                    bankr = np.append(bankr, received5.wait())
+                else:
+                    MPI.Request.cancel(received5)
 
-#             if mcdc["technique"]["zn_neigh"].size > i:
-#                 received6 = MPI.COMM_WORLD.irecv(
-#                     source=mcdc["technique"]["zn_neigh"][i], tag=5
-#                 )
-#                 if received6.Get_status():
-#                     bankr = np.append(bankr, received6.wait())
-#                 else:
-#                     MPI.Request.cancel(received6)
+            if mcdc["technique"]["zn_neigh"].size > i:
+                received6 = MPI.COMM_WORLD.irecv(
+                    source=mcdc["technique"]["zn_neigh"][i], tag=5
+                )
+                if received6.Get_status():
+                    bankr = np.append(bankr, received6.wait())
+                else:
+                    MPI.Request.cancel(received6)
 
-#         size = bankr.shape[0]
-#         # Set output buffer
-#         for i in range(size):
-#             buff[i] = bankr[i]
-#         # if (size-size_old)>0:
-#         # print("recieved",size-size_old,"particles, in domain",mcdc["d_idx"])
-#     # Set source bank from buffer
-#     for i in range(size):
-#         add_particle(buff[i], mcdc["bank_active"])
+        size = bankr.shape[0]
+        # Set output buffer
+        for i in range(size):
+            buff[i] = bankr[i]
+        # if (size-size_old)>0:
+        # print("recieved",size-size_old,"particles, in domain",mcdc["d_idx"])
+    # Set source bank from buffer
+    for i in range(size):
+        add_particle(buff[i], mcdc["bank_active"])
 
 
 # =============================================================================
@@ -2955,7 +2955,10 @@ def iqmc_improved_kull(mcdc):
     # =========================================================================
     # Nonblocking send of particles to neighbor
     # =========================================================================
-    with objmode():
+    buff = np.zeros(
+        mcdc["bank_domain_xp"]["particles"].shape[0], dtype=type_.particle_record
+    )
+    with objmode(size="int64"):
         neighbors = [
             "xp_neigh",
             "xn_neigh",
@@ -2978,12 +2981,12 @@ def iqmc_improved_kull(mcdc):
                 if i == len(mcdc["technique"][name]) - 1:
                     end = size
                 send_bank = np.array(bank["particles"][start:end])
-                # print('rank ', mcdc["mpi_rank"], "sent message to rank ", mcdc["technique"][name][i] , " of size ", send_bank.shape)
+                print('rank ', mcdc["mpi_rank"], "sent message to rank ", mcdc["technique"][name][i] , " of size ", send_bank.shape)
                 requests.append(
                     MPI.COMM_WORLD.isend(send_bank, dest=mcdc["technique"][name][i])
                 )
             # reset domain transfer bank to zero
-            # bank["size"] = 0
+            bank["size"] = 0
 
         # =========================================================================
         # Blocking Receive
@@ -3000,7 +3003,7 @@ def iqmc_improved_kull(mcdc):
                 # blocking test for a message:
                 if MPI.COMM_WORLD.probe(source=source):
                     received = MPI.COMM_WORLD.recv(source=source)
-                    # print('rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
+                    print('rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
                     bankr = np.append(bankr, received)
 
         # =========================================================================
@@ -3009,10 +3012,18 @@ def iqmc_improved_kull(mcdc):
         # =========================================================================
         MPI.Request.waitall(requests)
         # reset the particle bank to zero
-        mcdc["bank_source"]["size"] = 0
+        # mcdc["bank_source"]["size"] = 0
         # place received particles in bank_source
-        for i in range(len(bankr)):
-            add_particle(bankr[i], mcdc["bank_source"])
+        # for i in range(len(bankr)):
+            # add_particle(bankr[i], mcdc["bank_source"])
+        size = bankr.shape[0]
+        # Set output buffer
+        for i in range(size):
+            buff[i] = bankr[i]
+
+    mcdc["bank_source"]["size"] = 0
+    for i in range(size):
+        add_particle(buff[i], mcdc["bank_source"])
 
     # reset domain transfer banks to zero
     # for some reason doing this inside objmode() doesn't work in Numba mode ?
@@ -3022,6 +3033,7 @@ def iqmc_improved_kull(mcdc):
     mcdc["bank_domain_yn"]["size"] = 0
     mcdc["bank_domain_zp"]["size"] = 0
     mcdc["bank_domain_zn"]["size"] = 0
+    # print('rank ', mcdc["mpi_rank"], "bank_source length = ", mcdc["bank_source"]["size"])
 
 
 @njit
