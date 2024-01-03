@@ -23,7 +23,6 @@ with h5py.File("dd_output.h5", "r") as f:
     f.close()
 
 diff = abs(phi - dd_phi) / phi * 100
-diff = abs(phi - dd_phi)
 
 plt.figure(dpi=300, figsize=(8, 4))
 plt.pcolormesh(X, Y, diff, shading="nearest")
