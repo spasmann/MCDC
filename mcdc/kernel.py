@@ -3141,11 +3141,6 @@ def iqmc_prepare_particles(mcdc):
     # total number of particles
     N_particle = mcdc["setting"]["N_particle"]
     # number of particles this processor will handle
-    size = mcdc["mpi_size"]
-    N_work = math.ceil(N_particle / size)
-    # how many samples this processor will skip in the LDS
-    # work_start = int((rank / size) * N_particle)
-    # work_end = work_start + N_work
     # low discrepency sequence
     lds = iqmc["lds"]
     # source
@@ -3181,7 +3176,7 @@ def iqmc_prepare_particles(mcdc):
         za = mesh["z"][0]
         zb = mesh["z"][-1]
 
-    for n in range(N_work):
+    for n in range(mcdc["mpi_work_size"]):
         # Create new particle
         P_new = np.zeros(1, dtype=type_.particle_record)[0]
         # assign initial group, time, and rng_seed (not used)
