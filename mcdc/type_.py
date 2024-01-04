@@ -59,7 +59,7 @@ def make_type_particle(iQMC, G):
     Ng = 1
     if iQMC:
         Ng = G
-    iqmc_struct = [("w", float64, (Ng,)), ("d_id", int32)]
+    iqmc_struct = [("w", float64, (Ng,))]
     struct += [("iqmc", iqmc_struct)]
     particle = np.dtype(struct)
 

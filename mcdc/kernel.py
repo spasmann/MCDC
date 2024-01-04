@@ -840,7 +840,6 @@ def get_particle(bank, mcdc):
 
     if mcdc["technique"]["iQMC"]:
         P["iqmc"]["w"] = P_rec["iqmc"]["w"]
-        P["iqmc"]["d_id"] = P_rec["iqmc"]["d_id"]
 
     P["alive"] = True
     P["sensitivity_ID"] = P_rec["sensitivity_ID"]
@@ -1466,7 +1465,6 @@ def copy_particle(P):
     P_new["rng_seed"] = P["rng_seed"]
     P_new["sensitivity_ID"] = P["sensitivity_ID"]
     P_new["iqmc"]["w"] = P["iqmc"]["w"]
-    P_new["iqmc"]["d_id"] = P["iqmc"]["d_id"]
 
     return P_new
 
