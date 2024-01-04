@@ -177,13 +177,10 @@ def get_domain_array(array, mesh, domain_mesh, d_id):
     idx = np.where((mesh["x"] >= xo) & (mesh["x"] <= xf))[0]
     idy = np.where((mesh["y"] >= yo) & (mesh["y"] <= yf))[0]
     idz = np.where((mesh["z"] >= zo) & (mesh["z"] <= zf))[0]
-
+    print("\n Old array shape, ", array.shape)
     array = array[:, :, idx[0] : idx[-1], idy[0] : idy[-1], idz[0] : idz[-1]]
-    # print("\n array shape = ", array.shape)
-    # print("\n xo and xf ", xo, xf)
-    # print("\n mesh[x][idx[0] ", mesh["x"][idx][0])
-    # print("\n mesh[x][idx[-1]+1 ", mesh["x"][idx][-1])
-    # print("\n New array Shape, ", array.shape)
+    print("\n New array shape, ", array.shape)
+
     return array
 
 
@@ -586,6 +583,8 @@ def prepare():
                 if domain_decomp:
                     if isinstance(input_deck.technique["iqmc"][name], np.ndarray):
                         if input_deck.technique["iqmc"][name].shape == mesh_shape:
+                            print("\n name ", name)
+                            print("\n Input shape ", input_deck.technique["iqmc"][name].shape)
                             input_deck.technique["iqmc"][name] = get_domain_array(
                                 input_deck.technique["iqmc"][name],
                                 input_deck.technique["iqmc"]["mesh"],
@@ -602,6 +601,7 @@ def prepare():
         for name, array in input_deck.technique["iqmc"]["score"].items():
             if domain_decomp:
                 if iqmc["score_list"][name]:
+                    print("name ", name)
                     array = get_domain_array(
                         array,
                         input_deck.technique["iqmc"]["mesh"],

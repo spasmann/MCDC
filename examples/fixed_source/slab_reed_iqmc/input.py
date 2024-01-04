@@ -43,7 +43,7 @@ maxit = 5
 tol = 1e-9
 x = np.linspace(-8, 8, num=Nx + 1)
 generator = "halton"
-solver = "gmres"
+solver = "source_iteration"
 
 
 def reeds_source(Nx, LB=-8.0, RB=8.0):

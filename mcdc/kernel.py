@@ -3234,7 +3234,7 @@ def iqmc_res(flux_new, flux_old, mcdc):
     flux_old = np.linalg.norm(flux_old.reshape((size,)), ord=2)
     res = (flux_new - flux_old) / flux_old
     if mcdc["technique"]["domain_decomp"]:
-        allreduce(res)
+        res = allreduce(res)
 
     return res
 
@@ -3543,7 +3543,7 @@ def iqmc_distribute_tallies(mcdc):
     for name in literal_unroll(iqmc_score_list):
         if score_list[name]:
             if domain_decomp:
-                iqmc_domain_score_reduce_bin(score_bin[name])
+                iqmc_domain_score_reduce_bin(score_bin[name], mcdc)
             else:
                 iqmc_score_reduce_bin(score_bin[name])
 
@@ -3563,7 +3563,7 @@ def iqmc_domain_score_reduce_bin(score, mcdc):
     rank = mcdc["mpi_rank"]
     buff = np.zeros_like(score)
     with objmode():
-        domain_comm = comm.Split(color=d_id, key=rank)
+        domain_comm = MPI.COMM_WORLD.Split(color=d_id, key=rank)
         domain_comm.Allreduce(np.array(score), buff, op=MPI.SUM)
     score[:] = buff
 
