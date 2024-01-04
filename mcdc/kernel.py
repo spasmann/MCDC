@@ -3211,7 +3211,7 @@ def iqmc_prepare_particles(mcdc):
 
 
 @njit
-def iqmc_res(flux_new, flux_old):
+def iqmc_res(flux_new, flux_old, mcdc):
     """
 
     Calculate residual between scalar flux iterations.
@@ -3232,7 +3232,11 @@ def iqmc_res(flux_new, flux_old):
     size = flux_old.size
     flux_new = np.linalg.norm(flux_new.reshape((size,)), ord=2)
     flux_old = np.linalg.norm(flux_old.reshape((size,)), ord=2)
-    return (flux_new - flux_old) / flux_old
+    res = (flux_new - flux_old) / flux_old
+    if mcdc["technique"]["domain_decomp"]:
+        allreduce(res)
+
+    return res
 
 
 @njit
@@ -3530,13 +3534,18 @@ def iqmc_reset_tallies(iqmc):
 
 
 @njit
-def iqmc_distribute_tallies(iqmc):
+def iqmc_distribute_tallies(mcdc):
+    iqmc = mcdc["technique"]["iqmc"]
     score_bin = iqmc["score"]
     score_list = iqmc["score_list"]
+    domain_decomp = mcdc["technique"]["domain_decomp"]
 
     for name in literal_unroll(iqmc_score_list):
         if score_list[name]:
-            iqmc_score_reduce_bin(score_bin[name])
+            if domain_decomp:
+                iqmc_domain_score_reduce_bin(score_bin[name])
+            else:
+                iqmc_score_reduce_bin(score_bin[name])
 
 
 @njit
@@ -3545,6 +3554,17 @@ def iqmc_score_reduce_bin(score):
     buff = np.zeros_like(score)
     with objmode():
         MPI.COMM_WORLD.Allreduce(np.array(score), buff, op=MPI.SUM)
+    score[:] = buff
+
+
+@njit
+def iqmc_domain_score_reduce_bin(score, mcdc):
+    d_id = mcdc["d_idx"]
+    rank = mcdc["mpi_rank"]
+    buff = np.zeros_like(score)
+    with objmode():
+        domain_comm = comm.Split(color=d_id, key=rank)
+        domain_comm.Allreduce(np.array(score), buff, op=MPI.SUM)
     score[:] = buff
 
 
@@ -3868,7 +3888,7 @@ def AxV(V, b, mcdc):
     iqmc["sweep_counter"] += 1
     iqmc_loop_source(mcdc)
     # sum resultant flux on all processors
-    iqmc_distribute_tallies(iqmc)
+    iqmc_distribute_tallies(mcdc)
     # update source adds effective scattering + fission + fixed-source
     iqmc_update_source(mcdc)
     # combine all sources (constant and tilted) into one vector
@@ -3901,7 +3921,7 @@ def HxV(V, mcdc):
     iqmc["sweep_counter"] += 1
     iqmc_loop_source(mcdc)
     # sum resultant flux on all processors
-    iqmc_distribute_tallies(iqmc)
+    iqmc_distribute_tallies(mcdc)
     iqmc_consolidate_sources(mcdc)
     v_out = iqmc["total_source"].copy()
     axv = v - v_out
@@ -3932,7 +3952,7 @@ def FxV(V, mcdc):
     iqmc_loop_source(mcdc)
 
     # sum resultant flux on all processors
-    iqmc_distribute_tallies(iqmc)
+    iqmc_distribute_tallies(mcdc)
     iqmc_consolidate_sources(mcdc)
     v_out = iqmc["total_source"].copy()
 
@@ -3962,7 +3982,7 @@ def preconditioner(V, mcdc, num_sweeps=3):
         iqmc["sweep_counter"] += 1
         iqmc_loop_source(mcdc)
         # sum resultant flux on all processors
-        iqmc_distribute_tallies(iqmc)
+        iqmc_distribute_tallies(mcdc)
 
     iqmc_consolidate_sources(mcdc)
     v_out = iqmc["total_source"].copy()

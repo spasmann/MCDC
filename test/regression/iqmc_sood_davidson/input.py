@@ -28,6 +28,7 @@ mcdc.cell([+s1, -s2], m1)
 # =========================================================================
 # iQMC Parameters
 # =========================================================================
+Ng = 2
 Nx = 5
 N = 10
 maxit = 5
@@ -35,14 +36,15 @@ tol = 1e-3
 x = np.linspace(0.0, 6.01275, num=Nx + 1)
 generator = "halton"
 solver = "davidson"
-fixed_source = np.zeros(Nx)
-phi0 = np.ones((Nx))
+fixed_source = np.zeros((Ng, Nx))
+phi0 = np.ones((Ng, Nx))
 
 # =========================================================================
 # Set tally, setting, and run mcdc
 # =========================================================================
 
 mcdc.iQMC(
+    g=np.ones(Ng),
     x=x,
     phi0=phi0,
     fixed_source=fixed_source,

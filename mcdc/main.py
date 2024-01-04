@@ -138,6 +138,55 @@ def get_neighbors(N, w, nx, ny, nz):
     return xn, xp, yn, yp, zn, zp
 
 
+def get_domain_array(array, mesh, domain_mesh, d_id):
+    """
+
+    This function finds the overlap between a "global" mesh passed in,
+    like a tally mesh or iqmc mesh, and the domain mesh then maps that overlap
+    to the designated numpy array.
+
+    -SLP
+    """
+    # number of domains in each dimension
+    d_Nx = len(domain_mesh["x"]) - 1
+    d_Ny = len(domain_mesh["y"]) - 1
+    d_Nz = len(domain_mesh["z"]) - 1
+
+    if d_Nx > 1:
+        xo = domain_mesh["x"][d_id]
+        xf = domain_mesh["x"][d_id + 1]
+    else:
+        xo = domain_mesh["x"][0]
+        xf = domain_mesh["x"][-1]
+
+    if d_Ny > 1:
+        yo = domain_mesh["y"][d_id]
+        yf = domain_mesh["y"][d_id + 1]
+    else:
+        yo = domain_mesh["y"][0]
+        yf = domain_mesh["y"][-1]
+
+    if d_Nz > 1:
+        zo = domain_mesh["z"][d_id]
+        zf = domain_mesh["z"][d_id + 1]
+    else:
+        zo = domain_mesh["z"][0]
+        zf = domain_mesh["z"][-1]
+
+    # where does the card mesh overlap the domain mesh
+    idx = np.where((mesh["x"] >= xo) & (mesh["x"] <= xf))[0]
+    idy = np.where((mesh["y"] >= yo) & (mesh["y"] <= yf))[0]
+    idz = np.where((mesh["z"] >= zo) & (mesh["z"] <= zf))[0]
+
+    array = array[:, :, idx[0] : idx[-1], idy[0] : idy[-1], idz[0] : idz[-1]]
+    # print("\n array shape = ", array.shape)
+    # print("\n xo and xf ", xo, xf)
+    # print("\n mesh[x][idx[0] ", mesh["x"][idx][0])
+    # print("\n mesh[x][idx[-1]+1 ", mesh["x"][idx][-1])
+    # print("\n New array Shape, ", array.shape)
+    return array
+
+
 def dd_prepare():
     work_ratio = input_deck.technique["work_ratio"]
 
@@ -513,33 +562,60 @@ def prepare():
     # Quasi Monte Carlo
     # =========================================================================
 
-    for name in type_.technique["iqmc"].names:
-        if name not in [
-            "mesh",
-            "res",
-            "lds",
-            "generator",
-            "sweep_counter",
-            "total_source",
-            "w_min",
-            "score_list",
-            "score",
-        ]:
-            mcdc["technique"]["iqmc"][name] = input_deck.technique["iqmc"][name]
-
     if input_deck.technique["iQMC"]:
-        # pass in mesh
         iqmc = mcdc["technique"]["iqmc"]
+
+        domain_decomp = input_deck.technique["domain_decomp"]
+        if domain_decomp:
+            mesh_shape = input_deck.technique["iqmc"]["source"].shape
+
+        for name in type_.technique["iqmc"].names:
+            if name not in [
+                "mesh",
+                "res",
+                "lds",
+                "generator",
+                "sweep_counter",
+                "total_source",
+                "w_min",
+                "score_list",
+                "score",
+                "material_idx",
+            ]:
+                # reduce array size if domain decomp
+                if domain_decomp:
+                    if isinstance(input_deck.technique["iqmc"][name], np.ndarray):
+                        if input_deck.technique["iqmc"][name].shape == mesh_shape:
+                            input_deck.technique["iqmc"][name] = get_domain_array(
+                                input_deck.technique["iqmc"][name],
+                                input_deck.technique["iqmc"]["mesh"],
+                                mcdc["technique"]["domain_mesh"],
+                                mcdc["d_idx"],
+                            )
+                iqmc[name] = input_deck.technique["iqmc"][name]
+
+        # pass in score list
+        for name, bool_ in input_deck.technique["iqmc"]["score_list"].items():
+            iqmc["score_list"][name] = bool_
+
+        # pass in initial tallies, reduce array size if domain decomp
+        for name, array in input_deck.technique["iqmc"]["score"].items():
+            if domain_decomp:
+                if iqmc["score_list"][name]:
+                    array = get_domain_array(
+                        array,
+                        input_deck.technique["iqmc"]["mesh"],
+                        mcdc["technique"]["domain_mesh"],
+                        mcdc["d_idx"],
+                    )
+            iqmc["score"][name] = array
+
+        # pass in mesh
         iqmc["mesh"]["x"] = input_deck.technique["iqmc"]["mesh"]["x"]
         iqmc["mesh"]["y"] = input_deck.technique["iqmc"]["mesh"]["y"]
         iqmc["mesh"]["z"] = input_deck.technique["iqmc"]["mesh"]["z"]
         iqmc["mesh"]["t"] = input_deck.technique["iqmc"]["mesh"]["t"]
-        # pass in score list
-        for name, value in input_deck.technique["iqmc"]["score_list"].items():
-            iqmc["score_list"][name] = value
-        # pass in initial tallies
-        for name, value in input_deck.technique["iqmc"]["score"].items():
-            mcdc["technique"]["iqmc"]["score"][name] = value
+
         # LDS generator
         iqmc["generator"] = input_deck.technique["iqmc"]["generator"]
         # minimum particle weight

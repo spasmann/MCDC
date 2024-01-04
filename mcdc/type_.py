@@ -519,14 +519,19 @@ def make_type_technique(N_particle, G, card):
 
     # Mesh (for qmc source tallies)
     if card["iQMC"]:
-        mesh, Nx, Ny, Nz, Nt, Nmu, N_azi = make_type_mesh_(card["iqmc"]["mesh"])
         Ng = G
         N_dim = 6  # group, x, y, z, mu, phi
+        if card["domain_decomp"]:
+            mesh, Nx, Ny, Nz, Nt, Nmu, N_azi = make_type_domain_mesh_(
+                card["iqmc"]["mesh"], card["domain_mesh"], card["work_ratio"]
+            )
+        else:
+            mesh, Nx, Ny, Nz, Nt, Nmu, N_azi = make_type_mesh_(card["iqmc"]["mesh"])
+
     else:
-        Nx = Ny = Nz = Nt = Nmu = N_azi = N_particle = Ng = N_dim = 0
+        Nx = Ny = Nz = Nt = N_particle = Ng = N_dim = 0
 
     iqmc_list += [("mesh", mesh)]
-
     # Low-discprenecy sequence
     size = MPI.COMM_WORLD.Get_size()
     rank = MPI.COMM_WORLD.Get_rank()
@@ -986,6 +991,62 @@ def make_type_mesh_(card):
         Nmu,
         N_azi,
     )
+
+
+def make_type_domain_mesh_(card, domain_card, work_ratio):
+    """
+    To be used with domain decomposition.
+
+    This function finds the overlap between a "global" mesh card passed in
+    like the tally mesh or iqmc mesh, finds the overlapping regions with the
+    the domain and returns only the overlapping section of the global
+    mesh card.
+
+    -SLP
+    """
+    # number of domains in each dimension
+    d_Nx = len(domain_card["x"]) - 1
+    d_Ny = len(domain_card["y"]) - 1
+    d_Nz = len(domain_card["z"]) - 1
+
+    # Assigning domain ID
+    i = 0
+    for n in range(d_Nx * d_Ny * d_Nz):
+        for r in range(int(work_ratio[n])):
+            if MPI.COMM_WORLD.Get_rank() == i:
+                d_id = n
+            i += 1
+
+    for dim, num_domain in zip(["x", "y", "z"], [d_Nx, d_Ny, d_Nz]):
+        if num_domain > 1:
+            do = domain_card[dim][d_id]
+            df = domain_card[dim][d_id + 1]
+        else:
+            do = card[dim][0]
+            df = card[dim][-1]
+        idx = np.where((card[dim] >= do) & (card[dim] <= df))[0]
+        card[dim] = card[dim][idx[0] : idx[-1] + 1]
+
+    # print(card["x"])
+    # # take the boundaries of the domain
+    # xo = domain_card["x"][d_id]
+    # xf = domain_card["x"][d_id+1]
+    # yo = domain_card["y"][d_id]
+    # yf = domain_card["y"][d_id+1]
+    # zo = domain_card["z"][d_id]
+    # zf = domain_card["z"][d_id+1]
+
+    # # where does the card mesh overlap the domain mesh
+    # idx = np.where((card["x"] >= xo) & (card["x"] <= xf))[0]
+    # idy = np.where((card["y"] >= yo) & (card["y"] <= yf))[0]
+    # idz = np.where((card["z"] >= zo) & (card["z"] <= zf))[0]
+
+    # # set the card mesh = to the overlap section
+    # card["x"] = card["x"][idx[0]:idx[-1]+1]
+    # card["y"] = card["y"][idy[0]:idy[-1]+1]
+    # card["z"] = card["z"][idz[0]:idz[-1]+1]
+
+    return make_type_mesh_(card)
 
 
 mesh_names = ["x", "y", "z", "t", "mu", "azi", "g"]

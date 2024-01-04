@@ -563,13 +563,13 @@ def source_iteration(mcdc):
         iqmc_loop_source(mcdc)
 
         # sum resultant flux on all processors
-        kernel.iqmc_distribute_tallies(iqmc)
+        kernel.iqmc_distribute_tallies(mcdc)
         iqmc["itt"] += 1
         kernel.iqmc_update_source(mcdc)
         # combine source tallies into one vector
         kernel.iqmc_consolidate_sources(mcdc)
         # calculate norm of sources
-        iqmc["res"] = kernel.iqmc_res(iqmc["total_source"], total_source_old)
+        iqmc["res"] = kernel.iqmc_res(iqmc["total_source"], total_source_old, mcdc)
         # iQMC convergence criteria
         if (iqmc["itt"] == iqmc["maxitt"]) or (iqmc["res"] <= iqmc["tol"]):
             simulation_end = True
@@ -711,8 +711,11 @@ def gmres(mcdc):
                 normr = abs(g[inner + 1])
                 rel_resid = normr / res_0
                 iqmc["res"] = rel_resid
+                if mcdc["technique"]["domain_decomp"]:
+                    iqmc["res"] = kernel.allreduce(iqmc["res"])
 
             iqmc["itt"] += 1
+
             if not mcdc["setting"]["mode_eigenvalue"]:
                 with objmode():
                     print_progress_iqmc(mcdc)
@@ -765,7 +768,9 @@ def power_iteration(mcdc):
 
         # update k_eff
         mcdc["k_eff"] *= score_bin["fission-source"][0] / fission_source_old[0]
-
+        # broadcast k_eff if domain decomposed
+        if mcdc["technique"]["domain_decomp"]:
+            mcdc["k_eff"] = kernel.allreduce(mcdc["k_eff"])
         # calculate diff in keff
         iqmc["res_outter"] = abs(mcdc["k_eff"] - k_old) / k_old
         k_old = mcdc["k_eff"]

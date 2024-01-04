@@ -37,9 +37,9 @@ mcdc.cell([+s7, -s8], m4)
 # =============================================================================
 # iQMC Parameters
 # =============================================================================
-N = 5000
+N = 1000
 Nx = 32
-maxit = 20
+maxit = 5
 tol = 1e-9
 x = np.linspace(-8, 8, num=Nx + 1)
 generator = "halton"
@@ -96,10 +96,10 @@ mcdc.iQMC(
 # Setting
 mcdc.setting(N_particle=N)
 
-# mcdc.domain_decomp(
-# x=np.linspace(-8.0, 8.0, 5),
-# bank_size=int(2* N / 5),
-# )
+mcdc.domain_decomp(
+    x=np.linspace(-8.0, 8.0, 3),
+    bank_size=int(2 * N / 5),
+)
 
 # Run
 mcdc.run()
