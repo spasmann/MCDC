@@ -509,18 +509,7 @@ def iqmc_loop_source(mcdc):
         for idx_work in range(work_size):
             P = mcdc["bank_source"]["particles"][idx_work]
             mcdc["bank_source"]["size"] -= 1
-            # =================================================================
-            # this chunk of code only exists until I can separate the LDS by domain
-            # =================================================================
-            if mcdc["technique"]["domain_decomp"]:
-                if not kernel.particle_in_domain(P, mcdc):
-                    continue
-                else:
-                    kernel.add_particle(P, mcdc["bank_active"])
-            else:
-                kernel.add_particle(P, mcdc["bank_active"])
-            # =================================================================
-            # kernel.add_particle(P, mcdc["bank_active"])
+            kernel.add_particle(P, mcdc["bank_active"])
 
             # Loop until active bank is exhausted
             while mcdc["bank_active"]["size"] > 0:
@@ -738,9 +727,6 @@ def gmres(mcdc):
             break
         if iqmc["itt"] >= max_iter:
             return
-
-
-from numba import typeof
 
 
 @njit

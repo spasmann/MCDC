@@ -542,7 +542,7 @@ def make_type_technique(N_particle, G, card):
     if rank < rem:
         work_size += 1
 
-    iqmc_list += [("lds", float64, (N_particle, N_dim))]
+    iqmc_list += [("lds", float64, (work_size, N_dim))]
     iqmc_list += [("fixed_source", float64, (Ng, Nt, Nx, Ny, Nz))]
     # TODO: make matidx int32
     iqmc_list += [("material_idx", int64, (Nt, Nx, Ny, Nz))]
@@ -611,6 +611,7 @@ def make_type_technique(N_particle, G, card):
         ("preconditioner_sweeps", int64),
         ("sweep_counter", int64),
         ("w_min", float64),
+        ("Nc_total", int64),
     ]
 
     struct += [("iqmc", iqmc_list)]

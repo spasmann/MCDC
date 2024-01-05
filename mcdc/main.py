@@ -609,6 +609,7 @@ def prepare():
                 "score_list",
                 "score",
                 "material_idx",
+                "Nc_total",
             ]:
                 # reduce array size if domain decomp
                 if domain_decomp:
@@ -639,6 +640,13 @@ def prepare():
                         )
             iqmc["score"][name] = array
 
+        # total number of cells in the global mesh
+        iqmc["Nc_total"] = (
+            (input_deck.technique["iqmc"]["mesh"]["x"].size - 1)
+            * (input_deck.technique["iqmc"]["mesh"]["y"].size - 1)
+            * (input_deck.technique["iqmc"]["mesh"]["z"].size - 1)
+        )
+
         # Reduce mesh size if domain decomp
         # WARNING: mesh must be reduced after all other tally arrays
         if domain_decomp:
@@ -657,8 +665,7 @@ def prepare():
         # minimum particle weight
         iqmc["w_min"] = 1e-13
         # variables to generate samples
-        # scramble = mcdc["technique"]["iqmc"]["scramble"]
-        # seed = mcdc["technique"]["iqmc"]["seed"]
+        seed = mcdc["technique"]["iqmc"]["seed"]
         N_dim = mcdc["technique"]["iqmc"]["N_dim"]
         mcdc["mpi_size"] = MPI.COMM_WORLD.Get_size()
         mcdc["mpi_rank"] = MPI.COMM_WORLD.Get_rank()
@@ -668,25 +675,26 @@ def prepare():
 
         # generate LDS
         if input_deck.technique["iqmc"]["generator"] == "sobol":
-            # if input_deck.technique["domain_decomp"]:
-            # sampler = qmc.Sobol(d=N_dim, scramble=True)
-            # else:
-            sampler = qmc.Sobol(d=N_dim, scramble=False)
-            # skip the first entry in Sobol sequence because its 0.0
-            # skip the second because it maps to ux = 0.0
-            sampler.fast_forward(2)
-            # sampler.fast_forward(N_start)
-            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_particle)
+            if input_deck.technique["domain_decomp"]:
+                sampler = qmc.Sobol(d=N_dim, scramble=True)
+            else:
+                sampler = qmc.Sobol(d=N_dim, scramble=False)
+                # skip the first entry in Sobol sequence because its 0.0
+                # skip the second because it maps to ux = 0.0
+                sampler.fast_forward(2)
+                sampler.fast_forward(N_start)
+            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+
         if input_deck.technique["iqmc"]["generator"] == "halton":
-            # if input_deck.technique["domain_decomp"]:
-            # sampler = qmc.Halton(d=N_dim, scramble=True)
-            # else:
-            sampler = qmc.Halton(d=N_dim, scramble=False)
-            # skip the first entry in Halton sequence because its 0.0
-            sampler.fast_forward(1)
-            # sampler.fast_forward(N_start)
-            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_particle)
-            # print("LDS shape = ", mcdc["technique"]["iqmc"]["lds"].shape)
+            if input_deck.technique["domain_decomp"]:
+                sampler = qmc.Halton(d=N_dim, scramble=True)
+            else:
+                sampler = qmc.Halton(d=N_dim, scramble=False)
+                # skip the first entry in Halton sequence because its 0.0
+                sampler.fast_forward(1)
+                sampler.fast_forward(N_start)
+            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+
         if input_deck.technique["iqmc"]["generator"] == "random":
             np.random.seed(seed)
             seeds = np.random.randint(1e6, size=mcdc["mpi_size"])

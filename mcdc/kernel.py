@@ -3001,7 +3001,7 @@ def iqmc_improved_kull(mcdc):
                 if i == len(mcdc["technique"][name]) - 1:
                     end = size
                 send_bank = np.array(bank["particles"][start:end])
-                # print('rank ', mcdc["mpi_rank"], "sent message to rank ", mcdc["technique"][name][i] , " of size ", send_bank.shape)
+                # print('\n rank ', mcdc["mpi_rank"], "sent message to rank ", mcdc["technique"][name][i] , " of size ", send_bank.shape)
                 requests.append(
                     MPI.COMM_WORLD.isend(send_bank, dest=mcdc["technique"][name][i])
                 )
@@ -3021,7 +3021,7 @@ def iqmc_improved_kull(mcdc):
                 # blocking test for a message:
                 if MPI.COMM_WORLD.probe(source=source):
                     received = MPI.COMM_WORLD.recv(source=source)
-                    # print('rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
+                    # print('\n rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
                     bankr = np.append(bankr, received)
 
         # =========================================================================
@@ -3172,21 +3172,20 @@ def iqmc_prepare_particles(mcdc):
     Q = iqmc["source"]
     mesh = iqmc["mesh"]
 
-    Nx = len(mesh["x"]) - 1
-    Ny = len(mesh["y"]) - 1
-    Nz = len(mesh["z"]) - 1
-    # total number of spatial cells
-    N_total = Nx * Ny * Nz
     if mcdc["technique"]["domain_decomp"]:
         distribute_work(N_particle, mcdc)
+
+    # total number of spatial cells (of all domains)
+    N_total = iqmc["Nc_total"]
+    # boundaries of mesh
     xa = mesh["x"][0]
     xb = mesh["x"][-1]
     ya = mesh["y"][0]
     yb = mesh["y"][-1]
     za = mesh["z"][0]
     zb = mesh["z"][-1]
-    # for n in range(mcdc["mpi_work_size"]):
-    for n in range(N_particle):
+
+    for n in range(mcdc["mpi_work_size"]):
         # Create new particle
         P_new = np.zeros(1, dtype=type_.particle_record)[0]
         # assign initial group, time, and rng_seed (not used)
