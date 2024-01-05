@@ -524,7 +524,6 @@ def iqmc_loop_source(mcdc):
 
             # Loop until active bank is exhausted
             while mcdc["bank_active"]["size"] > 0:
-                # print("\n P[x] ", P["x"])
                 # Get particle from active bank
                 P = kernel.get_particle(mcdc["bank_active"], mcdc)
                 # Particle tracker
@@ -753,6 +752,8 @@ def power_iteration(mcdc):
     solver = iqmc["fixed_source_solver"]
 
     fission_source_old = score_bin["fission-source"].copy()
+    if mcdc["technique"]["domain_decomp"]:
+        fission_source_old[0] = kernel.allreduce(fission_source_old[0])
 
     while not simulation_end:
         # iterate over scattering source
@@ -765,11 +766,10 @@ def power_iteration(mcdc):
         # reset counter for inner iteration
         iqmc["itt"] = 0
         # TODO: broadcast fission_source
+        if mcdc["technique"]["domain_decomp"]:
+            score_bin["fission-source"] = kernel.allreduce(score_bin["fission-source"])
         # update k_eff
         mcdc["k_eff"] *= score_bin["fission-source"][0] / fission_source_old[0]
-        # broadcast k_eff if domain decomposed
-        if mcdc["technique"]["domain_decomp"]:
-            mcdc["k_eff"] = kernel.allreduce(mcdc["k_eff"])
         # calculate diff in keff
         iqmc["res_outter"] = abs(mcdc["k_eff"] - k_old) / k_old
         k_old = mcdc["k_eff"]

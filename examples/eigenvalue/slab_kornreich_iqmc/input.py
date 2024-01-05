@@ -39,7 +39,7 @@ N = 1000
 maxit = 5
 tol = 1e-3
 Nx = 20
-x = np.linspace(0, 2.5, Nx+1)
+x = np.linspace(0, 2.5, Nx + 1)
 generator = "halton"
 solver = "power_iteration"
 fixed_source = np.zeros(Nx)
@@ -65,7 +65,7 @@ mcdc.eigenmode()
 
 mcdc.domain_decomp(
     x=np.linspace(0.0, 2.5, 3),
-    bank_size=int(2 * N / 5),
+    bank_size=int(3 * N / 5),
 )
 
 

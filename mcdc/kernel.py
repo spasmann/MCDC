@@ -3151,7 +3151,6 @@ def iqmc_prepare_particles(mcdc):
     lds = iqmc["lds"]
     # source
     Q = iqmc["source"]
-    dd_mesh = mcdc["technique"]["domain_mesh"]
     mesh = iqmc["mesh"]
 
     Nx = len(mesh["x"]) - 1
@@ -3159,23 +3158,8 @@ def iqmc_prepare_particles(mcdc):
     Nz = len(mesh["z"]) - 1
     # total number of spatial cells
     N_total = Nx * Ny * Nz
-    # outter mesh boundaries for sampling position
-    # if mcdc["technique"]["domain_decomp"]:
-    #     d_idx = mcdc["d_idx"]
-    #     d_Nx = mcdc["technique"]["domain_mesh"]["x"].size - 1
-    #     d_Ny = mcdc["technique"]["domain_mesh"]["y"].size - 1
-    #     d_Nz = mcdc["technique"]["domain_mesh"]["z"].size - 1
-    #     d_iz = int(d_idx / (d_Nx * d_Ny))
-    #     d_iy = int((d_idx - d_Nx * d_Ny * d_iz) / d_Nx)
-    #     d_ix = int(d_idx - d_Nx * d_Ny * d_iz - d_Nx * d_iy)
-    #     xa = dd_mesh["x"][d_ix]
-    #     xb = dd_mesh["x"][d_ix + 1]
-    #     ya = dd_mesh["y"][d_iy]
-    #     yb = dd_mesh["y"][d_iy + 1]
-    #     za = dd_mesh["z"][d_iz]
-    #     zb = dd_mesh["z"][d_iz + 1]
-    #     distribute_work(N_particle, mcdc)
-    # else:
+    if mcdc["technique"]["domain_decomp"]:
+        distribute_work(N_particle, mcdc)
     xa = mesh["x"][0]
     xb = mesh["x"][-1]
     ya = mesh["y"][0]
@@ -3192,7 +3176,6 @@ def iqmc_prepare_particles(mcdc):
         P_new["rng_seed"] = 0
         # assign direction
         P_new["x"] = iqmc_sample_position(xa, xb, lds[n, 0])
-        print("\n P[x] ", P_new["x"])
         P_new["y"] = iqmc_sample_position(ya, yb, lds[n, 4])
         P_new["z"] = iqmc_sample_position(za, zb, lds[n, 3])
         # Sample isotropic direction
@@ -3233,8 +3216,7 @@ def iqmc_res(flux_new, flux_old, mcdc):
     size = flux_old.size
     flux_new = np.linalg.norm(flux_new.reshape((size,)), ord=2)
     flux_old = np.linalg.norm(flux_old.reshape((size,)), ord=2)
-    # flux_new = flux_new.sum()
-    # flux_old = flux_old.sum()
+
     res = (flux_new - flux_old) / flux_old
 
     if mcdc["technique"]["domain_decomp"]:
