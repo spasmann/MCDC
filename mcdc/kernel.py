@@ -1048,6 +1048,25 @@ def allreduce(value):
 
 
 @njit
+def allreduce_array(array):
+    buff = np.zeros_like(array)
+    with objmode():
+        MPI.COMM_WORLD.Allreduce(np.array(array), buff, op=MPI.SUM)
+    array[:] = buff
+
+
+@njit
+def allreduce_domain_array(array, mcdc):
+    d_id = mcdc["d_idx"]
+    rank = mcdc["mpi_rank"]
+    buff = np.zeros_like(array)
+    with objmode():
+        domain_comm = MPI.COMM_WORLD.Split(color=d_id, key=rank)
+        domain_comm.Allreduce(np.array(array), buff, op=MPI.SUM)
+    array[:] = buff
+
+
+@njit
 def bank_rebalance(mcdc):
     # Scan the bank
     idx_start, N_local, N = bank_scanning(mcdc["bank_source"], mcdc)
@@ -3529,29 +3548,9 @@ def iqmc_distribute_tallies(mcdc):
     for name in literal_unroll(iqmc_score_list):
         if score_list[name]:
             if domain_decomp:
-                iqmc_domain_score_reduce_bin(score_bin[name], mcdc)
+                allreduce_domain_array(score_bin[name], mcdc)
             else:
-                iqmc_score_reduce_bin(score_bin[name])
-
-
-@njit
-def iqmc_score_reduce_bin(score):
-    # MPI Reduce
-    buff = np.zeros_like(score)
-    with objmode():
-        MPI.COMM_WORLD.Allreduce(np.array(score), buff, op=MPI.SUM)
-    score[:] = buff
-
-
-@njit
-def iqmc_domain_score_reduce_bin(score, mcdc):
-    d_id = mcdc["d_idx"]
-    rank = mcdc["mpi_rank"]
-    buff = np.zeros_like(score)
-    with objmode():
-        domain_comm = MPI.COMM_WORLD.Split(color=d_id, key=rank)
-        domain_comm.Allreduce(np.array(score), buff, op=MPI.SUM)
-    score[:] = buff
+                allreduce_array(score_bin[name])
 
 
 @njit

@@ -1,7 +1,7 @@
 import math
 import numpy as np
 import sys
-
+from mcdc.constant import SHIFT
 from mpi4py import MPI
 
 # Basic types
@@ -455,7 +455,6 @@ def make_type_technique(N_particle, G, card):
     setting = card.setting
     card = card.technique
     global technique
-
     # Technique flags
     struct = [
         ("weighted_emission", bool_),
@@ -523,7 +522,7 @@ def make_type_technique(N_particle, G, card):
         N_dim = 6  # group, x, y, z, mu, phi
         if card["domain_decomp"]:
             mesh, Nx, Ny, Nz, Nt, Nmu, N_azi = make_type_domain_mesh_(
-                card["iqmc"]["mesh"], card["domain_mesh"], card["work_ratio"]
+                card["iqmc"]["mesh"], card["domain_mesh"], card
             )
         else:
             mesh, Nx, Ny, Nz, Nt, Nmu, N_azi = make_type_mesh_(card["iqmc"]["mesh"])
@@ -993,7 +992,7 @@ def make_type_mesh_(card):
     )
 
 
-def make_type_domain_mesh_(card, domain_card, work_ratio):
+def make_type_domain_mesh_(mesh, domain_mesh, card):
     """
     To be used with domain decomposition.
 
@@ -1002,37 +1001,37 @@ def make_type_domain_mesh_(card, domain_card, work_ratio):
     the domain and returns only the overlapping section of the global
     mesh card.
 
+    Temp_card is used, so that the original mesh is not everwritten,
+    it's needed in main.prepare() to reduce the size of the tally meshes. Then
+    it's reduced after that.
+
     -SLP
     """
     # number of domains in each dimension
-    d_Nx = len(domain_card["x"]) - 1
-    d_Ny = len(domain_card["y"]) - 1
-    d_Nz = len(domain_card["z"]) - 1
+    d_Nx = len(domain_mesh["x"]) - 1
+    d_Ny = len(domain_mesh["y"]) - 1
+    d_Nz = len(domain_mesh["z"]) - 1
+    d_id = card["d_idx"]
+    temp_mesh = mesh.copy()
 
-    temp_card = card.copy()
+    k = int(d_id / (d_Nx * d_Ny))
+    j = int((d_id - d_Nx * d_Ny * k) / d_Nx)
+    i = int(d_id - d_Nx * d_Ny * k - d_Nx * j)
 
-    # Assigning domain ID
-    i = 0
-    for n in range(d_Nx * d_Ny * d_Nz):
-        for r in range(int(work_ratio[n])):
-            if MPI.COMM_WORLD.Get_rank() == i:
-                d_id = n
-            i += 1
-
-    for dim, num_domain in zip(["x", "y", "z"], [d_Nx, d_Ny, d_Nz]):
+    for dim, num_domain, l in zip(["x", "y", "z"], [d_Nx, d_Ny, d_Nz], [i, j, k]):
         # take the boundaries of the domain
         if num_domain > 1:
-            do = domain_card[dim][d_id]
-            df = domain_card[dim][d_id + 1]
+            do = domain_mesh[dim][l] - SHIFT
+            df = domain_mesh[dim][l + 1] + SHIFT
         else:
-            do = temp_card[dim][0]
-            df = temp_card[dim][-1]
+            do = temp_mesh[dim][0]
+            df = temp_mesh[dim][-1]
         # where does the card mesh overlap the domain mesh
-        idx = np.where((temp_card[dim] >= do) & (temp_card[dim] <= df))[0]
+        idx = np.where((temp_mesh[dim] >= do) & (temp_mesh[dim] <= df))[0]
         # set the card mesh = to the overlap section
-        temp_card[dim] = temp_card[dim][idx[0] : idx[-1] + 1]
+        temp_mesh[dim] = temp_mesh[dim][idx[0] : idx[-1] + 1]
 
-    return make_type_mesh_(temp_card)
+    return make_type_mesh_(temp_mesh)
 
 
 mesh_names = ["x", "y", "z", "t", "mu", "azi", "g"]

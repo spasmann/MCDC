@@ -598,6 +598,7 @@ def gmres(mcdc):
     code adapted from: https://github.com/pygbe/pygbe/blob/master/pygbe/gmres.py
 
     """
+    # TODO: rel_residual referenced before assignment when maxiter=1
     iqmc = mcdc["technique"]["iqmc"]
     max_iter = iqmc["maxitt"]
     R = iqmc["krylov_restart"]
@@ -739,6 +740,9 @@ def gmres(mcdc):
             return
 
 
+from numba import typeof
+
+
 @njit
 def power_iteration(mcdc):
     simulation_end = False
@@ -765,9 +769,10 @@ def power_iteration(mcdc):
             gmres(mcdc)
         # reset counter for inner iteration
         iqmc["itt"] = 0
-        # TODO: broadcast fission_source
         if mcdc["technique"]["domain_decomp"]:
-            score_bin["fission-source"] = kernel.allreduce(score_bin["fission-source"])
+            score_bin["fission-source"][0] = kernel.allreduce(
+                score_bin["fission-source"][0]
+            )
         # update k_eff
         mcdc["k_eff"] *= score_bin["fission-source"][0] / fission_source_old[0]
         # calculate diff in keff
@@ -801,6 +806,7 @@ def davidson(mcdc):
 
     """
     # TODO: handle imaginary eigenvalues
+    # TODO: enable domain decomp
     iqmc = mcdc["technique"]["iqmc"]
     # Davidson parameters
     simulation_end = False

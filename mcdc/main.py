@@ -1,5 +1,6 @@
 import argparse
 import numba as nb
+from mcdc.constant import SHIFT
 
 # Parse command-line arguments
 #   TODO: Will be inside run() once Python/Numba adapter is integrated
@@ -109,7 +110,7 @@ def get_indexes(N, nx, ny):
     return i, j, k
 
 
-def get_neighbors(N, w, nx, ny, nz):
+def get_neighbors(N, nx, ny, nz):
     i, j, k = get_indexes(N, nx, ny)
     if i > 0:
         xn = get_d_idx(i - 1, j, k, nx, ny)
@@ -151,24 +152,25 @@ def get_domain_array(array, mesh, domain_mesh, d_id):
     d_Nx = len(domain_mesh["x"]) - 1
     d_Ny = len(domain_mesh["y"]) - 1
     d_Nz = len(domain_mesh["z"]) - 1
+    i, j, k = get_indexes(d_id, d_Nx, d_Ny)
 
     if d_Nx > 1:
-        xo = domain_mesh["x"][d_id]
-        xf = domain_mesh["x"][d_id + 1]
+        xo = domain_mesh["x"][i] - SHIFT
+        xf = domain_mesh["x"][i + 1] + SHIFT
     else:
         xo = domain_mesh["x"][0]
         xf = domain_mesh["x"][-1]
 
     if d_Ny > 1:
-        yo = domain_mesh["y"][d_id]
-        yf = domain_mesh["y"][d_id + 1]
+        yo = domain_mesh["y"][j] - SHIFT
+        yf = domain_mesh["y"][j + 1] + SHIFT
     else:
         yo = domain_mesh["y"][0]
         yf = domain_mesh["y"][-1]
 
     if d_Nz > 1:
-        zo = domain_mesh["z"][d_id]
-        zf = domain_mesh["z"][d_id + 1]
+        zo = domain_mesh["z"][k] - SHIFT
+        zf = domain_mesh["z"][k + 1] + SHIFT
     else:
         zo = domain_mesh["z"][0]
         zf = domain_mesh["z"][-1]
@@ -195,18 +197,19 @@ def get_domain_mesh(mesh, domain_mesh, d_id):
     d_Nx = len(domain_mesh["x"]) - 1
     d_Ny = len(domain_mesh["y"]) - 1
     d_Nz = len(domain_mesh["z"]) - 1
+    i, j, k = get_indexes(d_id, d_Nx, d_Ny)
 
-    for dim, num_domain in zip(["x", "y", "z"], [d_Nx, d_Ny, d_Nz]):
+    for dim, num_domain, l in zip(["x", "y", "z"], [d_Nx, d_Ny, d_Nz], [i, j, k]):
         # take the boundaries of the domain
         if num_domain > 1:
-            do = domain_mesh[dim][d_id]
-            df = domain_mesh[dim][d_id + 1]
+            do = domain_mesh[dim][l] - SHIFT
+            df = domain_mesh[dim][l + 1] + SHIFT
         else:
             do = mesh[dim][0]
             df = mesh[dim][-1]
-        # where does the card mesh overlap the domain mesh
+        # where does the mesh overlap the domain mesh
         idx = np.where((mesh[dim] >= do) & (mesh[dim] <= df))[0]
-        # set the card mesh = to the overlap section
+        # set the mesh = to the overlap section
         mesh[dim] = mesh[dim][idx[0] : idx[-1] + 1]
 
     return mesh
@@ -249,7 +252,7 @@ def dd_prepare():
                 i += 1
             rank_info.append(ranks)
         input_deck.technique["d_idx"] = d_idx
-        xn, xp, yn, yp, zn, zp = get_neighbors(d_idx, 0, d_Nx, d_Ny, d_Nz)
+        xn, xp, yn, yp, zn, zp = get_neighbors(d_idx, d_Nx, d_Ny, d_Nz)
     else:
         input_deck.technique["d_idx"] = 0
         input_deck.technique["xp_neigh"] = []
@@ -644,7 +647,6 @@ def prepare():
                 mcdc["technique"]["domain_mesh"],
                 mcdc["d_idx"],
             )
-
         iqmc["mesh"]["x"] = input_deck.technique["iqmc"]["mesh"]["x"]
         iqmc["mesh"]["y"] = input_deck.technique["iqmc"]["mesh"]["y"]
         iqmc["mesh"]["z"] = input_deck.technique["iqmc"]["mesh"]["z"]
