@@ -3192,6 +3192,7 @@ def iqmc_prepare_particles(mcdc):
         P_new["rng_seed"] = 0
         # assign direction
         P_new["x"] = iqmc_sample_position(xa, xb, lds[n, 0])
+        print("\n P[x] ", P_new["x"])
         P_new["y"] = iqmc_sample_position(ya, yb, lds[n, 4])
         P_new["z"] = iqmc_sample_position(za, zb, lds[n, 3])
         # Sample isotropic direction
@@ -3232,7 +3233,10 @@ def iqmc_res(flux_new, flux_old, mcdc):
     size = flux_old.size
     flux_new = np.linalg.norm(flux_new.reshape((size,)), ord=2)
     flux_old = np.linalg.norm(flux_old.reshape((size,)), ord=2)
+    # flux_new = flux_new.sum()
+    # flux_old = flux_old.sum()
     res = (flux_new - flux_old) / flux_old
+
     if mcdc["technique"]["domain_decomp"]:
         res = allreduce(res)
 

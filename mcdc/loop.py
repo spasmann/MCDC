@@ -524,6 +524,7 @@ def iqmc_loop_source(mcdc):
 
             # Loop until active bank is exhausted
             while mcdc["bank_active"]["size"] > 0:
+                # print("\n P[x] ", P["x"])
                 # Get particle from active bank
                 P = kernel.get_particle(mcdc["bank_active"], mcdc)
                 # Particle tracker
@@ -550,7 +551,6 @@ def source_iteration(mcdc):
     simulation_end = False
     iqmc = mcdc["technique"]["iqmc"]
     total_source_old = iqmc["total_source"].copy()
-
     while not simulation_end:
         # reset particle bank size
         mcdc["bank_source"]["size"] = 0
@@ -561,7 +561,6 @@ def source_iteration(mcdc):
         # sweep particles
         iqmc["sweep_counter"] += 1
         iqmc_loop_source(mcdc)
-
         # sum resultant flux on all processors
         kernel.iqmc_distribute_tallies(mcdc)
         iqmc["itt"] += 1
@@ -765,7 +764,7 @@ def power_iteration(mcdc):
             gmres(mcdc)
         # reset counter for inner iteration
         iqmc["itt"] = 0
-
+        # TODO: broadcast fission_source
         # update k_eff
         mcdc["k_eff"] *= score_bin["fission-source"][0] / fission_source_old[0]
         # broadcast k_eff if domain decomposed

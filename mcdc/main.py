@@ -177,11 +177,39 @@ def get_domain_array(array, mesh, domain_mesh, d_id):
     idx = np.where((mesh["x"] >= xo) & (mesh["x"] <= xf))[0]
     idy = np.where((mesh["y"] >= yo) & (mesh["y"] <= yf))[0]
     idz = np.where((mesh["z"] >= zo) & (mesh["z"] <= zf))[0]
-    print("\n Old array shape, ", array.shape)
     array = array[:, :, idx[0] : idx[-1], idy[0] : idy[-1], idz[0] : idz[-1]]
-    print("\n New array shape, ", array.shape)
 
     return array
+
+
+def get_domain_mesh(mesh, domain_mesh, d_id):
+    """
+
+    This function finds the overlap between a "global" mesh passed in,
+    like a tally mesh or iqmc mesh, and the domain mesh then
+    reduces the global mesh size to just the overlap.
+
+    -SLP
+    """
+    # number of domains in each dimension
+    d_Nx = len(domain_mesh["x"]) - 1
+    d_Ny = len(domain_mesh["y"]) - 1
+    d_Nz = len(domain_mesh["z"]) - 1
+
+    for dim, num_domain in zip(["x", "y", "z"], [d_Nx, d_Ny, d_Nz]):
+        # take the boundaries of the domain
+        if num_domain > 1:
+            do = domain_mesh[dim][d_id]
+            df = domain_mesh[dim][d_id + 1]
+        else:
+            do = mesh[dim][0]
+            df = mesh[dim][-1]
+        # where does the card mesh overlap the domain mesh
+        idx = np.where((mesh[dim] >= do) & (mesh[dim] <= df))[0]
+        # set the card mesh = to the overlap section
+        mesh[dim] = mesh[dim][idx[0] : idx[-1] + 1]
+
+    return mesh
 
 
 def dd_prepare():
@@ -583,8 +611,6 @@ def prepare():
                 if domain_decomp:
                     if isinstance(input_deck.technique["iqmc"][name], np.ndarray):
                         if input_deck.technique["iqmc"][name].shape == mesh_shape:
-                            print("\n name ", name)
-                            print("\n Input shape ", input_deck.technique["iqmc"][name].shape)
                             input_deck.technique["iqmc"][name] = get_domain_array(
                                 input_deck.technique["iqmc"][name],
                                 input_deck.technique["iqmc"]["mesh"],
@@ -601,16 +627,24 @@ def prepare():
         for name, array in input_deck.technique["iqmc"]["score"].items():
             if domain_decomp:
                 if iqmc["score_list"][name]:
-                    print("name ", name)
-                    array = get_domain_array(
-                        array,
-                        input_deck.technique["iqmc"]["mesh"],
-                        mcdc["technique"]["domain_mesh"],
-                        mcdc["d_idx"],
-                    )
+                    if array.shape == mesh_shape:
+                        array = get_domain_array(
+                            array,
+                            input_deck.technique["iqmc"]["mesh"],
+                            mcdc["technique"]["domain_mesh"],
+                            mcdc["d_idx"],
+                        )
             iqmc["score"][name] = array
 
-        # pass in mesh
+        # Reduce mesh size if domain decomp
+        # WARNING: mesh must be reduced after all other tally arrays
+        if domain_decomp:
+            input_deck.technique["iqmc"]["mesh"] = get_domain_mesh(
+                input_deck.technique["iqmc"]["mesh"],
+                mcdc["technique"]["domain_mesh"],
+                mcdc["d_idx"],
+            )
+
         iqmc["mesh"]["x"] = input_deck.technique["iqmc"]["mesh"]["x"]
         iqmc["mesh"]["y"] = input_deck.technique["iqmc"]["mesh"]["y"]
         iqmc["mesh"]["z"] = input_deck.technique["iqmc"]["mesh"]["z"]
@@ -629,6 +663,7 @@ def prepare():
         kernel.distribute_work(N_particle, mcdc)
         N_work = int(mcdc["mpi_work_size"])
         N_start = int(mcdc["mpi_work_start"])
+
         # generate LDS
         if input_deck.technique["iqmc"]["generator"] == "sobol":
             # if input_deck.technique["domain_decomp"]:

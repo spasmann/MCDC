@@ -564,7 +564,7 @@ def make_type_technique(N_particle, G, card):
         ["tilt-xz", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-yz", (Ng, Nt, Nx, Ny, Nz)],
         ["fission-power", (Ng, Nt, Nx, Ny, Nz)],  # SigmaF*phi
-        ["fission-source", (1,)],  # nu*SigmaF*phi
+        ["fission-source", (1,)],  # nu*SigmaF*phi (scalar)
     ]
 
     if card["iQMC"]:
@@ -1009,6 +1009,8 @@ def make_type_domain_mesh_(card, domain_card, work_ratio):
     d_Ny = len(domain_card["y"]) - 1
     d_Nz = len(domain_card["z"]) - 1
 
+    temp_card = card.copy()
+
     # Assigning domain ID
     i = 0
     for n in range(d_Nx * d_Ny * d_Nz):
@@ -1018,35 +1020,19 @@ def make_type_domain_mesh_(card, domain_card, work_ratio):
             i += 1
 
     for dim, num_domain in zip(["x", "y", "z"], [d_Nx, d_Ny, d_Nz]):
+        # take the boundaries of the domain
         if num_domain > 1:
             do = domain_card[dim][d_id]
             df = domain_card[dim][d_id + 1]
         else:
-            do = card[dim][0]
-            df = card[dim][-1]
-        idx = np.where((card[dim] >= do) & (card[dim] <= df))[0]
-        card[dim] = card[dim][idx[0] : idx[-1] + 1]
+            do = temp_card[dim][0]
+            df = temp_card[dim][-1]
+        # where does the card mesh overlap the domain mesh
+        idx = np.where((temp_card[dim] >= do) & (temp_card[dim] <= df))[0]
+        # set the card mesh = to the overlap section
+        temp_card[dim] = temp_card[dim][idx[0] : idx[-1] + 1]
 
-    # print(card["x"])
-    # # take the boundaries of the domain
-    # xo = domain_card["x"][d_id]
-    # xf = domain_card["x"][d_id+1]
-    # yo = domain_card["y"][d_id]
-    # yf = domain_card["y"][d_id+1]
-    # zo = domain_card["z"][d_id]
-    # zf = domain_card["z"][d_id+1]
-
-    # # where does the card mesh overlap the domain mesh
-    # idx = np.where((card["x"] >= xo) & (card["x"] <= xf))[0]
-    # idy = np.where((card["y"] >= yo) & (card["y"] <= yf))[0]
-    # idz = np.where((card["z"] >= zo) & (card["z"] <= zf))[0]
-
-    # # set the card mesh = to the overlap section
-    # card["x"] = card["x"][idx[0]:idx[-1]+1]
-    # card["y"] = card["y"][idy[0]:idy[-1]+1]
-    # card["z"] = card["z"][idz[0]:idz[-1]+1]
-
-    return make_type_mesh_(card)
+    return make_type_mesh_(temp_card)
 
 
 mesh_names = ["x", "y", "z", "t", "mu", "azi", "g"]
