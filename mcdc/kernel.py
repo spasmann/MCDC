@@ -40,6 +40,7 @@ def domain_crossing(P, mcdc):
                     P["z"] -= SHIFT * P["uz"] / np.abs(P["uz"])
 
         # Score on tally
+        # shift_particle(P, -2*SHIFT)
         if flag == MESH_X and P["ux"] > 0:
             add_particle(copy_particle(P), mcdc["bank_domain_xp"])
         if flag == MESH_X and P["ux"] < 0:
@@ -55,51 +56,51 @@ def domain_crossing(P, mcdc):
         P["alive"] = False
 
 
-# @njit
-# def domain_crossing(P, mcdc):
-#     # Domain mesh crossing
-#     max_size = mcdc["technique"]["exchange_rate"]  # /1e4)*mcdc["mpi_work_size"])
-#     if mcdc["technique"]["domain_decomp"]:
-#         mesh = mcdc["technique"]["domain_mesh"]
-#         # Determine which dimension is crossed
-#         x, y, z, t, directions = mesh_crossing_evaluate(P, mesh)
-#         flag = directions[0]
+@njit
+def domain_crossing(P, mcdc):
+    # Domain mesh crossing
+    max_size = mcdc["technique"]["exchange_rate"]  # /1e4)*mcdc["mpi_work_size"])
+    if mcdc["technique"]["domain_decomp"]:
+        mesh = mcdc["technique"]["domain_mesh"]
+        # Determine which dimension is crossed
+        x, y, z, t, directions = mesh_crossing_evaluate(P, mesh)
+        flag = directions[0]
 
-#         if len(directions) > 1:
-#             for direction in directions[1:]:
-#                 if direction == MESH_X:
-#                     P["x"] -= SHIFT * P["ux"] / np.abs(P["ux"])
-#                 if direction == MESH_Y:
-#                     P["y"] -= SHIFT * P["uy"] / np.abs(P["uy"])
-#                 if direction == MESH_Z:
-#                     P["z"] -= SHIFT * P["uz"] / np.abs(P["uz"])
+        if len(directions) > 1:
+            for direction in directions[1:]:
+                if direction == MESH_X:
+                    P["x"] -= SHIFT * P["ux"] / np.abs(P["ux"])
+                if direction == MESH_Y:
+                    P["y"] -= SHIFT * P["uy"] / np.abs(P["uy"])
+                if direction == MESH_Z:
+                    P["z"] -= SHIFT * P["uz"] / np.abs(P["uz"])
 
-#         # Score on tally
-#         if flag == MESH_X and P["ux"] > 0:
-#             add_particle(copy_particle(P), mcdc["bank_domain_xp"])
-#             if mcdc["bank_domain_xp"]["size"] == max_size:
-#                 dd_particle_send(mcdc)
-#         if flag == MESH_X and P["ux"] < 0:
-#             add_particle(copy_particle(P), mcdc["bank_domain_xn"])
-#             if mcdc["bank_domain_xn"]["size"] == max_size:
-#                 dd_particle_send(mcdc)
-#         if flag == MESH_Y and P["uy"] > 0:
-#             add_particle(copy_particle(P), mcdc["bank_domain_yp"])
-#             if mcdc["bank_domain_yp"]["size"] == max_size:
-#                 dd_particle_send(mcdc)
-#         if flag == MESH_Y and P["uy"] < 0:
-#             add_particle(copy_particle(P), mcdc["bank_domain_yn"])
-#             if mcdc["bank_domain_yn"]["size"] == max_size:
-#                 dd_particle_send(mcdc)
-#         if flag == MESH_Z and P["uz"] > 0:
-#             add_particle(copy_particle(P), mcdc["bank_domain_zp"])
-#             if mcdc["bank_domain_zp"]["size"] == max_size:
-#                 dd_particle_send(mcdc)
-#         if flag == MESH_Z and P["uz"] < 0:
-#             add_particle(copy_particle(P), mcdc["bank_domain_zn"])
-#             if mcdc["bank_domain_zn"]["size"] == max_size:
-#                 dd_particle_send(mcdc)
-#         P["alive"] = False
+        # Score on tally
+        if flag == MESH_X and P["ux"] > 0:
+            add_particle(copy_particle(P), mcdc["bank_domain_xp"])
+            if mcdc["bank_domain_xp"]["size"] == max_size:
+                dd_particle_send(mcdc)
+        if flag == MESH_X and P["ux"] < 0:
+            add_particle(copy_particle(P), mcdc["bank_domain_xn"])
+            if mcdc["bank_domain_xn"]["size"] == max_size:
+                dd_particle_send(mcdc)
+        if flag == MESH_Y and P["uy"] > 0:
+            add_particle(copy_particle(P), mcdc["bank_domain_yp"])
+            if mcdc["bank_domain_yp"]["size"] == max_size:
+                dd_particle_send(mcdc)
+        if flag == MESH_Y and P["uy"] < 0:
+            add_particle(copy_particle(P), mcdc["bank_domain_yn"])
+            if mcdc["bank_domain_yn"]["size"] == max_size:
+                dd_particle_send(mcdc)
+        if flag == MESH_Z and P["uz"] > 0:
+            add_particle(copy_particle(P), mcdc["bank_domain_zp"])
+            if mcdc["bank_domain_zp"]["size"] == max_size:
+                dd_particle_send(mcdc)
+        if flag == MESH_Z and P["uz"] < 0:
+            add_particle(copy_particle(P), mcdc["bank_domain_zn"])
+            if mcdc["bank_domain_zn"]["size"] == max_size:
+                dd_particle_send(mcdc)
+        P["alive"] = False
 
 
 # =============================================================================

@@ -1,6 +1,8 @@
+import sys
 import argparse
 import numba as nb
 from mcdc.constant import SHIFT
+from mcdc.type_ import iqmc_score_list
 
 # Parse command-line arguments
 #   TODO: Will be inside run() once Python/Numba adapter is integrated
@@ -894,7 +896,41 @@ def dict_to_h5group(dict_, group):
             next
         else:
             group[k] = v
+        
+# def gather_local_meshes(mcdc):
+    
+    # return global_meshes
 
+# def gather_local_results(local_result, global_meshes):
+#     # gather all local results
+#     global_results = MPI.COMM_WORLD.gather(local_result, root=0)
+#     # Determine the total size of the global matrix
+#     Nx = 0
+#     Ny = 0
+#     Nz = 0
+#     Nt = 0
+#     # total_size = sum(len(m) for m in global_meshes)
+#     for local_mesh in global_meshes:
+#         Nx += (len(local_mesh["x"]) - 1)
+#         Ny += (len(local_mesh["y"]) - 1)
+#         Nz += (len(local_mesh["z"]) - 1)
+#         # time has not been discretized in domain decomp yet
+#         Nt = len(local_mesh["t"]) - 
+#     total_size = Nx * Ny * Nz * Nt
+        
+#     # Initialize the global matrix with zeros
+#     global_matrix = np.zeros((total_size, (Nt, Ng, Nx, Ny, Nz)))
+
+#     # Populate the global matrix with the local results
+#     current_idx = 0
+#     for meshes, result in zip(global_meshes, global_results):
+#         for mesh in meshes:
+#             # Convert mesh to global indices
+#             global_indices = tuple(slice(int(start * total_size), int(end * total_size)) for start, end in mesh)
+#             global_matrix[global_indices] = result
+#             current_idx += 1
+            
+#     return global_matrix
 
 def generate_hdf5(mcdc):
     if mcdc["mpi_master"]:
@@ -975,52 +1011,34 @@ def generate_hdf5(mcdc):
 
             # iQMC
             if mcdc["technique"]["iQMC"]:
-                # dump iQMC mesh
-                T = mcdc["technique"]
-                f.create_dataset("iqmc/grid/t", data=T["iqmc"]["mesh"]["t"])
-                f.create_dataset("iqmc/grid/x", data=T["iqmc"]["mesh"]["x"])
-                f.create_dataset("iqmc/grid/y", data=T["iqmc"]["mesh"]["y"])
-                f.create_dataset("iqmc/grid/z", data=T["iqmc"]["mesh"]["z"])
-                # dump x,y,z scalar flux across all groups
-                f.create_dataset(
-                    "iqmc/tally/flux", data=np.squeeze(T["iqmc"]["score"]["flux"])
-                )
-                f.create_dataset(
-                    "iqmc/tally/fission_source",
-                    data=T["iqmc"]["score"]["fission-source"],
-                )
-                f.create_dataset(
-                    "iqmc/tally/fission_power", data=T["iqmc"]["score"]["fission-power"]
-                )
-                f.create_dataset("iqmc/tally/source_constant", data=T["iqmc"]["source"])
-                f.create_dataset(
-                    "iqmc/tally/source_x", data=T["iqmc"]["score"]["tilt-x"]
-                )
-                f.create_dataset(
-                    "iqmc/tally/source_y", data=T["iqmc"]["score"]["tilt-y"]
-                )
-                f.create_dataset(
-                    "iqmc/tally/source_z", data=T["iqmc"]["score"]["tilt-z"]
-                )
-                f.create_dataset(
-                    "iqmc/tally/source_xy", data=T["iqmc"]["score"]["tilt-xy"]
-                )
-                f.create_dataset(
-                    "iqmc/tally/source_xz", data=T["iqmc"]["score"]["tilt-xz"]
-                )
-                f.create_dataset(
-                    "iqmc/tally/source_yz", data=T["iqmc"]["score"]["tilt-yz"]
-                )
+                iqmc = mcdc["technique"]["iqmc"]
+                # if mcdc["technique"]["domain_decomp"]:
+                    # gather all local meshes to root processor
+                    # global_meshes = gather_local_meshes(mcdc)
+                    
+                for dim in ["x", "y", "z", "t"]:
+                    f.create_dataset("iqmc/grid/"+dim, data=iqmc["mesh"][dim])
+                        
+                # dump scores 
+                for name in iqmc_score_list:
+                    if (name=="effective-scattering" or name=="effective-fission"):
+                        continue
+                    if iqmc["score_list"][name]:
+                        # if mcdc["technique"]["domain_decomp"]:
+                            # data = gather_local_results(iqmc["score"][name], global_meshes)
+                        data = np.squeeze(iqmc["score"][name])
+                        f.create_dataset("iqmc/tally/"+name, data=data)
+
                 # iteration data
-                f.create_dataset("iqmc/itteration_count", data=T["iqmc"]["itt"])
-                f.create_dataset("iqmc/final_residual", data=T["iqmc"]["res"])
-                f.create_dataset("iqmc/sweep_count", data=T["iqmc"]["sweep_counter"])
+                f.create_dataset("iqmc/itteration_count", data=iqmc["itt"])
+                f.create_dataset("iqmc/final_residual", data=iqmc["res"])
+                f.create_dataset("iqmc/sweep_count", data=iqmc["sweep_counter"])
                 if mcdc["setting"]["mode_eigenvalue"]:
                     f.create_dataset(
-                        "iqmc/outter_itteration_count", data=T["iqmc"]["itt_outter"]
+                        "iqmc/outter_itteration_count", data=iqmc["itt_outter"]
                     )
                     f.create_dataset(
-                        "iqmc/outter_final_residual", data=T["iqmc"]["res_outter"]
+                        "iqmc/outter_final_residual", data=iqmc["res_outter"]
                     )
 
             # Particle tracker
