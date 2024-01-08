@@ -896,14 +896,35 @@ def dict_to_h5group(dict_, group):
             next
         else:
             group[k] = v
-        
-# def gather_local_meshes(mcdc):
+
+
+# def create_domain_comm(mcdc):
+#     """
+#     This function creates a new MPI communicator between the first processor
+#     listed in each domain.
+
+#     """
+#     work_ratio = mcdc["technique"]["work_ratio"]
+#     targe_ranks = []
+#     for i in range(len(work_ratio)):
+#         targe_ranks.append(work_ratio[i][0])
     
-    # return global_meshes
+#     group = MPI.COMM_WORLD.Get_group()
+#     target_group = group.Incl(target_ranks)
+#     new_comm = MPI.COMM_WORLD.Create(included_group)
+#     return new_comm
+
+
+# def gather_local_meshes(mcdc):
+#     domain_comm = create_domain_comm(mcdc)
+#     global_meshes = domain_comm.gather(mcdc["technique"]["iqmc"]["mesh"], root=0)
+    
+#     return global_meshes
 
 # def gather_local_results(local_result, global_meshes):
+#     domain_comm = create_domain_comm(mcdc)
 #     # gather all local results
-#     global_results = MPI.COMM_WORLD.gather(local_result, root=0)
+#     global_results = domain_comm.gather(local_result, root=0)
 #     # Determine the total size of the global matrix
 #     Nx = 0
 #     Ny = 0
@@ -915,18 +936,19 @@ def dict_to_h5group(dict_, group):
 #         Ny += (len(local_mesh["y"]) - 1)
 #         Nz += (len(local_mesh["z"]) - 1)
 #         # time has not been discretized in domain decomp yet
-#         Nt = len(local_mesh["t"]) - 
-#     total_size = Nx * Ny * Nz * Nt
+#         Nt = (len(local_mesh["t"]) - 1)
+#     total_size = int(Nx * Ny * Nz * Nt)
         
 #     # Initialize the global matrix with zeros
 #     global_matrix = np.zeros((total_size, (Nt, Ng, Nx, Ny, Nz)))
 
 #     # Populate the global matrix with the local results
-#     current_idx = 0
 #     for meshes, result in zip(global_meshes, global_results):
 #         for mesh in meshes:
+#             start_points = [mesh["x"][0], mes["y"][0], mesh["z"][0], mesh["t"][0]]
 #             # Convert mesh to global indices
-#             global_indices = tuple(slice(int(start * total_size), int(end * total_size)) for start, end in mesh)
+#             global_indices = tuple(slice(int(start * total_size), int(end * total_size)) for start, end in zip(mesh["x"][0],
+#                                                                                                                ))
 #             global_matrix[global_indices] = result
 #             current_idx += 1
             
@@ -1011,23 +1033,50 @@ def generate_hdf5(mcdc):
 
             # iQMC
             if mcdc["technique"]["iQMC"]:
+                # TODO: consolidate tally entry
+                
                 iqmc = mcdc["technique"]["iqmc"]
+                
                 # if mcdc["technique"]["domain_decomp"]:
-                    # gather all local meshes to root processor
-                    # global_meshes = gather_local_meshes(mcdc)
+                #     # gather all local meshes to root processor
+                #     global_meshes = gather_local_meshes(mcdc)
+                #     global_flux = 
                     
                 for dim in ["x", "y", "z", "t"]:
                     f.create_dataset("iqmc/grid/"+dim, data=iqmc["mesh"][dim])
-                        
-                # dump scores 
-                for name in iqmc_score_list:
-                    if (name=="effective-scattering" or name=="effective-fission"):
-                        continue
-                    if iqmc["score_list"][name]:
-                        # if mcdc["technique"]["domain_decomp"]:
-                            # data = gather_local_results(iqmc["score"][name], global_meshes)
-                        data = np.squeeze(iqmc["score"][name])
-                        f.create_dataset("iqmc/tally/"+name, data=data)
+                
+                f.create_dataset("mcdc_size", data=int(sys.getsizeof(mcdc)))    
+                
+                # dump x,y,z scalar flux across all groups
+                f.create_dataset(
+                    "iqmc/tally/flux", data=np.squeeze(iqmc["score"]["flux"])
+                )
+                f.create_dataset(
+                    "iqmc/tally/fission_source",
+                    data=iqmc["score"]["fission-source"],
+                )
+                f.create_dataset(
+                    "iqmc/tally/fission_power", data=iqmc["score"]["fission-power"]
+                )
+                f.create_dataset("iqmc/tally/source_constant", data=iqmc["source"])
+                f.create_dataset(
+                    "iqmc/tally/source_x", data=iqmc["score"]["tilt-x"]
+                )
+                f.create_dataset(
+                    "iqmc/tally/source_y", data=iqmc["score"]["tilt-y"]
+                )
+                f.create_dataset(
+                    "iqmc/tally/source_z", data=iqmc["score"]["tilt-z"]
+                )
+                f.create_dataset(
+                    "iqmc/tally/source_xy", data=iqmc["score"]["tilt-xy"]
+                )
+                f.create_dataset(
+                    "iqmc/tally/source_xz", data=iqmc["score"]["tilt-xz"]
+                )
+                f.create_dataset(
+                    "iqmc/tally/source_yz", data=iqmc["score"]["tilt-yz"]
+                )
 
                 # iteration data
                 f.create_dataset("iqmc/itteration_count", data=iqmc["itt"])
