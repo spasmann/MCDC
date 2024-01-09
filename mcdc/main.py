@@ -907,7 +907,7 @@ def dict_to_h5group(dict_, group):
 #     targe_ranks = []
 #     for i in range(len(work_ratio)):
 #         targe_ranks.append(work_ratio[i][0])
-    
+
 #     group = MPI.COMM_WORLD.Get_group()
 #     target_group = group.Incl(target_ranks)
 #     new_comm = MPI.COMM_WORLD.Create(included_group)
@@ -917,7 +917,7 @@ def dict_to_h5group(dict_, group):
 # def gather_local_meshes(mcdc):
 #     domain_comm = create_domain_comm(mcdc)
 #     global_meshes = domain_comm.gather(mcdc["technique"]["iqmc"]["mesh"], root=0)
-    
+
 #     return global_meshes
 
 # def gather_local_results(local_result, global_meshes):
@@ -937,7 +937,7 @@ def dict_to_h5group(dict_, group):
 #         # time has not been discretized in domain decomp yet
 #         Nt = (len(local_mesh["t"]) - 1)
 #     total_size = int(Nx * Ny * Nz * Nt)
-        
+
 #     # Initialize the global matrix with zeros
 #     global_matrix = np.zeros((total_size, (Nt, Ng, Nx, Ny, Nz)))
 
@@ -950,8 +950,9 @@ def dict_to_h5group(dict_, group):
 #                                                                                                                ))
 #             global_matrix[global_indices] = result
 #             current_idx += 1
-            
+
 #     return global_matrix
+
 
 def generate_hdf5(mcdc):
     if mcdc["mpi_master"]:
@@ -1033,19 +1034,19 @@ def generate_hdf5(mcdc):
             # iQMC
             if mcdc["technique"]["iQMC"]:
                 # TODO: consolidate tally entry
-                
+
                 iqmc = mcdc["technique"]["iqmc"]
-                
+
                 # if mcdc["technique"]["domain_decomp"]:
                 #     # gather all local meshes to root processor
                 #     global_meshes = gather_local_meshes(mcdc)
-                #     global_flux = 
-                    
+                #     global_flux =
+
                 for dim in ["x", "y", "z", "t"]:
-                    f.create_dataset("iqmc/grid/"+dim, data=iqmc["mesh"][dim])
-                
-                f.create_dataset("mcdc_size", data=int(sys.getsizeof(mcdc)))    
-                
+                    f.create_dataset("iqmc/grid/" + dim, data=iqmc["mesh"][dim])
+
+                f.create_dataset("mcdc_size", data=int(sys.getsizeof(mcdc)))
+
                 # dump x,y,z scalar flux across all groups
                 f.create_dataset(
                     "iqmc/tally/flux", data=np.squeeze(iqmc["score"]["flux"])
@@ -1058,24 +1059,12 @@ def generate_hdf5(mcdc):
                     "iqmc/tally/fission_power", data=iqmc["score"]["fission-power"]
                 )
                 f.create_dataset("iqmc/tally/source_constant", data=iqmc["source"])
-                f.create_dataset(
-                    "iqmc/tally/source_x", data=iqmc["score"]["tilt-x"]
-                )
-                f.create_dataset(
-                    "iqmc/tally/source_y", data=iqmc["score"]["tilt-y"]
-                )
-                f.create_dataset(
-                    "iqmc/tally/source_z", data=iqmc["score"]["tilt-z"]
-                )
-                f.create_dataset(
-                    "iqmc/tally/source_xy", data=iqmc["score"]["tilt-xy"]
-                )
-                f.create_dataset(
-                    "iqmc/tally/source_xz", data=iqmc["score"]["tilt-xz"]
-                )
-                f.create_dataset(
-                    "iqmc/tally/source_yz", data=iqmc["score"]["tilt-yz"]
-                )
+                f.create_dataset("iqmc/tally/source_x", data=iqmc["score"]["tilt-x"])
+                f.create_dataset("iqmc/tally/source_y", data=iqmc["score"]["tilt-y"])
+                f.create_dataset("iqmc/tally/source_z", data=iqmc["score"]["tilt-z"])
+                f.create_dataset("iqmc/tally/source_xy", data=iqmc["score"]["tilt-xy"])
+                f.create_dataset("iqmc/tally/source_xz", data=iqmc["score"]["tilt-xz"])
+                f.create_dataset("iqmc/tally/source_yz", data=iqmc["score"]["tilt-yz"])
 
                 # iteration data
                 f.create_dataset("iqmc/itteration_count", data=iqmc["itt"])
