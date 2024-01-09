@@ -40,7 +40,6 @@ def domain_crossing(P, mcdc):
                     P["z"] -= SHIFT * P["uz"] / np.abs(P["uz"])
 
         # Score on tally
-        # shift_particle(P, -2*SHIFT)
         if flag == MESH_X and P["ux"] > 0:
             add_particle(copy_particle(P), mcdc["bank_domain_xp"])
         if flag == MESH_X and P["ux"] < 0:

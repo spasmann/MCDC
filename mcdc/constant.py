@@ -34,7 +34,7 @@ PCT_COMBING_WEIGHT = 10
 INF = 1e10
 PI = math.acos(-1.0)
 SHIFT = 1e-10  # To ensure lattice, surface, and mesh crossings
-PREC = 1.0 + 1e-9  # Precision factor to determine if a distance is smaller
+PREC = 1.0 + 1e-8  # Precision factor to determine if a distance is smaller
 BANKMAX = 100  # Default maximum active bank
 
 # Domain Decomp mesh crossing flags
