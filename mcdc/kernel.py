@@ -28,6 +28,8 @@ def domain_crossing(P, mcdc):
         mesh = mcdc["technique"]["domain_mesh"]
         # Determine which dimension is crossed
         x, y, z, t, directions = mesh_crossing_evaluate(P, mesh)
+        if len(directions) == 0:
+            return
         flag = directions[0]
 
         if len(directions) > 1:
