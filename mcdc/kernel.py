@@ -2990,6 +2990,7 @@ def iqmc_improved_kull(mcdc):
             "zn_neigh",
         ]
         requests = []
+        tot_messages = 0
         # for each nieghbor surrounding the domain
         for name in neighbors:
             bank = mcdc["bank_domain_" + name[:2]]
@@ -3007,6 +3008,7 @@ def iqmc_improved_kull(mcdc):
                 requests.append(
                     MPI.COMM_WORLD.isend(send_bank, dest=mcdc["technique"][name][i])
                 )
+                tot_messages += 1
 
         # =========================================================================
         # Blocking Receive
@@ -3015,7 +3017,10 @@ def iqmc_improved_kull(mcdc):
         # I use a blocking probe but this serves the same purpose as a
         # nonblocking prob + while loop.
         # source: https://stackoverflow.com/questions/43823458/mpi-iprobe-vs-mpi-probe
+        
         bankr = np.zeros(0, dtype=type_.particle_record)
+        # received_messages = 0
+        # while received_messages < tot_messages:
         # for each neighbor
         for name in neighbors:
             # for each processor in neighbor
@@ -3025,6 +3030,7 @@ def iqmc_improved_kull(mcdc):
                     received = MPI.COMM_WORLD.recv(source=source)
                     # print('\n rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
                     bankr = np.append(bankr, received)
+                    # received_messages += 1
 
         # =========================================================================
         # Wait for all nonblocking sends and transfer particles to active bank
