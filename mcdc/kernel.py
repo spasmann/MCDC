@@ -2555,7 +2555,7 @@ def iqmc_score_tallies(P, distance, mcdc):
     if (mesh["z"][z] != -INF) and (mesh["z"][z] != INF):
         dz = mesh["z"][z + 1] - mesh["z"][z]
 
-    dV = dx * dy * dz * dt
+    dV = dx * dy * dz
 
     flux = iqmc_flux(SigmaT, w, distance, dV)
     score_bin["flux"][:, t, x, y, z] += flux
@@ -2762,7 +2762,6 @@ def iqmc_generate_material_idx(mcdc):
     Nx = len(mesh["x"]) - 1
     Ny = len(mesh["y"]) - 1
     Nz = len(mesh["z"]) - 1
-    dx = dy = dz = 1
     # variables for cell finding functions
     trans = np.zeros((3,))
     # create particle to utilize cell finding functions
@@ -2772,12 +2771,14 @@ def iqmc_generate_material_idx(mcdc):
     P_temp["material_ID"] = -1
     P_temp["cell_ID"] = -1
 
+    t_mid = 0.5 * (mesh["t"][1:] + mesh["t"][:-1])
     x_mid = 0.5 * (mesh["x"][1:] + mesh["x"][:-1])
     y_mid = 0.5 * (mesh["y"][1:] + mesh["y"][:-1])
     z_mid = 0.5 * (mesh["z"][1:] + mesh["z"][:-1])
 
     # loop through every cell
-    for t in range(Nt):
+    for l in range(Nt):
+        t = t_mid[l]
         for i in range(Nx):
             x = x_mid[i]
             for j in range(Ny):
@@ -2798,7 +2799,7 @@ def iqmc_generate_material_idx(mcdc):
                     material_ID = get_particle_material(P_temp, mcdc)
 
                     # assign material index
-                    mcdc["technique"]["iqmc"]["material_idx"][t, i, j, k] = material_ID
+                    mcdc["technique"]["iqmc"]["material_idx"][l, i, j, k] = material_ID
 
 
 @njit
