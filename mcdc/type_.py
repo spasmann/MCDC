@@ -531,10 +531,10 @@ def make_type_technique(N_particle, G, card):
         Nx = Ny = Nz = Nt = N_particle = Ng = N_dim = 0
 
     iqmc_list += [("mesh", mesh)]
-    
+
     # size of LDS
-    if card['domain_decomp']:
-        domain_size = len(card["work_ratio"])   
+    if card["domain_decomp"]:
+        domain_size = len(card["work_ratio"])
         # Evenly distribute work per domain
         work_size = math.floor(N_particle / domain_size)
         d_idx = card["d_idx"]

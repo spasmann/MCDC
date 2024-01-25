@@ -570,7 +570,7 @@ def particle_in_domain(P, mcdc):
 
 @njit
 def distribute_work_dd(N, mcdc, precursor=False):
-    domain_size = len(mcdc["technique"]["work_ratio"])    
+    domain_size = len(mcdc["technique"]["work_ratio"])
 
     # Total # of work
     work_size_total = N
@@ -1057,6 +1057,7 @@ def allreduce(value):
         MPI.COMM_WORLD.Allreduce(np.array([value], np.float64), total, MPI.SUM)
     return total[0]
 
+
 @njit
 def allreduce_domain(value, mcdc):
     d_id = mcdc["d_idx"]
@@ -1066,6 +1067,7 @@ def allreduce_domain(value, mcdc):
         domain_comm = MPI.COMM_WORLD.Split(color=d_id, key=rank)
         domain_comm.Allreduce(np.array(value, np.float64), total, op=MPI.SUM)
     return total[0]
+
 
 @njit
 def allreduce_array(array):
@@ -3039,7 +3041,7 @@ def iqmc_improved_kull(mcdc):
         # I use a blocking probe but this serves the same purpose as a
         # nonblocking prob + while loop.
         # source: https://stackoverflow.com/questions/43823458/mpi-iprobe-vs-mpi-probe
-        
+
         bankr = np.zeros(0, dtype=type_.particle_record)
         received_messages = 0
         while received_messages < tot_messages:
@@ -3064,7 +3066,7 @@ def iqmc_improved_kull(mcdc):
         if size >= buff.shape[0]:
             print("Received bank size = ", size, " domain bank size = ", buff.shape[0])
             print_error("Particle domain bank is full.")
-            
+
         # Set output buffer
         for i in range(size):
             buff[i] = bankr[i]
@@ -3208,7 +3210,7 @@ def iqmc_prepare_particles(mcdc):
     mesh = iqmc["mesh"]
 
     # if mcdc["technique"]["domain_decomp"]:
-        # distribute_work_dd(N_particle, mcdc)
+    # distribute_work_dd(N_particle, mcdc)
 
     # total number of spatial cells (of all domains)
     N_total = iqmc["Nc_total"]
