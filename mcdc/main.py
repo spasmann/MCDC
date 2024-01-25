@@ -691,8 +691,7 @@ def prepare():
 
         if input_deck.technique["iqmc"]["generator"] == "halton":
             if input_deck.technique["domain_decomp"]:
-                sampler = qmc.Halton(d=N_dim, scramble=True, seed=12345)
-                sampler.fast_forward(N_start)
+                sampler = qmc.Halton(d=N_dim, scramble=True)
             else:
                 sampler = qmc.Halton(d=N_dim, scramble=False)
                 # skip the first entry in Halton sequence because its 0.0
