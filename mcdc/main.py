@@ -670,7 +670,10 @@ def prepare():
         N_dim = mcdc["technique"]["iqmc"]["N_dim"]
         mcdc["mpi_size"] = MPI.COMM_WORLD.Get_size()
         mcdc["mpi_rank"] = MPI.COMM_WORLD.Get_rank()
-        kernel.distribute_work(N_particle, mcdc)
+        if input_deck.technique["domain_decomp"]:
+            kernel.distribute_work_dd(N_particle, mcdc)
+        else:
+            kernel.distribute_work(N_particle, mcdc)
         N_work = int(mcdc["mpi_work_size"])
         N_start = int(mcdc["mpi_work_start"])
 

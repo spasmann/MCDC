@@ -531,16 +531,27 @@ def make_type_technique(N_particle, G, card):
         Nx = Ny = Nz = Nt = N_particle = Ng = N_dim = 0
 
     iqmc_list += [("mesh", mesh)]
-    # Low-discprenecy sequence
-    size = MPI.COMM_WORLD.Get_size()
-    rank = MPI.COMM_WORLD.Get_rank()
-    # Evenly distribute work
-    work_size = math.floor(N_particle / size)
-    # Count reminder
-    rem = N_particle % size
-    # Assign reminder and update starting index
-    if rank < rem:
-        work_size += 1
+    
+    # size of LDS
+    if card['domain_decomp']:
+        domain_size = len(card["work_ratio"])   
+        print("\n work_ratio ", card["work_ratio"])
+        print("\n d_idx ", card["d_idx"])
+        # Evenly distribute work per domain
+        work_size = math.floor(N_particle / domain_size)
+        d_idx = card["d_idx"]
+        # Evenly distribute work per processor in domain
+        work_size = math.floor(work_size / card["work_ratio"][d_idx])
+    else:
+        size = MPI.COMM_WORLD.Get_size()
+        rank = MPI.COMM_WORLD.Get_rank()
+        # Evenly distribute work by # of processors
+        work_size = math.floor(N_particle / size)
+        # Count reminder
+        rem = N_particle % size
+        # Assign reminder and update starting index
+        if rank < rem:
+            work_size += 1
 
     iqmc_list += [("lds", float64, (work_size, N_dim))]
     iqmc_list += [("fixed_source", float64, (Ng, Nt, Nx, Ny, Nz))]

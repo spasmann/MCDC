@@ -570,11 +570,20 @@ def particle_in_domain(P, mcdc):
 
 @njit
 def distribute_work_dd(N, mcdc, precursor=False):
+    domain_size = len(mcdc["technique"]["work_ratio"])    
+
     # Total # of work
     work_size_total = N
-    work_start = 0
-    work_size = work_size_total
 
+    # Evenly distribute work per domain
+    work_size = math.floor(N / domain_size)
+    d_idx = mcdc["d_idx"]
+    # Evenly distribute work per processor in domain
+    work_size = math.floor(work_size / mcdc["technique"]["work_ratio"][d_idx])
+
+    work_start = 0
+
+    # print("\n work_size = ", work_size)
     if not precursor:
         mcdc["mpi_work_start"] = work_start
         mcdc["mpi_work_size"] = work_size
@@ -3185,8 +3194,8 @@ def iqmc_prepare_particles(mcdc):
     Q = iqmc["source"]
     mesh = iqmc["mesh"]
 
-    if mcdc["technique"]["domain_decomp"]:
-        distribute_work(N_particle, mcdc)
+    # if mcdc["technique"]["domain_decomp"]:
+        # distribute_work_dd(N_particle, mcdc)
 
     # total number of spatial cells (of all domains)
     N_total = iqmc["Nc_total"]
