@@ -3003,20 +3003,24 @@ def iqmc_improved_kull(mcdc):
         # for each nieghbor surrounding the domain
         for name in neighbors:
             bank = mcdc["bank_domain_" + name[:2]]
+            numProcessors = len(mcdc["technique"][name])
+            size = bank["size"]
+            chunkSize = math.floor(size / numProcessors)
+            remainder = size % numProcessors
+            start = 0
             # and for each processor in that neighbor
             for i in range(len(mcdc["technique"][name])):
                 # send an equal number of particles that crossed that domain
-                size = bank["size"]
-                ratio = int(size / len(mcdc["technique"][name]))
-                start = ratio * i
-                end = start + ratio
-                if i == len(mcdc["technique"][name]) - 1:
-                    end = size
+                end = start + chunkSize
+                if remainder > 0:
+                    end += 1
+                    remainder -= 1
                 send_bank = np.array(bank["particles"][start:end])
                 # print('\n rank ', mcdc["mpi_rank"], "sent message to rank ", mcdc["technique"][name][i] , " of size ", send_bank.shape)
                 requests.append(
                     MPI.COMM_WORLD.isend(send_bank, dest=mcdc["technique"][name][i])
                 )
+                start = end
                 tot_messages += 1
 
         # =========================================================================
