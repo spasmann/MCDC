@@ -3038,6 +3038,11 @@ def iqmc_improved_kull(mcdc):
         # =========================================================================
         MPI.Request.waitall(requests)
         size = bankr.shape[0]
+        # check to see if we exceeded max. bank size
+        if size >= buff.shape[0]:
+            print("Received bank size = ", size, " domain bank size = ", buff.shape[0])
+            print_error("Particle domain bank is full.")
+            
         # Set output buffer
         for i in range(size):
             buff[i] = bankr[i]

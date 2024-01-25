@@ -84,7 +84,7 @@ def make_type_particle_record(iQMC, G):
     Ng = 1
     if iQMC:
         Ng = G
-    iqmc_struct = [("w", float64, (Ng,)), ("d_id", int32)]
+    iqmc_struct = [("w", float64, (Ng,))]
     struct += [("iqmc", iqmc_struct)]
     particle_record = np.dtype(struct)
 
@@ -826,12 +826,24 @@ def make_type_global(card):
 
     # Domain banks if needed
     if card.technique["domain_decomp"]:
-        bank_domain_xp = particle_bank(card.technique["domain_bank_size"])
-        bank_domain_xn = particle_bank(card.technique["domain_bank_size"])
-        bank_domain_yp = particle_bank(card.technique["domain_bank_size"])
-        bank_domain_yn = particle_bank(card.technique["domain_bank_size"])
-        bank_domain_zp = particle_bank(card.technique["domain_bank_size"])
-        bank_domain_zn = particle_bank(card.technique["domain_bank_size"])
+        if card.technique["iqmc"]["mesh"]["x"][0] != -1e10:
+            bank_domain_xp = particle_bank(card.technique["domain_bank_size"])
+            bank_domain_xn = particle_bank(card.technique["domain_bank_size"])
+        else:
+            bank_domain_xp = particle_bank(0)
+            bank_domain_xn = particle_bank(0)
+        if card.technique["iqmc"]["mesh"]["y"][0] != -1e10:
+            bank_domain_yp = particle_bank(card.technique["domain_bank_size"])
+            bank_domain_yn = particle_bank(card.technique["domain_bank_size"])
+        else:
+            bank_domain_yp = particle_bank(0)
+            bank_domain_yn = particle_bank(0)
+        if card.technique["iqmc"]["mesh"]["z"][0] != -1e10:
+            bank_domain_zp = particle_bank(card.technique["domain_bank_size"])
+            bank_domain_zn = particle_bank(card.technique["domain_bank_size"])
+        else:
+            bank_domain_zp = particle_bank(0)
+            bank_domain_zn = particle_bank(0)
     else:
         bank_domain_xp = particle_bank(0)
         bank_domain_xn = particle_bank(0)
