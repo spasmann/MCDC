@@ -3012,7 +3012,7 @@ def iqmc_improved_kull(mcdc):
         # for each nieghbor surrounding the domain
         for name in neighbors:
             bank = mcdc["bank_domain_" + name[:2]]
-            numProcessors = len(mcdc["technique"][name])
+            numProcessors = mcdc["technique"]["work_ratio"][mcdc["d_idx"]]
             size = bank["size"]
             chunkSize = math.floor(size / numProcessors)
             remainder = size % numProcessors

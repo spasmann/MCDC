@@ -535,8 +535,6 @@ def make_type_technique(N_particle, G, card):
     # size of LDS
     if card['domain_decomp']:
         domain_size = len(card["work_ratio"])   
-        print("\n work_ratio ", card["work_ratio"])
-        print("\n d_idx ", card["d_idx"])
         # Evenly distribute work per domain
         work_size = math.floor(N_particle / domain_size)
         d_idx = card["d_idx"]
