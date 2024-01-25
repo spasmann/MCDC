@@ -1057,6 +1057,15 @@ def allreduce(value):
         MPI.COMM_WORLD.Allreduce(np.array([value], np.float64), total, MPI.SUM)
     return total[0]
 
+@njit
+def allreduce_domain(value, mcdc):
+    d_id = mcdc["d_idx"]
+    rank = mcdc["mpi_rank"]
+    total = np.zeros(1, np.float64)
+    with objmode():
+        domain_comm = MPI.COMM_WORLD.Split(color=d_id, key=rank)
+        domain_comm.Allreduce(np.array(value, np.float64), total, op=MPI.SUM)
+    return total[0]
 
 @njit
 def allreduce_array(array):
