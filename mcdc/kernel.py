@@ -3014,13 +3014,16 @@ def iqmc_improved_kull(mcdc):
         # for each nieghbor surrounding the domain
         for name in neighbors:
             bank = mcdc["bank_domain_" + name[:2]]
-            numProcessors = mcdc["technique"]["work_ratio"][mcdc["d_idx"]]
+            numProcessors = mcdc["technique"][name].size
             size = bank["size"]
-            chunkSize = math.floor(size / numProcessors)
+            if numProcessors:
+                chunkSize = math.floor(size / numProcessors)
+            else:
+                chunkSize = 0
             remainder = size % numProcessors
             start = 0
             # and for each processor in that neighbor
-            for i in range(len(mcdc["technique"][name])):
+            for i in range(mcdc["technique"][name].size):
                 # send an equal number of particles that crossed that domain
                 end = start + chunkSize
                 if remainder > 0:
