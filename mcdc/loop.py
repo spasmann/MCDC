@@ -739,11 +739,11 @@ def loop_batch(mcdc):
     fission_source_old = score_bin["fission-source"].copy()
     if mcdc["technique"]["domain_decomp"]:
         fission_source_old[0] = kernel.allreduce(fission_source_old[0])
-        
+
     # Loop over power iteration cycles
     for idx_cycle in range(mcdc["setting"]["N_cycle"]):
         kernel.scramble_LDS(mcdc)
-        
+
         #### equivalent to loop_source
         # reset bank size
         mcdc["bank_source"]["size"] = 0
@@ -757,14 +757,14 @@ def loop_batch(mcdc):
         kernel.iqmc_distribute_tallies(mcdc)
         # update source adds effective scattering + fission + fixed-source
         kernel.iqmc_update_source(mcdc)
-        #### 
-        
+        ####
+
         kernel.iqmc_eigenvalue_tally_closeout_history(fission_source_old, mcdc)
         fission_source_old = score_bin["fission-source"].copy()
 
         # if mcdc["cycle_active"]:
-            # kernel.iqmc_eigenvalue_tally_norm(mcdc)
-            
+        # kernel.iqmc_eigenvalue_tally_norm(mcdc)
+
         # Print progress
         with objmode():
             print_progress_eigenvalue(mcdc)
@@ -777,6 +777,7 @@ def loop_batch(mcdc):
     # Tally closeout
     # kernel.tally_closeout(mcdc)
     # kernel.eigenvalue_tally_closeout(mcdc)
+
 
 @njit
 def power_iteration(mcdc):

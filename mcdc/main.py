@@ -611,7 +611,7 @@ def prepare():
                 "score",
                 "material_idx",
                 "Nc_total",
-                "source-avg"
+                "source-avg",
             ]:
                 # reduce array size if domain decomp
                 if domain_decomp:

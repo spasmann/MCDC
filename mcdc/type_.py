@@ -579,7 +579,9 @@ def make_type_technique(N_particle, G, card):
 
     if card["iQMC"]:
         if setting["mode_eigenvalue"]:
-            if (card["iqmc"]["eigenmode_solver"] == "power_iteration") or (card["iqmc"]["eigenmode_solver"] == "batch"):
+            if (card["iqmc"]["eigenmode_solver"] == "power_iteration") or (
+                card["iqmc"]["eigenmode_solver"] == "batch"
+            ):
                 card["iqmc"]["score_list"]["fission-source"] = True
 
     # Add score flags to structure
@@ -599,8 +601,8 @@ def make_type_technique(N_particle, G, card):
             shape = (0,) * len(shape)
         scores_struct += [(name, float64, shape)]
         if card["iqmc"]["eigenmode_solver"] == "batch":
-            scores_struct += [(name+"-avg", float64, shape)]
-        
+            scores_struct += [(name + "-avg", float64, shape)]
+
     # TODO: make outter effective fission size zero if not eigenmode
     # (causes problems with numba)
     scores_struct += [("effective-fission-outter", float64, (Ng, Nt, Nx, Ny, Nz))]
