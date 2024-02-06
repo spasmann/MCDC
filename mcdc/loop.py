@@ -490,6 +490,8 @@ def loop_iqmc(mcdc):
             davidson(mcdc)
         if iqmc["eigenmode_solver"] == "power_iteration":
             power_iteration(mcdc)
+        if iqmc["eigenmode_solver"] == "batch":
+            loop_batch(mcdc)
     else:
         if iqmc["fixed_source_solver"] == "source_iteration":
             source_iteration(mcdc)
@@ -499,6 +501,7 @@ def loop_iqmc(mcdc):
 
 @njit
 def iqmc_loop_source(mcdc):
+    mcdc["technique"]["iqmc"]["sweep_counter"] += 1
     # while any stored particles on any processor
     work_remaining = kernel.allreduce(mcdc["bank_source"]["size"])
     counter = 1
@@ -547,7 +550,6 @@ def source_iteration(mcdc):
         # reset tallies for next loop
         kernel.iqmc_reset_tallies(iqmc)
         # sweep particles
-        iqmc["sweep_counter"] += 1
         iqmc_loop_source(mcdc)
         # sum resultant flux on all processors
         kernel.iqmc_distribute_tallies(mcdc)
@@ -728,6 +730,53 @@ def gmres(mcdc):
         if iqmc["itt"] >= max_iter:
             return
 
+
+@njit
+def loop_batch(mcdc):
+    iqmc = mcdc["technique"]["iqmc"]
+    score_bin = iqmc["score"]
+
+    fission_source_old = score_bin["fission-source"].copy()
+    if mcdc["technique"]["domain_decomp"]:
+        fission_source_old[0] = kernel.allreduce(fission_source_old[0])
+        
+    # Loop over power iteration cycles
+    for idx_cycle in range(mcdc["setting"]["N_cycle"]):
+        kernel.scramble_LDS(mcdc)
+        
+        #### equivalent to loop_source
+        # reset bank size
+        mcdc["bank_source"]["size"] = 0
+        # QMC Sweep
+        kernel.iqmc_prepare_particles(mcdc)
+        # if not mcdc["cycle_active"]:
+        kernel.iqmc_reset_tallies(iqmc)
+        # loop particles
+        iqmc_loop_source(mcdc)
+        # sum resultant flux on all processors
+        kernel.iqmc_distribute_tallies(mcdc)
+        # update source adds effective scattering + fission + fixed-source
+        kernel.iqmc_update_source(mcdc)
+        #### 
+        
+        kernel.iqmc_eigenvalue_tally_closeout_history(fission_source_old, mcdc)
+        fission_source_old = score_bin["fission-source"].copy()
+
+        # if mcdc["cycle_active"]:
+            # kernel.iqmc_eigenvalue_tally_norm(mcdc)
+            
+        # Print progress
+        with objmode():
+            print_progress_eigenvalue(mcdc)
+
+        # Entering active cycle?
+        mcdc["idx_cycle"] += 1
+        if mcdc["idx_cycle"] >= mcdc["setting"]["N_inactive"]:
+            mcdc["cycle_active"] = True
+
+    # Tally closeout
+    # kernel.tally_closeout(mcdc)
+    # kernel.eigenvalue_tally_closeout(mcdc)
 
 @njit
 def power_iteration(mcdc):

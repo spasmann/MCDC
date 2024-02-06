@@ -2345,7 +2345,7 @@ def move_to_event(P, mcdc):
     # Score tracklength tallies
     if mcdc["tally"]["tracklength"] and mcdc["cycle_active"]:
         score_tracklength(P, distance, mcdc)
-    if mcdc["setting"]["mode_eigenvalue"]:
+    if mcdc["setting"]["mode_eigenvalue"] and not mcdc["technique"]["iQMC"]:
         eigenvalue_tally(P, distance, mcdc)
 
     # Move particle
@@ -2981,7 +2981,65 @@ def weight_window(P, mcdc):
 # ==============================================================================
 # Quasi Monte Carlo
 # ==============================================================================
+from scipy.stats import qmc
 
+
+@njit
+def scramble_LDS(mcdc):
+    # TODO: replace with custom rHalton
+    with objmode():
+        sampler = qmc.Halton(d=6, scramble=True)
+        N_work = mcdc["mpi_work_size"]
+        mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+
+@njit
+def iqmc_eigenvalue_tally_closeout_history(fission_source_old, mcdc):
+    iqmc = mcdc["technique"]["iqmc"]
+    score_bin = iqmc["score"]
+    score_list = iqmc["score_list"]
+    idx_cycle = mcdc["idx_cycle"]
+    
+    
+    if mcdc["cycle_active"]:
+        # average tallies
+        iqmc["source-avg"] = (iqmc["source-avg"] + iqmc["source"]) / 2
+        iqmc["source"] = iqmc["source-avg"]
+        # TODO: need to average all output tallies and source tilts
+        for name in literal_unroll(iqmc_score_list):
+            if score_list[name]:
+                score_bin[name+"-avg"] = (score_bin[name+"-avg"] + score_bin[name]) / 2
+        score_bin["fission-source"] = score_bin["fission-source-avg"]
+    else:
+        iqmc["source-avg"] = iqmc["source"].copy()
+        for name in literal_unroll(iqmc_score_list):
+            if score_list[name]:
+                score_bin[name+"-avg"] = score_bin[name].copy()
+                
+    # Update and store k_eff
+    if mcdc["technique"]["domain_decomp"]:
+        score_bin["fission-source"][0] = allreduce(score_bin["fission-source"][0])
+        
+    # update k_eff
+    mcdc["k_eff"] *= score_bin["fission-source"][0] / fission_source_old[0]
+    
+    # store outter iteration values
+    score_bin["effective-fission-outter"] = score_bin["effective-fission"].copy()
+    mcdc["k_cycle"][idx_cycle] = mcdc["k_eff"]
+
+    # Accumulate running average
+    if mcdc["cycle_active"]:
+        mcdc["k_avg"] += mcdc["k_eff"]
+        mcdc["k_sdv"] += mcdc["k_eff"] * mcdc["k_eff"]
+
+        N = 1 + mcdc["idx_cycle"] - mcdc["setting"]["N_inactive"]
+        mcdc["k_avg_running"] = mcdc["k_avg"] / N
+        if N == 1:
+            mcdc["k_sdv_running"] = 0.0
+        else:
+            mcdc["k_sdv_running"] = math.sqrt(
+                (mcdc["k_sdv"] / N - mcdc["k_avg_running"] ** 2) / (N - 1)
+            )
+    
 
 @njit
 def iqmc_improved_kull(mcdc):
@@ -3124,7 +3182,7 @@ def iqmc_preprocess(mcdc):
         # use material index to generate a first guess for the source
         iqmc_prepare_source(mcdc)
         iqmc_update_source(mcdc)
-    if eigenmode and iqmc["eigenmode_solver"] == "power_iteration":
+    if eigenmode and ((iqmc["eigenmode_solver"] == "power_iteration") or (iqmc["eigenmode_solver"] == "batch")):
         iqmc_prepare_nuSigmaF(mcdc)
 
     iqmc_consolidate_sources(mcdc)
@@ -3150,6 +3208,7 @@ def iqmc_prepare_nuSigmaF(mcdc):
                     iqmc["score"]["fission-source"] += iqmc_fission_source(
                         flux[:, t, i, j, k], material
                     )
+    
 
 
 @njit
@@ -3207,8 +3266,13 @@ def iqmc_prepare_particles(mcdc):
     lds = iqmc["lds"]
     # source
     Q = iqmc["source"]
-    mesh = iqmc["mesh"]
 
+    # if mcdc["setting"]["mode_eigenvalue"]:
+        # if iqmc["eigenmode_solver"] == "batch":
+            # if mcdc["cycle_active"]:
+                # Q = iqmc["source-avg"]
+        
+    mesh = iqmc["mesh"]
     # if mcdc["technique"]["domain_decomp"]:
     # distribute_work_dd(N_particle, mcdc)
 
@@ -3602,7 +3666,11 @@ def iqmc_update_source(mcdc):
         fission = iqmc["score"]["effective-fission-outter"]
     else:
         fission = iqmc["score"]["effective-fission"]
-    iqmc["source"] = scatter + (fission / keff) + fixed
+    
+    # if mcdc["cycle_active"]:
+        # iqmc["source"] = (iqmc["source"] + (scatter + (fission / keff) + fixed))/2
+    # else:
+    iqmc["source"] = (scatter + (fission / keff) + fixed)
 
 
 @njit
@@ -3906,7 +3974,6 @@ def AxV(V, b, mcdc):
     # QMC Sweep
     iqmc_prepare_particles(mcdc)
     iqmc_reset_tallies(iqmc)
-    iqmc["sweep_counter"] += 1
     iqmc_loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_tallies(mcdc)
@@ -3939,7 +4006,6 @@ def HxV(V, mcdc):
     iqmc["source"] = iqmc["fixed_source"] + iqmc["score"]["effective-scattering"]
     iqmc_prepare_particles(mcdc)
     iqmc_reset_tallies(iqmc)
-    iqmc["sweep_counter"] += 1
     iqmc_loop_source(mcdc)
     # sum resultant flux on all processors
     iqmc_distribute_tallies(mcdc)
@@ -3969,7 +4035,6 @@ def FxV(V, mcdc):
     iqmc["source"] = iqmc["fixed_source"] + iqmc["score"]["effective-fission"]
     iqmc_prepare_particles(mcdc)
     iqmc_reset_tallies(iqmc)
-    iqmc["sweep_counter"] += 1
     iqmc_loop_source(mcdc)
 
     # sum resultant flux on all processors
@@ -4000,7 +4065,6 @@ def preconditioner(V, mcdc, num_sweeps=3):
         iqmc["source"] = iqmc["fixed_source"] + iqmc["score"]["effective-scattering"]
         iqmc_prepare_particles(mcdc)
         iqmc_reset_tallies(iqmc)
-        iqmc["sweep_counter"] += 1
         iqmc_loop_source(mcdc)
         # sum resultant flux on all processors
         iqmc_distribute_tallies(mcdc)

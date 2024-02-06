@@ -557,6 +557,8 @@ def make_type_technique(N_particle, G, card):
     iqmc_list += [("material_idx", int64, (Nt, Nx, Ny, Nz))]
     # this is the original source matrix size + all tilted sources
     iqmc_list += [("source", float64, (Ng, Nt, Nx, Ny, Nz))]
+    if card["iqmc"]["eigenmode_solver"] == "batch":
+        iqmc_list += [("source-avg", float64, (Ng, Nt, Nx, Ny, Nz))]
     total_size = (Ng * Nt * Nx * Ny * Nz) * card["iqmc"]["krylov_vector_size"]
     iqmc_list += [(("total_source"), float64, (total_size,))]
 
@@ -577,7 +579,7 @@ def make_type_technique(N_particle, G, card):
 
     if card["iQMC"]:
         if setting["mode_eigenvalue"]:
-            if card["iqmc"]["eigenmode_solver"] == "power_iteration":
+            if (card["iqmc"]["eigenmode_solver"] == "power_iteration") or (card["iqmc"]["eigenmode_solver"] == "batch"):
                 card["iqmc"]["score_list"]["fission-source"] = True
 
     # Add score flags to structure
@@ -596,6 +598,9 @@ def make_type_technique(N_particle, G, card):
         if not card["iqmc"]["score_list"][name]:
             shape = (0,) * len(shape)
         scores_struct += [(name, float64, shape)]
+        if card["iqmc"]["eigenmode_solver"] == "batch":
+            scores_struct += [(name+"-avg", float64, shape)]
+        
     # TODO: make outter effective fission size zero if not eigenmode
     # (causes problems with numba)
     scores_struct += [("effective-fission-outter", float64, (Ng, Nt, Nx, Ny, Nz))]

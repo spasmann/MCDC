@@ -30,12 +30,10 @@ mcdc.cell([+s1, -s2], m1)
 # =============================================================================
 Nx = 10
 N = 1000
-maxit = 5
-tol = 1e-3
-pre_sweeps = 3
+tol = 1e-6
 x = np.linspace(0.0, 6.01275, num=Nx + 1)
 generator = "halton"
-solver = "davidson"
+solver = "batch"
 fixed_source = np.zeros((2, Nx))
 phi0 = np.ones((2, Nx))
 
@@ -48,15 +46,15 @@ mcdc.iQMC(
     g=np.ones(2),
     phi0=phi0,
     fixed_source=fixed_source,
-    maxitt=maxit,
     tol=tol,
     generator=generator,
+    maxitt=20,
     eigenmode_solver=solver,
-    preconditioner_sweeps=pre_sweeps,
 )
+
 # Setting
 mcdc.setting(N_particle=N)
-mcdc.eigenmode()
+mcdc.eigenmode(N_inactive=5, N_active=15)
 
 # Run
 mcdc.run()
