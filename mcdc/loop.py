@@ -749,7 +749,7 @@ def loop_batch(mcdc):
         mcdc["bank_source"]["size"] = 0
         # QMC Sweep
         kernel.iqmc_prepare_particles(mcdc)
-        # if not mcdc["cycle_active"]:
+        # reset tally bins
         kernel.iqmc_reset_tallies(iqmc)
         # loop particles
         iqmc_loop_source(mcdc)
@@ -759,11 +759,10 @@ def loop_batch(mcdc):
         kernel.iqmc_update_source(mcdc)
         ####
 
+        # update tallies and eigenvalue
+        kernel.iqmc_tally_closeout_history(mcdc)
         kernel.iqmc_eigenvalue_tally_closeout_history(fission_source_old, mcdc)
         fission_source_old = score_bin["fission-source"].copy()
-
-        # if mcdc["cycle_active"]:
-        # kernel.iqmc_eigenvalue_tally_norm(mcdc)
 
         # Print progress
         with objmode():
@@ -773,10 +772,6 @@ def loop_batch(mcdc):
         mcdc["idx_cycle"] += 1
         if mcdc["idx_cycle"] >= mcdc["setting"]["N_inactive"]:
             mcdc["cycle_active"] = True
-
-    # Tally closeout
-    # kernel.tally_closeout(mcdc)
-    # kernel.eigenvalue_tally_closeout(mcdc)
 
 
 @njit

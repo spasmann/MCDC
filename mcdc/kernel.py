@@ -2983,39 +2983,75 @@ def weight_window(P, mcdc):
 # ==============================================================================
 from scipy.stats import qmc
 
+np.random.seed(1234)
+
 
 @njit
 def scramble_LDS(mcdc):
     # TODO: replace with custom rHalton
     with objmode():
-        sampler = qmc.Halton(d=6, scramble=True)
+        sampler = qmc.Halton(d=6, scramble=True, seed=np.random.randint(10000, 100000))
         N_work = mcdc["mpi_work_size"]
         mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+
+
+@njit
+def iqmc_tally_closeout_history(mcdc):
+    iqmc = mcdc["technique"]["iqmc"]
+    score_bin = iqmc["score"]
+    # score_list = iqmc["score_list"]
+
+    # avg = "-avg"
+    if mcdc["cycle_active"]:
+        # average tallies
+        iqmc["source-avg"] = (iqmc["source-avg"] + iqmc["source"]) / 2
+        iqmc["source"] = iqmc["source-avg"]
+
+        score_bin["flux-avg"] = (score_bin["flux-avg"] + score_bin["flux"]) / 2
+        score_bin["flux"] = score_bin["flux-avg"]
+
+        score_bin["fission-source-avg"] = (
+            score_bin["fission-source-avg"] + score_bin["fission-source"]
+        ) / 2
+        score_bin["fission-source"] = score_bin["fission-source-avg"]
+
+        score_bin["tilt-x-avg"] = (score_bin["tilt-x-avg"] + score_bin["tilt-x"]) / 2
+        score_bin["tilt-x"] = score_bin["tilt-x-avg"]
+
+        score_bin["tilt-y-avg"] = (score_bin["tilt-y-avg"] + score_bin["tilt-y"]) / 2
+        score_bin["tilt-y"] = score_bin["tilt-y-avg"]
+
+        score_bin["tilt-z-avg"] = (score_bin["tilt-z-avg"] + score_bin["tilt-z"]) / 2
+        score_bin["tilt-z"] = score_bin["tilt-z-avg"]
+
+        # TODO: get loop working with numba
+        # for name in literal_unroll(iqmc_score_list):
+        #     if score_list[name]:
+        #         name_avg = name+avg
+        #         score_bin[name_avg] = (
+        #             score_bin[name_avg] + score_bin[name]
+        #         ) / 2
+        #         score_bin[name] = score_bin[name_avg]
+    else:
+        iqmc["source-avg"] = iqmc["source"]
+        score_bin["flux-avg"] = score_bin["flux"]
+        score_bin["fission-source-avg"] = score_bin["fission-source"]
+        score_bin["tilt-x-avg"] = score_bin["tilt-x"]
+        score_bin["tilt-y-avg"] = score_bin["tilt-y"]
+        score_bin["tilt-z-avg"] = score_bin["tilt-z"]
+
+        # TODO: get loop working with numba
+        # for name in literal_unroll(iqmc_score_list):
+        #     if score_list[name]:
+        #         name_avg = name+avg
+        #         score_bin[name_avg] = score_bin[name].copy()
 
 
 @njit
 def iqmc_eigenvalue_tally_closeout_history(fission_source_old, mcdc):
     iqmc = mcdc["technique"]["iqmc"]
     score_bin = iqmc["score"]
-    score_list = iqmc["score_list"]
     idx_cycle = mcdc["idx_cycle"]
-
-    if mcdc["cycle_active"]:
-        # average tallies
-        iqmc["source-avg"] = (iqmc["source-avg"] + iqmc["source"]) / 2
-        iqmc["source"] = iqmc["source-avg"]
-        # TODO: need to average all output tallies and source tilts
-        for name in literal_unroll(iqmc_score_list):
-            if score_list[name]:
-                score_bin[name + "-avg"] = (
-                    score_bin[name + "-avg"] + score_bin[name]
-                ) / 2
-        score_bin["fission-source"] = score_bin["fission-source-avg"]
-    else:
-        iqmc["source-avg"] = iqmc["source"].copy()
-        for name in literal_unroll(iqmc_score_list):
-            if score_list[name]:
-                score_bin[name + "-avg"] = score_bin[name].copy()
 
     # Update and store k_eff
     if mcdc["technique"]["domain_decomp"]:
@@ -3671,9 +3707,6 @@ def iqmc_update_source(mcdc):
     else:
         fission = iqmc["score"]["effective-fission"]
 
-    # if mcdc["cycle_active"]:
-    # iqmc["source"] = (iqmc["source"] + (scatter + (fission / keff) + fixed))/2
-    # else:
     iqmc["source"] = scatter + (fission / keff) + fixed
 
 
