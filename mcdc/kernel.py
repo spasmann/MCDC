@@ -2996,6 +2996,46 @@ def scramble_LDS(mcdc):
 
 
 @njit
+def halton_sequence(N, dim, scramble=False, seed=12345, skip=0):
+    np.random.seed(seed)
+    primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+    halton = np.zeros((N, dim))
+
+    for D in range(dim):
+        b = primes[D]
+        if scramble == False:
+            n, d = 0, 1
+            for i in range(skip + N):
+                x = d - n
+                if x == 1:
+                    n = 1
+                    d *= b
+                else:
+                    y = d // b
+                    while x <= y:
+                        y //= b
+                    n = (b + 1) * y - x
+                if i >= skip:
+                    halton[i - skip, D] = n / d
+        else:
+            ind = np.arange(skip, skip + N, dtype=np.int64)
+            b2r = 1 / b
+            ans = ind * 0
+            res = ind
+            while 1 - b2r < 1:
+                dig = res % b
+                # perm = np.random.choice(b, size=b, replace=False)
+                perm = np.random.permutation(b)
+                pdig = perm[dig]
+                ans = ans + pdig * b2r
+                b2r = b2r / b
+                res = np.int64((res - dig) / b)
+            halton[:, D] = ans
+
+    return halton
+
+
+@njit
 def iqmc_tally_closeout_history(mcdc):
     iqmc = mcdc["technique"]["iqmc"]
     score_bin = iqmc["score"]
