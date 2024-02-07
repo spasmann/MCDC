@@ -559,6 +559,8 @@ def make_type_technique(N_particle, G, card):
     iqmc_list += [("source", float64, (Ng, Nt, Nx, Ny, Nz))]
     if card["iqmc"]["eigenmode_solver"] == "batch":
         iqmc_list += [("source-avg", float64, (Ng, Nt, Nx, Ny, Nz))]
+    else:
+        iqmc_list += [("source-avg", float64, (0, 0, 0, 0, 0))]
     total_size = (Ng * Nt * Nx * Ny * Nz) * card["iqmc"]["krylov_vector_size"]
     iqmc_list += [(("total_source"), float64, (total_size,))]
 
@@ -600,8 +602,9 @@ def make_type_technique(N_particle, G, card):
         if not card["iqmc"]["score_list"][name]:
             shape = (0,) * len(shape)
         scores_struct += [(name, float64, shape)]
-        if card["iqmc"]["eigenmode_solver"] == "batch":
-            scores_struct += [(name + "-avg", float64, shape)]
+        if card["iqmc"]["eigenmode_solver"] != "batch":
+            shape = (0,) * len(shape)
+        scores_struct += [(name + "-avg", float64, shape)]
 
     # TODO: make outter effective fission size zero if not eigenmode
     # (causes problems with numba)
@@ -874,7 +877,14 @@ def make_type_global(card):
 
     # iQMC bank adjustment
     if card.technique["iQMC"]:
-        bank_source = particle_bank(N_particle)
+        if card.technique["domain_decomp"]:
+            if N_work > card.technique["domain_bank_size"]:
+                bank_source = particle_bank(N_work)
+            else:
+                bank_source = particle_bank(card.technique["domain_bank_size"])
+        else:
+            bank_source = particle_bank(N_work)
+
         if card.setting["mode_eigenvalue"]:
             bank_census = particle_bank(0)
 
