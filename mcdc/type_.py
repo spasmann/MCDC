@@ -878,12 +878,12 @@ def make_type_global(card):
     # iQMC bank adjustment
     if card.technique["iQMC"]:
         if card.technique["domain_decomp"]:
-            if N_work > card.technique["domain_bank_size"]:
-                bank_source = particle_bank(N_work)
-            else:
-                bank_source = particle_bank(card.technique["domain_bank_size"])
-        else:
-            bank_source = particle_bank(N_work)
+            # prepares bank_source based on number of processors in the domain
+            N_domain = len(card.technique["work_ratio"])
+            work_size = math.floor(N_particle / N_domain)
+            d_idx = card.technique["d_idx"]
+            N_work = math.floor(work_size / card.technique["work_ratio"][d_idx])
+        bank_source = particle_bank(N_work)
 
         if card.setting["mode_eigenvalue"]:
             bank_census = particle_bank(0)
