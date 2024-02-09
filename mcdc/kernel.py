@@ -2982,6 +2982,7 @@ def weight_window(P, mcdc):
 # Quasi Monte Carlo
 # ==============================================================================
 from scipy.stats import qmc
+from numpy import ascontiguousarray as cga
 
 np.random.seed(1234)
 
@@ -2994,50 +2995,55 @@ def scramble_LDS(mcdc):
     #     N_work = mcdc["mpi_work_size"]
     #     mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
     
-    N, dim = mcdc["technique"]["iqmc"]["lds"].shape
-    mcdc["technique"]["iqmc"]["lds"] = halton_sequence(N, dim, scramble=True,
-                                                       seed=np.random.randint(10000, 100000))
-    if mcdc["mpi_rank"] == 0:
-        print( mcdc["technique"]["iqmc"]["lds"][:3, :3])
+    with objmode(lds="float64[:,:]"):
+        N, dim = mcdc["technique"]["iqmc"]["lds"].shape
+        seed = np.random.randint(10000, 100000)
+        lds = halton_sequence(N, dim, scramble=True, seed=seed)
+    mcdc["technique"]["iqmc"]["lds"] = cga(lds)
+    
+    # if mcdc["mpi_rank"] == 0:
+        # print( mcdc["technique"]["iqmc"]["lds"][:3, :3])
 
 
-@njit
 def halton_sequence(N, dim, scramble=False, seed=12345, skip=0):
     np.random.seed(seed)
-    primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
-    halton = np.zeros((N, dim))
-
+    primes = np.array((2,3,5,7,11,13,17,19,23,29), dtype=np.int64)
+    halton = np.zeros((N,dim), dtype=np.float64)
+    
+    # for D in range(dim):
+    #     b = np.array((primes[D],), np.int64)
+    #     if scramble == False:
+    #         n,d = 0,1
+    #         for i in range(skip+N):
+    #             x = d - n
+    #             if x == 1:
+    #                 n = 1
+    #                 d *= b
+    #             else:
+    #                 y = d // b
+    #                 while x <= y:
+    #                     y //= b
+    #                 n = (b + 1) * y - x
+    #             if i >= skip:
+    #                 halton[i-skip, D] = n / d
+    #     else:
     for D in range(dim):
         b = primes[D]
-        if scramble == False:
-            n, d = 0, 1
-            for i in range(skip + N):
-                x = d - n
-                if x == 1:
-                    n = 1
-                    d *= b
-                else:
-                    y = d // b
-                    while x <= y:
-                        y //= b
-                    n = (b + 1) * y - x
-                if i >= skip:
-                    halton[i - skip, D] = n / d
-        else:
-            ind = np.arange(skip, skip + N, dtype=np.int64)
-            b2r = 1 / b
-            ans = ind * 0
-            res = ind
-            while 1 - b2r < 1:
-                dig = res % b
-                # perm = np.random.choice(b, size=b, replace=False)
-                perm = np.random.permutation(b)
-                pdig = perm[dig]
-                ans = ans + pdig * b2r
-                b2r = b2r / b
-                res = np.int64((res - dig) / b)
-            halton[:, D] = ans
-
+        ind = np.arange(skip, skip+N, dtype=np.int64)
+        b2r = 1 / b
+        ans = ind * 0
+        res = ind
+        while (1 - b2r < 1):
+            # dig = res % b
+            # perm = np.random.choice(b, size=b, replace=False)
+            dig = np.mod(res, b)
+            perm = np.random.permutation(b)
+            pdig = perm[dig]
+            ans = ans + pdig * b2r
+            b2r = b2r / b
+            res = np.array((res - dig) / b, dtype=np.int64)
+        halton[:,D] = ans
+            
     return halton
 
 
