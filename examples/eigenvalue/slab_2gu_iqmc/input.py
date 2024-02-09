@@ -54,7 +54,12 @@ mcdc.iQMC(
 
 # Setting
 mcdc.setting(N_particle=N)
-mcdc.eigenmode(N_inactive=5, N_active=15)
+mcdc.eigenmode(N_inactive=3, N_active=7)
+
+mcdc.domain_decomp(
+    x=np.linspace(0.0, 6.01275, 3),
+    bank_size=int(2 * N / 5),
+)
 
 # Run
 mcdc.run()

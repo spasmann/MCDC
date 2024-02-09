@@ -2989,10 +2989,16 @@ np.random.seed(1234)
 @njit
 def scramble_LDS(mcdc):
     # TODO: replace with custom rHalton
-    with objmode():
-        sampler = qmc.Halton(d=6, scramble=True, seed=np.random.randint(10000, 100000))
-        N_work = mcdc["mpi_work_size"]
-        mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+    # with objmode():
+    #     sampler = qmc.Halton(d=6, scramble=True, seed=np.random.randint(10000, 100000))
+    #     N_work = mcdc["mpi_work_size"]
+    #     mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+    
+    N, dim = mcdc["technique"]["iqmc"]["lds"].shape
+    mcdc["technique"]["iqmc"]["lds"] = halton_sequence(N, dim, scramble=True,
+                                                       seed=np.random.randint(10000, 100000))
+    if mcdc["mpi_rank"] == 0:
+        print( mcdc["technique"]["iqmc"]["lds"][:3, :3])
 
 
 @njit
