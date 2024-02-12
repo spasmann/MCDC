@@ -744,15 +744,19 @@ def gmres(mcdc):
 def loop_batch(mcdc):
     iqmc = mcdc["technique"]["iqmc"]
     score_bin = iqmc["score"]
-
+    k_old = mcdc["k_eff"]
+    tol = iqmc["tol"]
     fission_source_old = score_bin["fission-source"].copy()
     if mcdc["technique"]["domain_decomp"]:
         fission_source_old[0] = kernel.allreduce(fission_source_old[0])
 
     # Loop over power iteration cycles
     for idx_cycle in range(mcdc["setting"]["N_cycle"]):
-        kernel.scramble_LDS(mcdc)
-
+    # while iqmc["res_outter"] >= tol:
+        # scramble sequence in active cycles
+        if mcdc["cycle_active"]:
+            kernel.scramble_LDS(mcdc)
+            
         #### equivalent to loop_source
         # reset bank size
         mcdc["bank_source"]["size"] = 0
@@ -772,6 +776,10 @@ def loop_batch(mcdc):
         kernel.iqmc_tally_closeout_history(mcdc)
         kernel.iqmc_eigenvalue_tally_closeout_history(fission_source_old, mcdc)
         fission_source_old = score_bin["fission-source"].copy()
+        
+        # calculate keff residual 
+        iqmc["res_outter"] = abs(mcdc["k_eff"] - k_old) / k_old
+        k_old = mcdc["k_eff"]
 
         # Print progress
         with objmode():
