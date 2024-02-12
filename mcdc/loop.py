@@ -499,13 +499,17 @@ def loop_iqmc(mcdc):
             gmres(mcdc)
 
 
+# import time
+
 @njit
 def iqmc_loop_source(mcdc):
     mcdc["technique"]["iqmc"]["sweep_counter"] += 1
     # while any stored particles on any processor
     work_remaining = kernel.allreduce(mcdc["bank_source"]["size"])
     counter = 1
+    # domain_time = 0
     while work_remaining:
+        # start = time.time()
         N_prog = 0
         work_size = mcdc["bank_source"]["size"]
         # particle loop
@@ -530,12 +534,19 @@ def iqmc_loop_source(mcdc):
                 with objmode():
                     print_progress(percent, mcdc)
             counter += 1
+        # stop = time.time()
+        # domain_time += stop - start
         # send / receive particles
         if mcdc["technique"]["domain_decomp"]:
-            kernel.iqmc_improved_kull(mcdc)
+            # kernel.iqmc_improved_kull(mcdc)
+            kernel.iqmc_send_particles(mcdc)
+            kernel.iqmc_receive_particles(mcdc)
 
         work_remaining = kernel.allreduce(mcdc["bank_source"]["size"])
-
+    
+    # domain_time = kernel.allreduce_domain(domain_time, mcdc)
+    # domain_time /= mcdc["technique"]["work_ratio"][mcdc["d_idx"]]
+    # print("\n DOMAIN ", mcdc["d_idx"]+1, "TOOK ", domain_time)
 
 @njit
 def source_iteration(mcdc):
