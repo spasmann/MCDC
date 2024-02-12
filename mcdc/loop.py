@@ -506,7 +506,6 @@ def iqmc_loop_source(mcdc):
     mcdc["technique"]["iqmc"]["sweep_counter"] += 1
     # while any stored particles on any processor
     work_remaining = kernel.allreduce(mcdc["bank_source"]["size"])
-    counter = 1
     # domain_time = 0
     while work_remaining:
         # start = time.time()
@@ -533,7 +532,6 @@ def iqmc_loop_source(mcdc):
                 N_prog += 1
                 with objmode():
                     print_progress(percent, mcdc)
-            counter += 1
         # stop = time.time()
         # domain_time += stop - start
         # send / receive particles
