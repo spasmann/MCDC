@@ -30,7 +30,7 @@ mcdc.cell([+s1, -s2], m1)
 # =============================================================================
 Nx = 10
 N = 1000
-tol = 1e-6
+tol = 1e-4
 x = np.linspace(0.0, 6.01275, num=Nx + 1)
 generator = "halton"
 solver = "batch"
@@ -48,17 +48,18 @@ mcdc.iQMC(
     fixed_source=fixed_source,
     tol=tol,
     generator=generator,
-    maxitt=20,
+    maxitt=10,
     eigenmode_solver=solver,
 )
 
 # Setting
 mcdc.setting(N_particle=N)
 mcdc.eigenmode(N_inactive=3, N_active=7)
+# mcdc.eigenmode()
 
 mcdc.domain_decomp(
     x=np.linspace(0.0, 6.01275, 3),
-    bank_size=int(2 * N / 5),
+    bank_size=int(4 * N / 5),
 )
 
 # Run

@@ -41,31 +41,37 @@ def domain_crossing(P, mcdc):
                 if direction == MESH_Z:
                     P["z"] -= SHIFT * P["uz"] / np.abs(P["uz"])
 
-        # Score on tally
         if flag == MESH_X and P["ux"] > 0:
             add_particle(copy_particle(P), mcdc["bank_domain_xp"])
-            if mcdc["bank_domain_xp"]["size"] == len(mcdc["bank_domain_xp"]["particles"]):
-                iqmc_send_particles(mcdc)
+            # if mcdc["bank_domain_xp"]["size"] == len(mcdc["bank_domain_xp"]["particles"]):
+            #     iqmc_send_particles(mcdc)
+                
         if flag == MESH_X and P["ux"] < 0:
             add_particle(copy_particle(P), mcdc["bank_domain_xn"])
-            if mcdc["bank_domain_xn"]["size"] == len(mcdc["bank_domain_xn"]["particles"]):
-                iqmc_send_particles(mcdc)
+            # if mcdc["bank_domain_xn"]["size"] == len(mcdc["bank_domain_xn"]["particles"]):
+            #     iqmc_send_particles(mcdc)
+                
+                
         if flag == MESH_Y and P["uy"] > 0:
             add_particle(copy_particle(P), mcdc["bank_domain_yp"])
-            if mcdc["bank_domain_yp"]["size"] == len(mcdc["bank_domain_yp"]["particles"]):
-                iqmc_send_particles(mcdc)
+            # if mcdc["bank_domain_yp"]["size"] == len(mcdc["bank_domain_yp"]["particles"]):
+            #     iqmc_send_particles(mcdc)
+                
         if flag == MESH_Y and P["uy"] < 0:
             add_particle(copy_particle(P), mcdc["bank_domain_yn"])
-            if mcdc["bank_domain_yn"]["size"] == len(mcdc["bank_domain_yn"]["particles"]):
-                iqmc_send_particles(mcdc)
+            # if mcdc["bank_domain_yn"]["size"] == len(mcdc["bank_domain_yn"]["particles"]):
+            #     iqmc_send_particles(mcdc)
+                
+                
         if flag == MESH_Z and P["uz"] > 0:
             add_particle(copy_particle(P), mcdc["bank_domain_zp"])
-            if mcdc["bank_domain_zp"]["size"] == len(mcdc["bank_domain_zp"]["particles"]):
-                iqmc_send_particles(mcdc)
+            # if mcdc["bank_domain_zp"]["size"] == len(mcdc["bank_domain_zp"]["particles"]):
+            #     iqmc_send_particles(mcdc)
+                
         if flag == MESH_Z and P["uz"] < 0:
             add_particle(copy_particle(P), mcdc["bank_domain_zn"])
-            if mcdc["bank_domain_zn"]["size"] == len(mcdc["bank_domain_zn"]["particles"]):
-                iqmc_send_particles(mcdc)
+            # if mcdc["bank_domain_zn"]["size"] == len(mcdc["bank_domain_zn"]["particles"]):
+            #     iqmc_send_particles(mcdc)
         P["alive"] = False
 
 
@@ -2286,11 +2292,12 @@ def move_to_event(P, mcdc):
 
     # Distance to tally mesh
     d_mesh = INF
-    if mcdc["cycle_active"]:
-        d_mesh = distance_to_mesh(P, mcdc["tally"]["mesh"], mcdc)
+    # if mcdc["cycle_active"]:
+    d_mesh = distance_to_mesh(P, mcdc["tally"]["mesh"], mcdc)
 
     d_domain = INF
-    if mcdc["cycle_active"] and mcdc["technique"]["domain_decomp"]:
+    # if mcdc["cycle_active"] and mcdc["technique"]["domain_decomp"]:
+    if mcdc["technique"]["domain_decomp"]:
         d_domain = distance_to_mesh(P, mcdc["technique"]["domain_mesh"], mcdc)
 
     if mcdc["technique"]["iQMC"]:
@@ -3199,7 +3206,7 @@ def iqmc_receive_particles(mcdc):
         # nonblocking prob + while loop.
         # source: https://stackoverflow.com/questions/43823458/mpi-iprobe-vs-mpi-probe
     buff = np.zeros(
-        mcdc["bank_domain_xp"]["particles"].shape[0], dtype=type_.particle_record
+        int(6*mcdc["technique"]["domain_bank_size"]), dtype=type_.particle_record
     )
     with objmode(size="int64"):
         neighbors = [
@@ -3227,16 +3234,16 @@ def iqmc_receive_particles(mcdc):
         # =========================================================================
         size = bankr.shape[0]
         # check to see if we exceeded max. bank size
-        if size > buff.shape[0]:
+        if size >= buff.shape[0]:
             print("Received bank size = ", size, " domain bank size = ", buff.shape[0])
             print_error("Particle domain bank is full.")
 
         # Set output buffer
-        print('\n rank ', mcdc["mpi_rank"], "received ", size, " particles")
+        # print('\n rank ', mcdc["mpi_rank"], "received ", size, " particles")
         for i in range(size):
             buff[i] = bankr[i]
     # reset the particle bank to zero
-    mcdc["bank_source"]["size"] = 0
+    # mcdc["bank_source"]["size"] = 0
     # place received particles in bank_source
     for i in range(size):
         add_particle(buff[i], mcdc["bank_source"])
@@ -3257,7 +3264,7 @@ def iqmc_improved_kull(mcdc):
     # Nonblocking send of particles to neighbor
     # =========================================================================
     buff = np.zeros(
-        int(6*mcdc["bank_domain_xp"]["particles"].shape[0]), dtype=type_.particle_record
+        int(6*mcdc["technique"]["domain_bank_size"]), dtype=type_.particle_record
     )
     with objmode(size="int64"):
         neighbors = [
@@ -3301,10 +3308,10 @@ def iqmc_improved_kull(mcdc):
         # nonblocking prob + while loop.
         # source: https://stackoverflow.com/questions/43823458/mpi-iprobe-vs-mpi-probe
 
-        # bankr = np.zeros(0, dtype=type_.particle_record)
-        bankr = np.zeros(int(6*mcdc["bank_domain_xp"]["particles"].shape[0]), dtype=type_.particle_record)
+        bankr = np.zeros(0, dtype=type_.particle_record)
+        # bankr = np.zeros(int(6*mcdc["bank_domain_xp"]["particles"].shape[0]), dtype=type_.particle_record)
         received_messages = 0
-        start = 0
+        # start = 0
         while received_messages < tot_messages:
             # for each neighbor
             for name in neighbors:
@@ -3313,30 +3320,31 @@ def iqmc_improved_kull(mcdc):
                     # blocking test for a message:
                     if MPI.COMM_WORLD.iprobe(source=source):
                         received = MPI.COMM_WORLD.recv(source=source)
-                        end = len(received)
+                        # end = len(received)
                         # print('\n rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
-                        # bankr = np.append(bankr, received)
-                        bankr[start:end] = received
+                        bankr = np.append(bankr, received)
+                        # bankr[start:end] = received
                         received_messages += 1
-                        start = end
+                        # start = end
 
         # =========================================================================
         # Wait for all nonblocking sends and transfer particles to active bank
         # and add particles to source bank
         # =========================================================================
         MPI.Request.waitall(requests)
-        size = end
+        size = len(bankr)
         # check to see if we exceeded max. bank size
         if size >= buff.shape[0]:
             print("Received bank size = ", size, " domain bank size = ", buff.shape[0])
             print_error("Particle domain bank is full.")
 
         # Set output buffer
-        for i in range(end):
+        for i in range(size):
             buff[i] = bankr[i]
     # reset the particle bank to zero
     mcdc["bank_source"]["size"] = 0
     # place received particles in bank_source
+    # print('\n rank ', mcdc["mpi_rank"], "received ", size, " particles")
     for i in range(size):
         add_particle(buff[i], mcdc["bank_source"])
 
@@ -3475,14 +3483,7 @@ def iqmc_prepare_particles(mcdc):
     # source
     Q = iqmc["source"]
 
-    # if mcdc["setting"]["mode_eigenvalue"]:
-    # if iqmc["eigenmode_solver"] == "batch":
-    # if mcdc["cycle_active"]:
-    # Q = iqmc["source-avg"]
-
     mesh = iqmc["mesh"]
-    # if mcdc["technique"]["domain_decomp"]:
-    # distribute_work_dd(N_particle, mcdc)
 
     # total number of spatial cells (of all domains)
     N_total = iqmc["Nc_total"]

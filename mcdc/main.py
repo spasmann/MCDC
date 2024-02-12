@@ -586,6 +586,7 @@ def prepare():
         mcdc["technique"]["zp_neigh"] = input_deck.technique["zp_neigh"]
         mcdc["technique"]["zn_neigh"] = input_deck.technique["zn_neigh"]
         mcdc["technique"]["work_ratio"] = input_deck.technique["work_ratio"]
+        mcdc["technique"]["domain_bank_size"] = input_deck.technique["domain_bank_size"]
 
     # =========================================================================
     # Quasi Monte Carlo
