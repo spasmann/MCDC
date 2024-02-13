@@ -43,35 +43,35 @@ def domain_crossing(P, mcdc):
 
         if flag == MESH_X and P["ux"] > 0:
             add_particle(copy_particle(P), mcdc["bank_domain_xp"])
-            # if mcdc["bank_domain_xp"]["size"] == len(mcdc["bank_domain_xp"]["particles"]):
-            #     iqmc_send_particles(mcdc)
+            if mcdc["bank_domain_xp"]["size"] == len(mcdc["bank_domain_xp"]["particles"]):
+                iqmc_send_particles(mcdc)
                 
         if flag == MESH_X and P["ux"] < 0:
             add_particle(copy_particle(P), mcdc["bank_domain_xn"])
-            # if mcdc["bank_domain_xn"]["size"] == len(mcdc["bank_domain_xn"]["particles"]):
-            #     iqmc_send_particles(mcdc)
+            if mcdc["bank_domain_xn"]["size"] == len(mcdc["bank_domain_xn"]["particles"]):
+                iqmc_send_particles(mcdc)
                 
                 
         if flag == MESH_Y and P["uy"] > 0:
             add_particle(copy_particle(P), mcdc["bank_domain_yp"])
-            # if mcdc["bank_domain_yp"]["size"] == len(mcdc["bank_domain_yp"]["particles"]):
-            #     iqmc_send_particles(mcdc)
+            if mcdc["bank_domain_yp"]["size"] == len(mcdc["bank_domain_yp"]["particles"]):
+                iqmc_send_particles(mcdc)
                 
         if flag == MESH_Y and P["uy"] < 0:
             add_particle(copy_particle(P), mcdc["bank_domain_yn"])
-            # if mcdc["bank_domain_yn"]["size"] == len(mcdc["bank_domain_yn"]["particles"]):
-            #     iqmc_send_particles(mcdc)
+            if mcdc["bank_domain_yn"]["size"] == len(mcdc["bank_domain_yn"]["particles"]):
+                iqmc_send_particles(mcdc)
                 
                 
         if flag == MESH_Z and P["uz"] > 0:
             add_particle(copy_particle(P), mcdc["bank_domain_zp"])
-            # if mcdc["bank_domain_zp"]["size"] == len(mcdc["bank_domain_zp"]["particles"]):
-            #     iqmc_send_particles(mcdc)
+            if mcdc["bank_domain_zp"]["size"] == len(mcdc["bank_domain_zp"]["particles"]):
+                iqmc_send_particles(mcdc)
                 
         if flag == MESH_Z and P["uz"] < 0:
             add_particle(copy_particle(P), mcdc["bank_domain_zn"])
-            # if mcdc["bank_domain_zn"]["size"] == len(mcdc["bank_domain_zn"]["particles"]):
-            #     iqmc_send_particles(mcdc)
+            if mcdc["bank_domain_zn"]["size"] == len(mcdc["bank_domain_zn"]["particles"]):
+                iqmc_send_particles(mcdc)
         P["alive"] = False
 
 
@@ -3164,7 +3164,7 @@ def iqmc_send_particles(mcdc):
             "zp_neigh",
             "zn_neigh",
         ]
-        # requests = []
+        requests = []
         # for each nieghbor surrounding the domain
         for name in neighbors:
             bank = mcdc["bank_domain_" + name[:2]]
@@ -3183,8 +3183,9 @@ def iqmc_send_particles(mcdc):
                 send_bank = np.array(bank["particles"][start:end])
                 # print('\n rank ', mcdc["mpi_rank"], "sent message to rank ", mcdc["technique"][name][i] , " of size ", send_bank.shape)
                 if len(send_bank) > 0:
-                    MPI.COMM_WORLD.isend(send_bank, dest=mcdc["technique"][name][i])
+                    requests.append(MPI.COMM_WORLD.isend(send_bank, dest=mcdc["technique"][name][i]))
                 start = end
+        MPI.Request.waitall(requests)
     # reset domain transfer banks to zero
     # for some reason doing this inside objmode() doesn't work in Numba mode ?
     mcdc["bank_domain_xp"]["size"] = 0
@@ -3223,11 +3224,16 @@ def iqmc_receive_particles(mcdc):
             # for each processor in neighbor
             for source in mcdc["technique"][name]:
                 # blocking test for a message:
-                if MPI.COMM_WORLD.iprobe(source=source):
-                    received = MPI.COMM_WORLD.recv(source=source)
-                    # print('\n rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
-                    bankr = np.append(bankr, received)
+                # if MPI.COMM_WORLD.iprobe(source=source):
+                    # received = MPI.COMM_WORLD.recv(source=source)
+                #     # print('\n rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
+                    # bankr = np.append(bankr, received)
 
+                received = MPI.COMM_WORLD.irecv(source=source)
+                if received.Get_status():
+                    bankr = np.append(bankr, received.wait())
+                else:
+                    MPI.Request.cancel(received)
         # =========================================================================
         # Wait for all nonblocking sends and transfer particles to active bank
         # and add particles to source bank
