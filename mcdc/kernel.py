@@ -3000,24 +3000,22 @@ def weight_window(P, mcdc):
 # ==============================================================================
 # Quasi Monte Carlo
 # ==============================================================================
-from scipy.stats import qmc
 from numpy import ascontiguousarray as cga
-
-np.random.seed(1234)
-
+np.random.seed(12345678)
 
 @njit
 def scramble_LDS(mcdc):
-    # TODO: replace with custom rHalton
-    # with objmode():
-    #     sampler = qmc.Halton(d=6, scramble=True, seed=np.random.randint(10000, 100000))
-    #     N_work = mcdc["mpi_work_size"]
-    #     mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+    # TODO: convert halton_sequence to numba mode
+    # TODO: use MCDC seed system
+    
+    # idx_batch = mcdc["technique"]["iqmc"]["sweep_counter"]
+    # seed_batch = split_seed(idx_batch, mcdc["setting"]["rng_seed"])
+    seed_batch = np.random.randint(1000,1000000)
     
     with objmode(lds="float64[:,:]"):
         N, dim = mcdc["technique"]["iqmc"]["lds"].shape
-        seed = np.random.randint(10000, 100000)
-        lds = halton_sequence(N, dim, scramble=True, seed=seed)
+        N_start = mcdc["mpi_work_start"]
+        lds = halton_sequence(N, dim, scramble=True, seed=seed_batch, skip=N_start)
     mcdc["technique"]["iqmc"]["lds"] = cga(lds)
     
     # if mcdc["mpi_rank"] == 0:
