@@ -3226,7 +3226,7 @@ def iqmc_receive_particles(mcdc):
                 # blocking test for a message:
                 # if MPI.COMM_WORLD.iprobe(source=source):
                     # received = MPI.COMM_WORLD.recv(source=source)
-                #     # print('\n rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
+                    # print('\n rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
                     # bankr = np.append(bankr, received)
 
                 received = MPI.COMM_WORLD.irecv(source=source)

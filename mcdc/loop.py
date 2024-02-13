@@ -822,6 +822,7 @@ def power_iteration(mcdc):
                 score_bin["fission-source"][0]
             )
         # update k_eff
+        mcdc["k_cycle"][iqmc["itt_outter"]] = mcdc["k_eff"]
         mcdc["k_eff"] *= score_bin["fission-source"][0] / fission_source_old[0]
         # calculate diff in keff
         iqmc["res_outter"] = abs(mcdc["k_eff"] - k_old) / k_old
