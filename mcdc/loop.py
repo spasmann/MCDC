@@ -501,6 +501,7 @@ def loop_iqmc(mcdc):
 
 # import time
 
+
 @njit
 def iqmc_loop_source(mcdc):
     mcdc["technique"]["iqmc"]["sweep_counter"] += 1
@@ -541,10 +542,11 @@ def iqmc_loop_source(mcdc):
             kernel.iqmc_receive_particles(mcdc)
 
         work_remaining = kernel.allreduce(mcdc["bank_source"]["size"])
-    
+
     # domain_time = kernel.allreduce_domain(domain_time, mcdc)
     # domain_time /= mcdc["technique"]["work_ratio"][mcdc["d_idx"]]
     # print("\n DOMAIN ", mcdc["d_idx"]+1, "TOOK ", domain_time)
+
 
 @njit
 def source_iteration(mcdc):
@@ -744,19 +746,20 @@ def gmres(mcdc):
 def loop_batch(mcdc):
     iqmc = mcdc["technique"]["iqmc"]
     score_bin = iqmc["score"]
-    k_old = mcdc["k_eff"]
     tol = iqmc["tol"]
+    maxit = iqmc["maxitt"]
+    mcdc["k_sdv_running"] = 1.0
+    simulation_end = False
     fission_source_old = score_bin["fission-source"].copy()
+
     if mcdc["technique"]["domain_decomp"]:
         fission_source_old[0] = kernel.allreduce(fission_source_old[0])
 
     # Loop over power iteration cycles
-    for idx_cycle in range(mcdc["setting"]["N_cycle"]):
-    # while iqmc["res_outter"] >= tol:
-        # scramble sequence in active cycles
-        if mcdc["cycle_active"]:
-            kernel.scramble_LDS(mcdc)
-            
+    while not simulation_end:
+        # scramble sequence
+        kernel.scramble_LDS(mcdc)
+
         #### equivalent to loop_source
         # reset bank size
         mcdc["bank_source"]["size"] = 0
@@ -773,22 +776,35 @@ def loop_batch(mcdc):
         ####
 
         # update tallies and eigenvalue
-        kernel.iqmc_tally_closeout_history(mcdc)
+        kernel.iqmc_tally_batch_history(mcdc)
         kernel.iqmc_eigenvalue_tally_closeout_history(fission_source_old, mcdc)
-        fission_source_old = score_bin["fission-source"].copy()
-        
-        # calculate keff residual 
-        iqmc["res_outter"] = abs(mcdc["k_eff"] - k_old) / k_old
-        k_old = mcdc["k_eff"]
 
         # Print progress
         with objmode():
             print_progress_eigenvalue(mcdc)
 
-        # Entering active cycle?
+        # store old fission source to update keff
+        fission_source_old = score_bin["fission-source"].copy()
+
         mcdc["idx_cycle"] += 1
-        if mcdc["idx_cycle"] >= mcdc["setting"]["N_inactive"]:
-            mcdc["cycle_active"] = True
+        # Entering active cycle?
+        if mcdc["idx_cycle"] > 50 and not mcdc["cycle_active"]:
+            if kernel.iqmc_batch_convergence(mcdc):
+                mcdc["setting"]["N_inactive"] = mcdc["idx_cycle"]
+                mcdc["cycle_active"] = True
+
+        # check for exit convergence
+        if mcdc["cycle_active"] and (mcdc["k_sdv_running"] <= tol):
+            mcdc["setting"]["N_active"] = (
+                mcdc["idx_cycle"] - mcdc["setting"]["N_inactive"]
+            )
+            simulation_end = True
+
+        if mcdc["idx_cycle"] >= maxit:
+            simulation_end = True
+
+    # averaged the batched results after simulation ends
+    kernel.iqmc_tally_closeout_history(mcdc)
 
 
 @njit
@@ -822,8 +838,8 @@ def power_iteration(mcdc):
                 score_bin["fission-source"][0]
             )
         # update k_eff
-        mcdc["k_cycle"][iqmc["itt_outter"]] = mcdc["k_eff"]
         mcdc["k_eff"] *= score_bin["fission-source"][0] / fission_source_old[0]
+        mcdc["k_cycle"][iqmc["itt_outter"]] = mcdc["k_eff"]
         # calculate diff in keff
         iqmc["res_outter"] = abs(mcdc["k_eff"] - k_old) / k_old
         k_old = mcdc["k_eff"]

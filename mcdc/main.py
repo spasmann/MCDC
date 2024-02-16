@@ -693,13 +693,13 @@ def prepare():
 
         if input_deck.technique["iqmc"]["generator"] == "halton":
             if input_deck.technique["domain_decomp"]:
-                sampler = qmc.Halton(d=N_dim, scramble=True)
+                mcdc["technique"]["iqmc"]["lds"] = kernel.halton_sequence(
+                    N_work, N_dim, scramble=True, seed=1234567, skip=N_start
+                )
             else:
-                sampler = qmc.Halton(d=N_dim, scramble=False)
-                # skip the first entry in Halton sequence because its 0.0
-                sampler.fast_forward(1)
-                sampler.fast_forward(N_start)
-            mcdc["technique"]["iqmc"]["lds"] = sampler.random(N_work)
+                mcdc["technique"]["iqmc"]["lds"] = kernel.halton_sequence(
+                    N_work, N_dim, scramble=False, skip=N_start
+                )
 
         if input_deck.technique["iqmc"]["generator"] == "random":
             np.random.seed(seed)

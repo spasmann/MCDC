@@ -43,34 +43,44 @@ def domain_crossing(P, mcdc):
 
         if flag == MESH_X and P["ux"] > 0:
             add_particle(copy_particle(P), mcdc["bank_domain_xp"])
-            if mcdc["bank_domain_xp"]["size"] == len(mcdc["bank_domain_xp"]["particles"]):
+            if mcdc["bank_domain_xp"]["size"] == len(
+                mcdc["bank_domain_xp"]["particles"]
+            ):
                 iqmc_send_particles(mcdc)
-                
+
         if flag == MESH_X and P["ux"] < 0:
             add_particle(copy_particle(P), mcdc["bank_domain_xn"])
-            if mcdc["bank_domain_xn"]["size"] == len(mcdc["bank_domain_xn"]["particles"]):
+            if mcdc["bank_domain_xn"]["size"] == len(
+                mcdc["bank_domain_xn"]["particles"]
+            ):
                 iqmc_send_particles(mcdc)
-                
-                
+
         if flag == MESH_Y and P["uy"] > 0:
             add_particle(copy_particle(P), mcdc["bank_domain_yp"])
-            if mcdc["bank_domain_yp"]["size"] == len(mcdc["bank_domain_yp"]["particles"]):
+            if mcdc["bank_domain_yp"]["size"] == len(
+                mcdc["bank_domain_yp"]["particles"]
+            ):
                 iqmc_send_particles(mcdc)
-                
+
         if flag == MESH_Y and P["uy"] < 0:
             add_particle(copy_particle(P), mcdc["bank_domain_yn"])
-            if mcdc["bank_domain_yn"]["size"] == len(mcdc["bank_domain_yn"]["particles"]):
+            if mcdc["bank_domain_yn"]["size"] == len(
+                mcdc["bank_domain_yn"]["particles"]
+            ):
                 iqmc_send_particles(mcdc)
-                
-                
+
         if flag == MESH_Z and P["uz"] > 0:
             add_particle(copy_particle(P), mcdc["bank_domain_zp"])
-            if mcdc["bank_domain_zp"]["size"] == len(mcdc["bank_domain_zp"]["particles"]):
+            if mcdc["bank_domain_zp"]["size"] == len(
+                mcdc["bank_domain_zp"]["particles"]
+            ):
                 iqmc_send_particles(mcdc)
-                
+
         if flag == MESH_Z and P["uz"] < 0:
             add_particle(copy_particle(P), mcdc["bank_domain_zn"])
-            if mcdc["bank_domain_zn"]["size"] == len(mcdc["bank_domain_zn"]["particles"]):
+            if mcdc["bank_domain_zn"]["size"] == len(
+                mcdc["bank_domain_zn"]["particles"]
+            ):
                 iqmc_send_particles(mcdc)
         P["alive"] = False
 
@@ -3001,97 +3011,143 @@ def weight_window(P, mcdc):
 # Quasi Monte Carlo
 # ==============================================================================
 from numpy import ascontiguousarray as cga
+
 np.random.seed(12345678)
+
 
 @njit
 def scramble_LDS(mcdc):
     # TODO: convert halton_sequence to numba mode
     # TODO: use MCDC seed system
-    
+
     # idx_batch = mcdc["technique"]["iqmc"]["sweep_counter"]
     # seed_batch = split_seed(idx_batch, mcdc["setting"]["rng_seed"])
-    seed_batch = np.random.randint(1000,1000000)
-    
+    seed_batch = np.random.randint(1000, 1000000)
+
     with objmode(lds="float64[:,:]"):
         N, dim = mcdc["technique"]["iqmc"]["lds"].shape
         N_start = mcdc["mpi_work_start"]
         lds = halton_sequence(N, dim, scramble=True, seed=seed_batch, skip=N_start)
     mcdc["technique"]["iqmc"]["lds"] = cga(lds)
-    
+
     # if mcdc["mpi_rank"] == 0:
-        # print( mcdc["technique"]["iqmc"]["lds"][:3, :3])
+    # print( mcdc["technique"]["iqmc"]["lds"][:3, :3])
 
 
 def halton_sequence(N, dim, scramble=False, seed=12345, skip=0):
     np.random.seed(seed)
-    primes = np.array((2,3,5,7,11,13,17,19,23,29), dtype=np.int64)
-    halton = np.zeros((N,dim), dtype=np.float64)
-    
-    # for D in range(dim):
-    #     b = np.array((primes[D],), np.int64)
-    #     if scramble == False:
-    #         n,d = 0,1
-    #         for i in range(skip+N):
-    #             x = d - n
-    #             if x == 1:
-    #                 n = 1
-    #                 d *= b
-    #             else:
-    #                 y = d // b
-    #                 while x <= y:
-    #                     y //= b
-    #                 n = (b + 1) * y - x
-    #             if i >= skip:
-    #                 halton[i-skip, D] = n / d
-    #     else:
+    primes = np.array((2, 3, 5, 7, 11, 13, 17, 19, 23, 29), dtype=np.int64)
+    halton = np.zeros((N, dim), dtype=np.float64)
+
     for D in range(dim):
         b = primes[D]
-        ind = np.arange(skip, skip+N, dtype=np.int64)
-        b2r = 1 / b
-        ans = ind * 0
-        res = ind
-        while (1 - b2r < 1):
-            # dig = res % b
-            # perm = np.random.choice(b, size=b, replace=False)
-            dig = np.mod(res, b)
-            perm = np.random.permutation(b)
-            pdig = perm[dig]
-            ans = ans + pdig * b2r
-            b2r = b2r / b
-            res = np.array((res - dig) / b, dtype=np.int64)
-        halton[:,D] = ans
-            
+        if scramble == False:
+            n, d = 0, 1
+            for i in range(skip + N):
+                x = d - n
+                if x == 1:
+                    n = 1
+                    d *= b
+                else:
+                    y = d // b
+                    while x <= y:
+                        y //= b
+                    n = (b + 1) * y - x
+                if i >= skip:
+                    halton[i - skip, D] = n / d
+        else:
+            # for D in range(dim):
+            # b = primes[D]
+            ind = np.arange(skip, skip + N, dtype=np.int64)
+            b2r = 1 / b
+            ans = ind * 0
+            res = ind
+            while 1 - b2r < 1:
+                # dig = res % b
+                # perm = np.random.choice(b, size=b, replace=False)
+                dig = np.mod(res, b)
+                perm = np.random.permutation(b)
+                pdig = perm[dig]
+                ans = ans + pdig * b2r
+                b2r = b2r / b
+                res = np.array((res - dig) / b, dtype=np.int64)
+            halton[:, D] = ans
+
     return halton
+
+
+@njit
+def iqmc_batch_convergence(mcdc):
+    idx_cycle = mcdc["idx_cycle"]
+    k_cycle = mcdc["k_cycle"]
+    window = 50
+
+    sdev = k_cycle[idx_cycle - window : idx_cycle].std()
+    mean1 = k_cycle[idx_cycle - int(window * 0.5) : idx_cycle].mean()
+    mean2 = k_cycle[idx_cycle - window : idx_cycle - int(window * 0.5)].mean()
+
+    if np.abs(mean1 - mean2) <= sdev:
+        return True
+    else:
+        return False
+
+
+@njit
+def iqmc_tally_batch_history(mcdc):
+    iqmc = mcdc["technique"]["iqmc"]
+    score_bin = iqmc["score"]
+    score_list = iqmc["score_list"]
+
+    # avg = "-avg"
+    if mcdc["cycle_active"]:
+        N = 1 + mcdc["idx_cycle"] - mcdc["setting"]["N_inactive"]
+
+        # average tallies
+        iqmc["source-avg"] += iqmc["source"]
+
+        score_bin["flux-avg"] += score_bin["flux"]
+
+        score_bin["fission-source-avg"] += score_bin["fission-source"]
+
+        if score_list["tilt-x"]:
+            score_bin["tilt-x-avg"] += score_bin["tilt-x"]
+
+        if score_list["tilt-y"]:
+            score_bin["tilt-y-avg"] += score_bin["tilt-y"]
+
+        if score_list["tilt-z"]:
+            score_bin["tilt-z-avg"] += score_bin["tilt-z"]
+
+        if score_list["tilt-xy"]:
+            score_bin["tilt-xy-avg"] += score_bin["tilt-xy"]
 
 
 @njit
 def iqmc_tally_closeout_history(mcdc):
     iqmc = mcdc["technique"]["iqmc"]
     score_bin = iqmc["score"]
-    # score_list = iqmc["score_list"]
+    score_list = iqmc["score_list"]
 
     # avg = "-avg"
-    if mcdc["cycle_active"]:
-        # average tallies
-        iqmc["source-avg"] = (iqmc["source-avg"] + iqmc["source"]) / 2
-        iqmc["source"] = iqmc["source-avg"]
+    N = 1 + mcdc["idx_cycle"] - mcdc["setting"]["N_inactive"]
 
-        score_bin["flux-avg"] = (score_bin["flux-avg"] + score_bin["flux"]) / 2
-        score_bin["flux"] = score_bin["flux-avg"]
+    # average tallies
+    iqmc["source"] = iqmc["source-avg"] / N
 
-        score_bin["fission-source-avg"] = (
-            score_bin["fission-source-avg"] + score_bin["fission-source"]
-        ) / 2
-        score_bin["fission-source"] = score_bin["fission-source-avg"]
+    score_bin["flux"] = score_bin["flux-avg"] / N
+    score_bin["fission-source"] = score_bin["fission-source-avg"] / N
 
-        score_bin["tilt-x-avg"] = (score_bin["tilt-x-avg"] + score_bin["tilt-x"]) / 2
-        score_bin["tilt-x"] = score_bin["tilt-x-avg"]
+    if score_list["tilt-x"]:
+        score_bin["tilt-x"] = score_bin["tilt-x-avg"] / N
 
-        score_bin["tilt-y-avg"] = (score_bin["tilt-y-avg"] + score_bin["tilt-y"]) / 2
-        score_bin["tilt-y"] = score_bin["tilt-y-avg"]
+    if score_list["tilt-y"]:
+        score_bin["tilt-y"] = score_bin["tilt-y-avg"] / N
 
-        score_bin["tilt-z-avg"] = (score_bin["tilt-z-avg"] + score_bin["tilt-z"]) / 2
-        score_bin["tilt-z"] = score_bin["tilt-z-avg"]
+    if score_list["tilt-z"]:
+        score_bin["tilt-z"] = score_bin["tilt-z-avg"] / N
+
+    if score_list["tilt-xy"]:
+        score_bin["tilt-xy"] = score_bin["tilt-xy-avg"] / N
 
         # TODO: get loop working with numba
         # for name in literal_unroll(iqmc_score_list):
@@ -3101,19 +3157,6 @@ def iqmc_tally_closeout_history(mcdc):
         #             score_bin[name_avg] + score_bin[name]
         #         ) / 2
         #         score_bin[name] = score_bin[name_avg]
-    else:
-        iqmc["source-avg"] = iqmc["source"]
-        score_bin["flux-avg"] = score_bin["flux"]
-        score_bin["fission-source-avg"] = score_bin["fission-source"]
-        score_bin["tilt-x-avg"] = score_bin["tilt-x"]
-        score_bin["tilt-y-avg"] = score_bin["tilt-y"]
-        score_bin["tilt-z-avg"] = score_bin["tilt-z"]
-
-        # TODO: get loop working with numba
-        # for name in literal_unroll(iqmc_score_list):
-        #     if score_list[name]:
-        #         name_avg = name+avg
-        #         score_bin[name_avg] = score_bin[name].copy()
 
 
 @njit
@@ -3141,7 +3184,7 @@ def iqmc_eigenvalue_tally_closeout_history(fission_source_old, mcdc):
         N = 1 + mcdc["idx_cycle"] - mcdc["setting"]["N_inactive"]
         mcdc["k_avg_running"] = mcdc["k_avg"] / N
         if N == 1:
-            mcdc["k_sdv_running"] = 0.0
+            mcdc["k_sdv_running"] = 1.0
         else:
             mcdc["k_sdv_running"] = math.sqrt(
                 (mcdc["k_sdv"] / N - mcdc["k_avg_running"] ** 2) / (N - 1)
@@ -3181,7 +3224,9 @@ def iqmc_send_particles(mcdc):
                 send_bank = np.array(bank["particles"][start:end])
                 # print('\n rank ', mcdc["mpi_rank"], "sent message to rank ", mcdc["technique"][name][i] , " of size ", send_bank.shape)
                 if len(send_bank) > 0:
-                    requests.append(MPI.COMM_WORLD.isend(send_bank, dest=mcdc["technique"][name][i]))
+                    requests.append(
+                        MPI.COMM_WORLD.isend(send_bank, dest=mcdc["technique"][name][i])
+                    )
                 start = end
         MPI.Request.waitall(requests)
     # reset domain transfer banks to zero
@@ -3196,16 +3241,15 @@ def iqmc_send_particles(mcdc):
 
 @njit
 def iqmc_receive_particles(mcdc):
-
-        # =========================================================================
-        # Blocking Receive
-        # =========================================================================
-        # Here I break slightly from the original "improved KULL" algorithim
-        # I use a blocking probe but this serves the same purpose as a
-        # nonblocking prob + while loop.
-        # source: https://stackoverflow.com/questions/43823458/mpi-iprobe-vs-mpi-probe
+    # =========================================================================
+    # Blocking Receive
+    # =========================================================================
+    # Here I break slightly from the original "improved KULL" algorithim
+    # I use a blocking probe but this serves the same purpose as a
+    # nonblocking prob + while loop.
+    # source: https://stackoverflow.com/questions/43823458/mpi-iprobe-vs-mpi-probe
     buff = np.zeros(
-        int(6*mcdc["technique"]["domain_bank_size"]), dtype=type_.particle_record
+        int(6 * mcdc["technique"]["domain_bank_size"]), dtype=type_.particle_record
     )
     with objmode(size="int64"):
         neighbors = [
@@ -3223,9 +3267,9 @@ def iqmc_receive_particles(mcdc):
             for source in mcdc["technique"][name]:
                 # blocking test for a message:
                 # if MPI.COMM_WORLD.iprobe(source=source):
-                    # received = MPI.COMM_WORLD.recv(source=source)
-                    # print('\n rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
-                    # bankr = np.append(bankr, received)
+                # received = MPI.COMM_WORLD.recv(source=source)
+                # print('\n rank ', mcdc["mpi_rank"], "received message from rank ", source, " of size ", received.shape)
+                # bankr = np.append(bankr, received)
 
                 received = MPI.COMM_WORLD.irecv(source=source)
                 if received.Get_status():
@@ -3268,7 +3312,7 @@ def iqmc_improved_kull(mcdc):
     # Nonblocking send of particles to neighbor
     # =========================================================================
     buff = np.zeros(
-        int(6*mcdc["technique"]["domain_bank_size"]), dtype=type_.particle_record
+        int(6 * mcdc["technique"]["domain_bank_size"]), dtype=type_.particle_record
     )
     with objmode(size="int64"):
         neighbors = [
