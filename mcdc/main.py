@@ -1024,6 +1024,8 @@ def generate_hdf5(mcdc):
                     f.create_dataset("k_cycle", data=mcdc["k_cycle"][:N_cycle])
                     f.create_dataset("k_mean", data=mcdc["k_avg_running"])
                     f.create_dataset("k_sdev", data=mcdc["k_sdv_running"])
+                    f.create_dataset("N_inactive", data= mcdc["setting"]["N_inactive"])
+                    f.create_dataset("N_active", data= mcdc["setting"]["N_active"])
                 else:
                     N_cycle = mcdc["setting"]["N_cycle"]
                     f.create_dataset("k_cycle", data=mcdc["k_cycle"][:N_cycle])
