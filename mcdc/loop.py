@@ -748,6 +748,7 @@ def loop_batch(mcdc):
     score_bin = iqmc["score"]
     tol = iqmc["tol"]
     maxit = iqmc["maxitt"]
+    window = mcdc["technique"]["iqmc"]["batch_window"]
     mcdc["k_sdv_running"] = 1.0
     simulation_end = False
     fission_source_old = score_bin["fission-source"].copy()
@@ -788,7 +789,7 @@ def loop_batch(mcdc):
 
         mcdc["idx_cycle"] += 1
         # Entering active cycle?
-        if mcdc["idx_cycle"] > 50 and not mcdc["cycle_active"]:
+        if mcdc["idx_cycle"] > window and not mcdc["cycle_active"]:
             if kernel.iqmc_batch_convergence(mcdc):
                 mcdc["setting"]["N_inactive"] = mcdc["idx_cycle"]
                 mcdc["cycle_active"] = True

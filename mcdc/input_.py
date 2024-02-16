@@ -1178,6 +1178,7 @@ def iQMC(
     N_dim=6,
     seed=12345,
     preconditioner_sweeps=5,
+    batch_window=50,
     generator="halton",
     fixed_source_solver="source_iteration",
     eigenmode_solver="power_iteration",
@@ -1191,6 +1192,7 @@ def iQMC(
     card["iqmc"]["N_dim"] = N_dim
     card["iqmc"]["scramble"] = scramble
     card["iqmc"]["seed"] = seed
+    card["iqmc"]["batch_window"] = batch_window
 
     # Set mesh
     if g is not None:

@@ -3017,61 +3017,58 @@ np.random.seed(12345678)
 
 @njit
 def scramble_LDS(mcdc):
-    # TODO: convert halton_sequence to numba mode
     # TODO: use MCDC seed system
-
-    # idx_batch = mcdc["technique"]["iqmc"]["sweep_counter"]
-    # seed_batch = split_seed(idx_batch, mcdc["setting"]["rng_seed"])
     seed_batch = np.random.randint(1000, 1000000)
-
-    with objmode(lds="float64[:,:]"):
-        N, dim = mcdc["technique"]["iqmc"]["lds"].shape
-        N_start = mcdc["mpi_work_start"]
-        lds = halton_sequence(N, dim, scramble=True, seed=seed_batch, skip=N_start)
-    mcdc["technique"]["iqmc"]["lds"] = cga(lds)
-
-    # if mcdc["mpi_rank"] == 0:
-    # print( mcdc["technique"]["iqmc"]["lds"][:3, :3])
+    N, dim = mcdc["technique"]["iqmc"]["lds"].shape
+    N_start = mcdc["mpi_work_start"]
+    mcdc["technique"]["iqmc"]["lds"] = rhalton(N, dim, seed=seed_batch, skip=N_start)
 
 
-def halton_sequence(N, dim, scramble=False, seed=12345, skip=0):
+@njit
+def rhalton(N, dim, seed=12345, skip=0):
     np.random.seed(seed)
     primes = np.array((2, 3, 5, 7, 11, 13, 17, 19, 23, 29), dtype=np.int64)
     halton = np.zeros((N, dim), dtype=np.float64)
 
     for D in range(dim):
         b = primes[D]
-        if scramble == False:
-            n, d = 0, 1
-            for i in range(skip + N):
-                x = d - n
-                if x == 1:
-                    n = 1
-                    d *= b
-                else:
-                    y = d // b
-                    while x <= y:
-                        y //= b
-                    n = (b + 1) * y - x
-                if i >= skip:
-                    halton[i - skip, D] = n / d
-        else:
-            # for D in range(dim):
-            # b = primes[D]
-            ind = np.arange(skip, skip + N, dtype=np.int64)
-            b2r = 1 / b
-            ans = ind * 0
-            res = ind
-            while 1 - b2r < 1:
-                # dig = res % b
-                # perm = np.random.choice(b, size=b, replace=False)
-                dig = np.mod(res, b)
-                perm = np.random.permutation(b)
-                pdig = perm[dig]
-                ans = ans + pdig * b2r
-                b2r = b2r / b
-                res = np.array((res - dig) / b, dtype=np.int64)
-            halton[:, D] = ans
+        # b = np.int64(2)
+        ind = np.arange(skip, skip + N, dtype=np.int64)
+        b2r = 1 / b
+        ans = np.zeros(ind.shape, dtype=np.float64)
+        res = ind.copy()
+        while (1.0 - b2r) < 1.0:
+            dig = np.mod(res, b)
+            perm = np.random.permutation(b)
+            pdig = perm[dig]
+            ans = ans + pdig.astype(np.float64) * b2r
+            b2r = b2r / np.float64(b)
+            res = ((res - dig) / b).astype(np.int64)
+        halton[:, D] = ans
+
+    return halton
+
+
+@njit
+def halton(N, dim, skip=0):
+    primes = np.array((2, 3, 5, 7, 11, 13, 17, 19, 23, 29), dtype=np.int64)
+    halton = np.zeros((N, dim), dtype=np.float64)
+
+    for D in range(dim):
+        b = primes[D]
+        n, d = 0, 1
+        for i in range(skip + N):
+            x = d - n
+            if x == 1:
+                n = 1
+                d *= b
+            else:
+                y = d // b
+                while x <= y:
+                    y //= b
+                n = (b + 1) * y - x
+            if i >= skip:
+                halton[i - skip, D] = n / d
 
     return halton
 
@@ -3080,7 +3077,7 @@ def halton_sequence(N, dim, scramble=False, seed=12345, skip=0):
 def iqmc_batch_convergence(mcdc):
     idx_cycle = mcdc["idx_cycle"]
     k_cycle = mcdc["k_cycle"]
-    window = 50
+    window = mcdc["technique"]["iqmc"]["batch_window"]
 
     sdev = k_cycle[idx_cycle - window : idx_cycle].std()
     mean1 = k_cycle[idx_cycle - int(window * 0.5) : idx_cycle].mean()

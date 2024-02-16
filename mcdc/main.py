@@ -693,12 +693,12 @@ def prepare():
 
         if input_deck.technique["iqmc"]["generator"] == "halton":
             if input_deck.technique["domain_decomp"]:
-                mcdc["technique"]["iqmc"]["lds"] = kernel.halton_sequence(
-                    N_work, N_dim, scramble=True, seed=1234567, skip=N_start
+                mcdc["technique"]["iqmc"]["lds"] = kernel.rhalton(
+                    N_work, N_dim, seed=1234567, skip=N_start
                 )
             else:
-                mcdc["technique"]["iqmc"]["lds"] = kernel.halton_sequence(
-                    N_work, N_dim, scramble=False, skip=N_start
+                mcdc["technique"]["iqmc"]["lds"] = kernel.halton(
+                    N_work, N_dim, skip=N_start
                 )
 
         if input_deck.technique["iqmc"]["generator"] == "random":

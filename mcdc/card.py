@@ -103,6 +103,7 @@ class InputDeck:
                 "maxitt": 5,
                 "N_dim": 6,
                 "seed": 12345,
+                "batch_window": 50,
                 "scramble": False,
                 "fixed_source": np.ones([1, 1, 1, 1]),
                 "source": np.ones([1, 1, 1, 1]),

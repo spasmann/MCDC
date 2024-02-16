@@ -632,6 +632,7 @@ def make_type_technique(N_particle, G, card):
         ("sweep_counter", int64),
         ("w_min", float64),
         ("Nc_total", int64),
+        ("batch_window", int64),
     ]
 
     struct += [("iqmc", iqmc_list)]
