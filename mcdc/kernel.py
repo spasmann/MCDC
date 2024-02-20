@@ -1904,11 +1904,11 @@ def mesh_uniform_get_index(P, mesh, trans):
 def mesh_crossing_evaluate(P, mesh):
     # Shift backward
     shift_particle(P, -2 * SHIFT)
-    t1, x1, y1, z1, outside1 = mesh_get_index(P, mesh)
+    t1, x1, y1, z1, outside1 = iqmc_mesh_get_index(P, mesh)
 
     # Double shift forward
     shift_particle(P, 4 * SHIFT)
-    t2, x2, y2, z2, outside2 = mesh_get_index(P, mesh)
+    t2, x2, y2, z2, outside2 = iqmc_mesh_get_index(P, mesh)
 
     # Return particle to initial position
     shift_particle(P, -2 * SHIFT)
@@ -2518,10 +2518,14 @@ def distance_to_mesh(P, mesh, mcdc):
     v = get_particle_speed(P, mcdc)
 
     d = INF
-    d = min(d, mesh_distance_search(x, ux, mesh["x"]))
-    d = min(d, mesh_distance_search(y, uy, mesh["y"]))
-    d = min(d, mesh_distance_search(z, uz, mesh["z"]))
-    d = min(d, mesh_distance_search(t, 1.0 / v, mesh["t"]))
+    # d = min(d, mesh_distance_search(x, ux, mesh["x"]))
+    # d = min(d, mesh_distance_search(y, uy, mesh["y"]))
+    # d = min(d, mesh_distance_search(z, uz, mesh["z"]))
+    # d = min(d, mesh_distance_search(t, 1.0 / v, mesh["t"]))
+    d = min(d, mesh_uniform_distance_search(x, ux, mesh["x"][0], mesh["x"][1]-mesh["x"][0]))
+    d = min(d, mesh_uniform_distance_search(x, ux, mesh["y"][0], mesh["y"][1]-mesh["y"][0]))
+    d = min(d, mesh_uniform_distance_search(x, ux, mesh["z"][0], mesh["z"][1]-mesh["z"][0]))
+    d = min(d, mesh_uniform_distance_search(x, 1.0/v, mesh["t"][0], mesh["t"][1]-mesh["t"][0]))
     return d
 
 
@@ -3555,7 +3559,7 @@ def iqmc_prepare_particles(mcdc):
         P_new["ux"], P_new["uy"], P_new["uz"] = iqmc_sample_isotropic_direction(
             lds[n, 1], lds[n, 5]
         )
-        t, x, y, z, outside = mesh_get_index(P_new, mesh)
+        t, x, y, z, outside = iqmc_mesh_uniform_get_index(P_new, mesh)
         q = Q[:, t, x, y, z].copy()
         dV = iqmc_cell_volume(x, y, z, mesh)
         # Source tilt
@@ -3598,6 +3602,31 @@ def iqmc_res(flux_new, flux_old, mcdc):
     return res
 
 
+
+@njit
+def iqmc_mesh_uniform_get_index(P, mesh):
+    # Check if outside grid
+    outside = False
+
+    if (
+        P["t"] < mesh["t"][0]
+        or P["t"] > mesh["t"][-1]
+        or P["x"] < mesh["x"][0]
+        or P["x"] > mesh["x"][-1]
+        or P["y"] < mesh["y"][0]
+        or P["y"] > mesh["y"][-1]
+        or P["z"] < mesh["z"][0]
+        or P["z"] > mesh["z"][-1]
+    ):
+        outside = True
+        
+    t = math.floor((P["t"] - mesh["t"][0]) / (mesh["t"][1]-mesh["t"][0]))
+    x = math.floor((P["x"] - mesh["x"][0]) / (mesh["x"][1]-mesh["x"][0]))
+    y = math.floor((P["y"] - mesh["y"][0]) / (mesh["y"][1]-mesh["y"][0]))
+    z = math.floor((P["z"] - mesh["z"][0]) / (mesh["z"][1]-mesh["z"][0]))
+    
+    return t, x, y, z, outside
+
 @njit
 def iqmc_score_tallies(P, distance, mcdc):
     """
@@ -3627,7 +3656,7 @@ def iqmc_score_tallies(P, distance, mcdc):
     SigmaT = material["total"]
     mat_id = P["material_ID"]
 
-    t, x, y, z, outside = mesh_get_index(P, mesh)
+    t, x, y, z, outside = iqmc_mesh_uniform_get_index(P, mesh)
     if outside:
         return
 
