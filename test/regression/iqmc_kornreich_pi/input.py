@@ -61,7 +61,7 @@ mcdc.iQMC(
 )
 # Setting
 mcdc.setting(N_particle=N)
-mcdc.eigenmode()
+mcdc.eigenmode(N_inactive=maxit)
 
 # Run
 mcdc.run()

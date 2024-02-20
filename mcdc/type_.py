@@ -6,7 +6,7 @@ from mpi4py import MPI
 
 # Basic types
 float64 = np.float64
-int64 = np.int64
+int64 = np.int32
 int32 = np.int32
 uint64 = np.uint64
 bool_ = np.bool_

@@ -990,7 +990,7 @@ def bank_scanning(bank, mcdc):
     N_local = bank["size"]
 
     # Starting index
-    buff = np.zeros(1, dtype=np.int64)
+    buff = np.zeros(1, dtype=np.int32)
     with objmode():
         MPI.COMM_WORLD.Exscan(np.array([N_local]), buff, MPI.SUM)
     idx_start = buff[0]
@@ -1040,7 +1040,7 @@ def bank_scanning_DNP(bank, mcdc):
         N_local += math.ceil(DNP["w"])
 
     # Starting index
-    buff = np.zeros(1, dtype=np.int64)
+    buff = np.zeros(1, dtype=np.int32)
     with objmode():
         MPI.COMM_WORLD.Exscan(np.array([N_local]), buff, MPI.SUM)
     idx_start = buff[0]
@@ -1904,11 +1904,11 @@ def mesh_uniform_get_index(P, mesh, trans):
 def mesh_crossing_evaluate(P, mesh):
     # Shift backward
     shift_particle(P, -2 * SHIFT)
-    t1, x1, y1, z1, outside1 = iqmc_mesh_get_index(P, mesh)
+    t1, x1, y1, z1, outside1 = iqmc_mesh_uniform_get_index(P, mesh)
 
     # Double shift forward
     shift_particle(P, 4 * SHIFT)
-    t2, x2, y2, z2, outside2 = iqmc_mesh_get_index(P, mesh)
+    t2, x2, y2, z2, outside2 = iqmc_mesh_uniform_get_index(P, mesh)
 
     # Return particle to initial position
     shift_particle(P, -2 * SHIFT)
@@ -2523,9 +2523,9 @@ def distance_to_mesh(P, mesh, mcdc):
     # d = min(d, mesh_distance_search(z, uz, mesh["z"]))
     # d = min(d, mesh_distance_search(t, 1.0 / v, mesh["t"]))
     d = min(d, mesh_uniform_distance_search(x, ux, mesh["x"][0], mesh["x"][1]-mesh["x"][0]))
-    d = min(d, mesh_uniform_distance_search(x, ux, mesh["y"][0], mesh["y"][1]-mesh["y"][0]))
-    d = min(d, mesh_uniform_distance_search(x, ux, mesh["z"][0], mesh["z"][1]-mesh["z"][0]))
-    d = min(d, mesh_uniform_distance_search(x, 1.0/v, mesh["t"][0], mesh["t"][1]-mesh["t"][0]))
+    d = min(d, mesh_uniform_distance_search(y, uy, mesh["y"][0], mesh["y"][1]-mesh["y"][0]))
+    d = min(d, mesh_uniform_distance_search(z, uz, mesh["z"][0], mesh["z"][1]-mesh["z"][0]))
+    d = min(d, mesh_uniform_distance_search(t, 1.0/v, mesh["t"][0], mesh["t"][1]-mesh["t"][0]))
     return d
 
 
@@ -3031,13 +3031,13 @@ def scramble_LDS(mcdc):
 @njit
 def rhalton(N, dim, seed=12345, skip=0):
     np.random.seed(seed)
-    primes = np.array((2, 3, 5, 7, 11, 13, 17, 19, 23, 29), dtype=np.int64)
+    primes = np.array((2, 3, 5, 7, 11, 13, 17, 19, 23, 29), dtype=np.int32)
     halton = np.zeros((N, dim), dtype=np.float64)
 
     for D in range(dim):
         b = primes[D]
-        # b = np.int64(2)
-        ind = np.arange(skip, skip + N, dtype=np.int64)
+        # b = np.int32(2)
+        ind = np.arange(skip, skip + N, dtype=np.int32)
         b2r = 1 / b
         ans = np.zeros(ind.shape, dtype=np.float64)
         res = ind.copy()
@@ -3047,7 +3047,7 @@ def rhalton(N, dim, seed=12345, skip=0):
             pdig = perm[dig]
             ans = ans + pdig.astype(np.float64) * b2r
             b2r = b2r / np.float64(b)
-            res = ((res - dig) / b).astype(np.int64)
+            res = ((res - dig) / b).astype(np.int32)
         halton[:, D] = ans
 
     return halton
@@ -3055,7 +3055,7 @@ def rhalton(N, dim, seed=12345, skip=0):
 
 @njit
 def halton(N, dim, skip=0):
-    primes = np.array((2, 3, 5, 7, 11, 13, 17, 19, 23, 29), dtype=np.int64)
+    primes = np.array((2, 3, 5, 7, 11, 13, 17, 19, 23, 29), dtype=np.int32)
     halton = np.zeros((N, dim), dtype=np.float64)
 
     for D in range(dim):
