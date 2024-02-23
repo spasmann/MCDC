@@ -138,7 +138,7 @@ for i, name in enumerate(names):
 
     # Other quantities
     for result_name in ["k_mean", "k_sdev", "k_cycle", "k_eff"]:
-        if result_name not in output.keys():
+        if result_name not in answer.keys():
             continue
 
         a = output[result_name][()]
