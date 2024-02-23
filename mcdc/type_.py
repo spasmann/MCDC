@@ -555,15 +555,16 @@ def make_type_technique(N_particle, G, card):
     iqmc_list += [("lds", float64, (work_size, N_dim))]
     iqmc_list += [("fixed_source", float64, (Ng, Nt, Nx, Ny, Nz))]
     # TODO: make matidx int32
-    iqmc_list += [("material_idx", int64, (Nt, Nx, Ny, Nz))]
+    # iqmc_list += [("material_idx", int64, (Nt, Nx, Ny, Nz))]
     # this is the original source matrix size + all tilted sources
     iqmc_list += [("source", float64, (Ng, Nt, Nx, Ny, Nz))]
-    if card["iqmc"]["eigenmode_solver"] == "batch":
-        iqmc_list += [("source-avg", float64, (Ng, Nt, Nx, Ny, Nz))]
-    else:
-        iqmc_list += [("source-avg", float64, (0, 0, 0, 0, 0))]
-    total_size = (Ng * Nt * Nx * Ny * Nz) * card["iqmc"]["krylov_vector_size"]
-    iqmc_list += [(("total_source"), float64, (total_size,))]
+    
+    # if card["iqmc"]["eigenmode_solver"] == "batch":
+    #     iqmc_list += [("source-avg", float64, (Ng, Nt, Nx, Ny, Nz))]
+    # else:
+    #     iqmc_list += [("source-avg", float64, (0, 0, 0, 0, 0))]
+    # total_size = (Ng * Nt * Nx * Ny * Nz) * card["iqmc"]["krylov_vector_size"]
+    # iqmc_list += [(("total_source"), float64, (total_size,))]
 
     # Scores and shapes
     scores_shapes = [
@@ -603,13 +604,18 @@ def make_type_technique(N_particle, G, card):
         if not card["iqmc"]["score_list"][name]:
             shape = (0,) * len(shape)
         scores_struct += [(name, float64, shape)]
-        if card["iqmc"]["eigenmode_solver"] != "batch":
-            shape = (0,) * len(shape)
-        scores_struct += [(name + "-avg", float64, shape)]
+        
+        # if card["iqmc"]["eigenmode_solver"] != "batch":
+            # shape = (0,) * len(shape)
+        # scores_struct += [(name + "-avg", float64, shape)]
+    if card["iqmc"]["eigenmode_solver"] == "batch":
+        scores_struct += [("flux-avg", float64, (Ng, Nt, Nx, Ny, Nz))]
+    else:
+        scores_struct += [("flux-avg", float64, (0, 0, 0, 0, 0))]
 
     # TODO: make outter effective fission size zero if not eigenmode
     # (causes problems with numba)
-    scores_struct += [("effective-fission-outter", float64, (Ng, Nt, Nx, Ny, Nz))]
+    # scores_struct += [("effective-fission-outter", float64, (Ng, Nt, Nx, Ny, Nz))]
     scores = np.dtype(scores_struct)
     iqmc_list += [("score", scores)]
 

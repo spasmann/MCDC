@@ -35,13 +35,13 @@ mcdc.cell([+s2, -s3], m2)
 # =============================================================================
 # iQMC Parameters
 # =============================================================================
-N = 1000
-maxit = 5
+N = 3000
+maxit = 10
 tol = 1e-3
 Nx = 20
 x = np.linspace(0, 2.5, Nx + 1)
 generator = "halton"
-solver = "power_iteration"
+solver = "batch"
 fixed_source = np.zeros(Nx)
 phi0 = np.ones((Nx))
 
@@ -57,16 +57,17 @@ mcdc.iQMC(
     tol=tol,
     generator=generator,
     eigenmode_solver=solver,
-    score=["tilt-x"],
+    # score=["tilt-x"],
 )
 # Setting
 mcdc.setting(N_particle=N)
-mcdc.eigenmode()
+# mcdc.eigenmode(N_inactive=maxit)
+mcdc.eigenmode(N_inactive=maxit, N_active=maxit)
 
-mcdc.domain_decomp(
-    x=np.linspace(0.0, 2.5, 3),
-    bank_size=int(3 * N / 5),
-)
+# mcdc.domain_decomp(
+#     x=np.linspace(0.0, 2.5, 3),
+#     bank_size=int(3 * N / 5),
+# )
 
 
 # Run

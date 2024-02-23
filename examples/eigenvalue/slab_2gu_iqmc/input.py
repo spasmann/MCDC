@@ -33,7 +33,7 @@ N = 1000
 tol = 1e-4
 x = np.linspace(0.0, 6.01275, num=Nx + 1)
 generator = "halton"
-solver = "batch"
+solver = "power_iteration"
 fixed_source = np.zeros((2, Nx))
 phi0 = np.ones((2, Nx))
 
@@ -54,13 +54,13 @@ mcdc.iQMC(
 
 # Setting
 mcdc.setting(N_particle=N)
-mcdc.eigenmode(N_inactive=3, N_active=7)
-# mcdc.eigenmode()
+# mcdc.eigenmode(N_inactive=3, N_active=7)
+mcdc.eigenmode(N_inactive=10)
 
-mcdc.domain_decomp(
-    x=np.linspace(0.0, 6.01275, 3),
-    bank_size=int(4 * N / 5),
-)
+# mcdc.domain_decomp(
+#     x=np.linspace(0.0, 6.01275, 3),
+#     bank_size=int(4 * N / 5),
+# )
 
 # Run
 mcdc.run()
