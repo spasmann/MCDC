@@ -555,7 +555,7 @@ def make_type_technique(N_particle, G, card):
     iqmc_list += [("lds", float64, (work_size, N_dim))]
     iqmc_list += [("fixed_source", float64, (Ng, Nt, Nx, Ny, Nz))]
     # TODO: make matidx int32
-    # iqmc_list += [("material_idx", int64, (Nt, Nx, Ny, Nz))]
+    iqmc_list += [("material_idx", int32, (Nt, Nx, Ny, Nz))]
     # this is the original source matrix size + all tilted sources
     iqmc_list += [("source", float64, (Ng, Nt, Nx, Ny, Nz))]
     

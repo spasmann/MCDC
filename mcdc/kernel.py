@@ -3440,85 +3440,86 @@ def iqmc_preprocess(mcdc):
     iqmc = mcdc["technique"]["iqmc"]
     eigenmode = mcdc["setting"]["mode_eigenvalue"]
     # generate material index
-    # iqmc_generate_material_idx(mcdc)
+    iqmc_generate_material_idx(mcdc)
     if iqmc["source"].all() == 0.0:
         # use material index to generate a first guess for the source
-        # iqmc_prepare_source(mcdc)
-        # iqmc_update_source(mcdc)
-        iqmc["score"]["effective-scattering"] = np.ones_like(iqmc["source"])
-        iqmc["score"]["effective-fission"] = np.ones_like(iqmc["source"])
-        iqmc["source"] = np.ones_like(iqmc["source"])
+        iqmc_prepare_source(mcdc)
+        iqmc_update_source(mcdc)
+        # iqmc["score"]["effective-scattering"] = np.ones_like(iqmc["source"])
+        # iqmc["score"]["effective-fission"] = np.ones_like(iqmc["source"])
+        # iqmc["source"] = np.ones_like(iqmc["source"])
 
     if eigenmode and (
         (iqmc["eigenmode_solver"] == "power_iteration")
         or (iqmc["eigenmode_solver"] == "batch")
     ):
-        # iqmc_prepare_nuSigmaF(mcdc)
-        iqmc["score"]["fission-source"] = np.ones_like(iqmc["score"]["fission-source"])
+        iqmc_prepare_nuSigmaF(mcdc)
+        # iqmc["score"]["fission-source"] = np.ones_like(iqmc["score"]["fission-source"])
 
     # iqmc_consolidate_sources(mcdc)
 
 
-# @njit
-# def iqmc_prepare_nuSigmaF(mcdc):
-#     iqmc = mcdc["technique"]["iqmc"]
-#     mesh = iqmc["mesh"]
-#     flux = iqmc["score"]["flux"]
-#     Nt = len(mesh["t"]) - 1
-#     Nx = len(mesh["x"]) - 1
-#     Ny = len(mesh["y"]) - 1
-#     Nz = len(mesh["z"]) - 1
-#     # calculate nu*SigmaF for every cell
-#     for t in range(Nt):
-#         for i in range(Nx):
-#             for j in range(Ny):
-#                 for k in range(Nz):
-#                     t = 0
-#                     mat_idx = iqmc["material_idx"][t, i, j, k]
-#                     material = mcdc["materials"][mat_idx]
-#                     iqmc["score"]["fission-source"] += iqmc_fission_source(
-#                         flux[:, t, i, j, k], material
-#                     )
+@njit
+def iqmc_prepare_nuSigmaF(mcdc):
+    iqmc = mcdc["technique"]["iqmc"]
+    mesh = iqmc["mesh"]
+    flux = iqmc["score"]["flux"]
+    Nt = len(mesh["t"]) - 1
+    Nx = len(mesh["x"]) - 1
+    Ny = len(mesh["y"]) - 1
+    Nz = len(mesh["z"]) - 1
+    # calculate nu*SigmaF for every cell
+    for t in range(Nt):
+        for i in range(Nx):
+            for j in range(Ny):
+                for k in range(Nz):
+                    t = 0
+                    mat_idx = iqmc["material_idx"][t, i, j, k]
+                    material = mcdc["materials"][mat_idx]
+                    iqmc["score"]["fission-source"] += iqmc_fission_source(
+                        flux[:, t, i, j, k], material
+                    )
 
 
-# @njit
-# def iqmc_prepare_source(mcdc):
-#     """
-#     Iterates trhough all spatial cells to calculate the iQMC source. The source
-#     is a combination of the user input Fixed-Source plus the calculated
-#     Scattering-Source and Fission-Sources. Resutls are stored in
-#     mcdc['technique']['iqmc_source'], a matrix of size [G,Nt,Nx,Ny,Nz].
+@njit
+def iqmc_prepare_source(mcdc):
+    """
+    Iterates trhough all spatial cells to calculate the iQMC source. The source
+    is a combination of the user input Fixed-Source plus the calculated
+    Scattering-Source and Fission-Sources. Resutls are stored in
+    mcdc['technique']['iqmc_source'], a matrix of size [G,Nt,Nx,Ny,Nz].
 
-#     """
-#     iqmc = mcdc["technique"]["iqmc"]
-#     flux_scatter = iqmc["score"]["flux"]
-#     flux_fission = iqmc["score"]["flux"]
-#     mesh = iqmc["mesh"]
-#     Nt = len(mesh["t"]) - 1
-#     Nx = len(mesh["x"]) - 1
-#     Ny = len(mesh["y"]) - 1
-#     Nz = len(mesh["z"]) - 1
+    """
+    iqmc = mcdc["technique"]["iqmc"]
+    # flux_scatter = iqmc["score"]["flux"]
+    # flux_fission = iqmc["score"]["flux"]
+    flux = iqmc["score"]["flux"]
+    mesh = iqmc["mesh"]
+    Nt = len(mesh["t"]) - 1
+    Nx = len(mesh["x"]) - 1
+    Ny = len(mesh["y"]) - 1
+    Nz = len(mesh["z"]) - 1
 
-#     fission = np.zeros_like(iqmc["source"])
-#     scatter = np.zeros_like(iqmc["source"])
+    # fission = np.zeros_like(iqmc["source"])
+    # scatter = np.zeros_like(iqmc["source"])
 
-#     # calculate source for every cell and group in the iqmc_mesh
-#     for t in range(Nt):
-#         for i in range(Nx):
-#             for j in range(Ny):
-#                 for k in range(Nz):
-#                     mat_idx = iqmc["material_idx"][t, i, j, k]
-#                     # we can vectorize the multigroup calculation here
-#                     fission[:, t, i, j, k] = iqmc_effective_fission(
-#                         flux_fission[:, t, i, j, k], mat_idx, mcdc
-#                     )
-#                     scatter[:, t, i, j, k] = iqmc_effective_scattering(
-#                         flux_scatter[:, t, i, j, k], mat_idx, mcdc
-#                     )
-#     iqmc["score"]["effective-scattering"] = scatter
-#     iqmc["score"]["effective-fission"] = fission
-#     # iqmc["score"]["effective-fission-outter"] = fission
-#     iqmc_update_source(mcdc)
+    # calculate source for every cell and group in the iqmc_mesh
+    for t in range(Nt):
+        for i in range(Nx):
+            for j in range(Ny):
+                for k in range(Nz):
+                    mat_idx = iqmc["material_idx"][t, i, j, k]
+                    # we can vectorize the multigroup calculation here
+                    iqmc["score"]["effective-fission"][:, t, i, j, k] = iqmc_effective_fission(
+                        flux[:, t, i, j, k], mat_idx, mcdc
+                    )
+                    iqmc["score"]["effective-scattering"][:, t, i, j, k] = iqmc_effective_scattering(
+                        flux[:, t, i, j, k], mat_idx, mcdc
+                    )
+    # iqmc["score"]["effective-scattering"] = scatter
+    # iqmc["score"]["effective-fission"] = fission
+    # iqmc["score"]["effective-fission-outter"] = fission
+    iqmc_update_source(mcdc)
 
 
 @njit
@@ -3858,61 +3859,61 @@ def iqmc_sample_group(sample, G):
     return int(np.floor(sample * G))
 
 
-# @njit
-# def iqmc_generate_material_idx(mcdc):
-#     """
-#     This algorithm is meant to loop through every spatial cell of the
-#     iQMC mesh and assign a material index according to the material_ID at
-#     the center of the cell.
+@njit
+def iqmc_generate_material_idx(mcdc):
+    """
+    This algorithm is meant to loop through every spatial cell of the
+    iQMC mesh and assign a material index according to the material_ID at
+    the center of the cell.
 
-#     Therefore, the whole cell is treated as the material located at the
-#     center of the cell, regardless of whethere there are more materials
-#     present.
+    Therefore, the whole cell is treated as the material located at the
+    center of the cell, regardless of whethere there are more materials
+    present.
 
-#     A crude but quick approximation.
-#     """
-#     mesh = mcdc["technique"]["iqmc"]["mesh"]
-#     Nt = len(mesh["t"]) - 1
-#     Nx = len(mesh["x"]) - 1
-#     Ny = len(mesh["y"]) - 1
-#     Nz = len(mesh["z"]) - 1
-#     dx = dy = dz = 1
-#     # variables for cell finding functions
-#     trans = np.zeros((3,))
-#     # create particle to utilize cell finding functions
-#     P_temp = np.zeros(1, dtype=type_.particle)[0]
-#     # set default attributes
-#     P_temp["alive"] = True
-#     P_temp["material_ID"] = -1
-#     P_temp["cell_ID"] = -1
+    A crude but quick approximation.
+    """
+    mesh = mcdc["technique"]["iqmc"]["mesh"]
+    Nt = len(mesh["t"]) - 1
+    Nx = len(mesh["x"]) - 1
+    Ny = len(mesh["y"]) - 1
+    Nz = len(mesh["z"]) - 1
+    dx = dy = dz = 1
+    # variables for cell finding functions
+    trans = np.zeros((3,))
+    # create particle to utilize cell finding functions
+    P_temp = np.zeros(1, dtype=type_.particle)[0]
+    # set default attributes
+    P_temp["alive"] = True
+    P_temp["material_ID"] = -1
+    P_temp["cell_ID"] = -1
 
-#     x_mid = 0.5 * (mesh["x"][1:] + mesh["x"][:-1])
-#     y_mid = 0.5 * (mesh["y"][1:] + mesh["y"][:-1])
-#     z_mid = 0.5 * (mesh["z"][1:] + mesh["z"][:-1])
+    x_mid = 0.5 * (mesh["x"][1:] + mesh["x"][:-1])
+    y_mid = 0.5 * (mesh["y"][1:] + mesh["y"][:-1])
+    z_mid = 0.5 * (mesh["z"][1:] + mesh["z"][:-1])
 
-#     # loop through every cell
-#     for t in range(Nt):
-#         for i in range(Nx):
-#             x = x_mid[i]
-#             for j in range(Ny):
-#                 y = y_mid[j]
-#                 for k in range(Nz):
-#                     z = z_mid[k]
+    # loop through every cell
+    for t in range(Nt):
+        for i in range(Nx):
+            x = x_mid[i]
+            for j in range(Ny):
+                y = y_mid[j]
+                for k in range(Nz):
+                    z = z_mid[k]
 
-#                     # assign cell center position
-#                     P_temp["t"] = t
-#                     P_temp["x"] = x
-#                     P_temp["y"] = y
-#                     P_temp["z"] = z
+                    # assign cell center position
+                    P_temp["t"] = t
+                    P_temp["x"] = x
+                    P_temp["y"] = y
+                    P_temp["z"] = z
 
-#                     # set cell_ID
-#                     P_temp["cell_ID"] = get_particle_cell(P_temp, 0, trans, mcdc)
+                    # set cell_ID
+                    P_temp["cell_ID"] = get_particle_cell(P_temp, 0, trans, mcdc)
 
-#                     # set material_ID
-#                     material_ID = get_particle_material(P_temp, mcdc)
+                    # set material_ID
+                    material_ID = get_particle_material(P_temp, mcdc)
 
-#                     # assign material index
-#                     mcdc["technique"]["iqmc"]["material_idx"][t, i, j, k] = material_ID
+                    # assign material index
+                    mcdc["technique"]["iqmc"]["material_idx"][t, i, j, k] = material_ID
 
 
 @njit
@@ -4245,122 +4246,122 @@ def iqmc_bilinear_tilt(ux, x, dx, x_mid, uy, y, dy, y_mid, dt, dz, w, S, SigmaT)
 # =============================================================================
 
 
-@njit
-def AxV(V, b, mcdc):
-    """
-    Linear operator to be used with GMRES.
-    Calculate action of A on input vector V, where A is a transport sweep
-    and V is the total source (constant and tilted).
-    """
-    iqmc = mcdc["technique"]["iqmc"]
-    iqmc["total_source"] = V.copy()
-    # distribute segments of V to appropriate sources
-    iqmc_distribute_sources(mcdc)
-    # reset bank size
-    mcdc["bank_source"]["size"] = 0
-    # QMC Sweep
-    iqmc_prepare_particles(mcdc)
-    iqmc_reset_tallies(iqmc)
-    iqmc_loop_source(mcdc)
-    # sum resultant flux on all processors
-    iqmc_distribute_tallies(mcdc)
-    # update source adds effective scattering + fission + fixed-source
-    iqmc_update_source(mcdc)
-    # combine all sources (constant and tilted) into one vector
-    iqmc_consolidate_sources(mcdc)
-    v_out = iqmc["total_source"].copy()
-    axv = V - (v_out - b)
+# @njit
+# def AxV(V, b, mcdc):
+#     """
+#     Linear operator to be used with GMRES.
+#     Calculate action of A on input vector V, where A is a transport sweep
+#     and V is the total source (constant and tilted).
+#     """
+#     iqmc = mcdc["technique"]["iqmc"]
+#     iqmc["total_source"] = V.copy()
+#     # distribute segments of V to appropriate sources
+#     iqmc_distribute_sources(mcdc)
+#     # reset bank size
+#     mcdc["bank_source"]["size"] = 0
+#     # QMC Sweep
+#     iqmc_prepare_particles(mcdc)
+#     iqmc_reset_tallies(iqmc)
+#     iqmc_loop_source(mcdc)
+#     # sum resultant flux on all processors
+#     iqmc_distribute_tallies(mcdc)
+#     # update source adds effective scattering + fission + fixed-source
+#     iqmc_update_source(mcdc)
+#     # combine all sources (constant and tilted) into one vector
+#     iqmc_consolidate_sources(mcdc)
+#     v_out = iqmc["total_source"].copy()
+#     axv = V - (v_out - b)
 
-    return axv
-
-
-@njit
-def HxV(V, mcdc):
-    """
-    Linear operator for Davidson method,
-    scattering + streaming terms -> (I-L^(-1)S)*phi
-    """
-    iqmc = mcdc["technique"]["iqmc"]
-    # flux input is most recent iteration of eigenvector
-    v = V[:, -1]
-    iqmc["total_source"] = v.copy()
-    iqmc_distribute_sources(mcdc)
-    # reset bank size
-    mcdc["bank_source"]["size"] = 0
-
-    # QMC Sweep
-    # prepare_qmc_scattering_source(mcdc)
-    iqmc["source"] = iqmc["fixed_source"] + iqmc["score"]["effective-scattering"]
-    iqmc_prepare_particles(mcdc)
-    iqmc_reset_tallies(iqmc)
-    iqmc_loop_source(mcdc)
-    # sum resultant flux on all processors
-    iqmc_distribute_tallies(mcdc)
-    iqmc_consolidate_sources(mcdc)
-    v_out = iqmc["total_source"].copy()
-    axv = v - v_out
-
-    return axv
+#     return axv
 
 
-@njit
-def FxV(V, mcdc):
-    """
-    Linear operator for Davidson method,
-    fission term -> (L^(-1)F*phi)
-    """
-    iqmc = mcdc["technique"]["iqmc"]
-    # flux input is most recent iteration of eigenvector
-    v = V[:, -1]
-    # reshape v and assign to iqmc_flux
-    iqmc["total_source"] = v.copy()
-    iqmc_distribute_sources(mcdc)
-    # reset bank size
-    mcdc["bank_source"]["size"] = 0
+# @njit
+# def HxV(V, mcdc):
+#     """
+#     Linear operator for Davidson method,
+#     scattering + streaming terms -> (I-L^(-1)S)*phi
+#     """
+#     iqmc = mcdc["technique"]["iqmc"]
+#     # flux input is most recent iteration of eigenvector
+#     v = V[:, -1]
+#     iqmc["total_source"] = v.copy()
+#     iqmc_distribute_sources(mcdc)
+#     # reset bank size
+#     mcdc["bank_source"]["size"] = 0
 
-    # QMC Sweep
-    iqmc["source"] = iqmc["fixed_source"] + iqmc["score"]["effective-fission"]
-    iqmc_prepare_particles(mcdc)
-    iqmc_reset_tallies(iqmc)
-    iqmc_loop_source(mcdc)
+#     # QMC Sweep
+#     # prepare_qmc_scattering_source(mcdc)
+#     iqmc["source"] = iqmc["fixed_source"] + iqmc["score"]["effective-scattering"]
+#     iqmc_prepare_particles(mcdc)
+#     iqmc_reset_tallies(iqmc)
+#     iqmc_loop_source(mcdc)
+#     # sum resultant flux on all processors
+#     iqmc_distribute_tallies(mcdc)
+#     iqmc_consolidate_sources(mcdc)
+#     v_out = iqmc["total_source"].copy()
+#     axv = v - v_out
 
-    # sum resultant flux on all processors
-    iqmc_distribute_tallies(mcdc)
-    iqmc_consolidate_sources(mcdc)
-    v_out = iqmc["total_source"].copy()
-
-    return v_out
+#     return axv
 
 
-@njit
-def preconditioner(V, mcdc, num_sweeps=3):
-    """
-    Linear operator approximation of (I-L^(-1)S)*phi
+# @njit
+# def FxV(V, mcdc):
+#     """
+#     Linear operator for Davidson method,
+#     fission term -> (L^(-1)F*phi)
+#     """
+#     iqmc = mcdc["technique"]["iqmc"]
+#     # flux input is most recent iteration of eigenvector
+#     v = V[:, -1]
+#     # reshape v and assign to iqmc_flux
+#     iqmc["total_source"] = v.copy()
+#     iqmc_distribute_sources(mcdc)
+#     # reset bank size
+#     mcdc["bank_source"]["size"] = 0
 
-    In this case the preconditioner is a specified number of purely scattering
-    transport sweeps.
-    """
-    iqmc = mcdc["technique"]["iqmc"]
-    # flux input is most recent iteration of eigenvector
-    iqmc["total_source"] = V.copy()
-    iqmc_distribute_sources(mcdc)
+#     # QMC Sweep
+#     iqmc["source"] = iqmc["fixed_source"] + iqmc["score"]["effective-fission"]
+#     iqmc_prepare_particles(mcdc)
+#     iqmc_reset_tallies(iqmc)
+#     iqmc_loop_source(mcdc)
 
-    for i in range(num_sweeps):
-        # reset bank size
-        mcdc["bank_source"]["size"] = 0
-        # QMC Sweep
-        iqmc["source"] = iqmc["fixed_source"] + iqmc["score"]["effective-scattering"]
-        iqmc_prepare_particles(mcdc)
-        iqmc_reset_tallies(iqmc)
-        iqmc_loop_source(mcdc)
-        # sum resultant flux on all processors
-        iqmc_distribute_tallies(mcdc)
+#     # sum resultant flux on all processors
+#     iqmc_distribute_tallies(mcdc)
+#     iqmc_consolidate_sources(mcdc)
+#     v_out = iqmc["total_source"].copy()
 
-    iqmc_consolidate_sources(mcdc)
-    v_out = iqmc["total_source"].copy()
-    v_out = V - v_out
+#     return v_out
 
-    return v_out
+
+# @njit
+# def preconditioner(V, mcdc, num_sweeps=3):
+#     """
+#     Linear operator approximation of (I-L^(-1)S)*phi
+
+#     In this case the preconditioner is a specified number of purely scattering
+#     transport sweeps.
+#     """
+#     iqmc = mcdc["technique"]["iqmc"]
+#     # flux input is most recent iteration of eigenvector
+#     iqmc["total_source"] = V.copy()
+#     iqmc_distribute_sources(mcdc)
+
+#     for i in range(num_sweeps):
+#         # reset bank size
+#         mcdc["bank_source"]["size"] = 0
+#         # QMC Sweep
+#         iqmc["source"] = iqmc["fixed_source"] + iqmc["score"]["effective-scattering"]
+#         iqmc_prepare_particles(mcdc)
+#         iqmc_reset_tallies(iqmc)
+#         iqmc_loop_source(mcdc)
+#         # sum resultant flux on all processors
+#         iqmc_distribute_tallies(mcdc)
+
+#     iqmc_consolidate_sources(mcdc)
+#     v_out = iqmc["total_source"].copy()
+#     v_out = V - v_out
+
+#     return v_out
 
 
 # =============================================================================
