@@ -438,8 +438,8 @@ def make_type_setting(deck):
 
 iqmc_score_list = (
     "flux",
-    "effective-scattering",
-    "effective-fission",
+    # "effective-scattering",
+    # "effective-fission",
     "tilt-x",
     "tilt-y",
     "tilt-z",
@@ -569,8 +569,8 @@ def make_type_technique(N_particle, G, card):
     # Scores and shapes
     scores_shapes = [
         ["flux", (Ng, Nt, Nx, Ny, Nz)],
-        ["effective-scattering", (Ng, Nt, Nx, Ny, Nz)],
-        ["effective-fission", (Ng, Nt, Nx, Ny, Nz)],
+        # ["effective-scattering", (Ng, Nt, Nx, Ny, Nz)],
+        # ["effective-fission", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-x", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-y", (Ng, Nt, Nx, Ny, Nz)],
         ["tilt-z", (Ng, Nt, Nx, Ny, Nz)],

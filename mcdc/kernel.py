@@ -3444,7 +3444,7 @@ def iqmc_preprocess(mcdc):
     if iqmc["source"].all() == 0.0:
         # use material index to generate a first guess for the source
         iqmc_prepare_source(mcdc)
-        iqmc_update_source(mcdc)
+        # iqmc_update_source(mcdc)
         # iqmc["score"]["effective-scattering"] = np.ones_like(iqmc["source"])
         # iqmc["score"]["effective-fission"] = np.ones_like(iqmc["source"])
         # iqmc["source"] = np.ones_like(iqmc["source"])
@@ -3510,16 +3510,17 @@ def iqmc_prepare_source(mcdc):
                 for k in range(Nz):
                     mat_idx = iqmc["material_idx"][t, i, j, k]
                     # we can vectorize the multigroup calculation here
-                    iqmc["score"]["effective-fission"][:, t, i, j, k] = iqmc_effective_fission(
-                        flux[:, t, i, j, k], mat_idx, mcdc
-                    )
-                    iqmc["score"]["effective-scattering"][:, t, i, j, k] = iqmc_effective_scattering(
-                        flux[:, t, i, j, k], mat_idx, mcdc
-                    )
+                    # iqmc["score"]["effective-fission"][:, t, i, j, k] = iqmc_effective_fission(
+                    #     flux[:, t, i, j, k], mat_idx, mcdc
+                    # )
+                    # iqmc["score"]["effective-scattering"][:, t, i, j, k] = iqmc_effective_scattering(
+                    #     flux[:, t, i, j, k], mat_idx, mcdc
+                    # )
+                    iqmc["source"][:, t, i, j, k] = iqmc_effective_source(flux[:, t, i, j, k], mat_idx, mcdc)
     # iqmc["score"]["effective-scattering"] = scatter
     # iqmc["score"]["effective-fission"] = fission
     # iqmc["score"]["effective-fission-outter"] = fission
-    iqmc_update_source(mcdc)
+    # iqmc_update_source(mcdc)
 
 
 @njit
@@ -3682,12 +3683,13 @@ def iqmc_score_tallies(P, distance, mcdc):
     score_bin["flux"][:, t, x, y, z] += flux
 
     # Score effective source tallies
-    score_bin["effective-scattering"][:, t, x, y, z] += iqmc_effective_scattering(
-        flux, mat_id, mcdc
-    )
-    score_bin["effective-fission"][:, t, x, y, z] += iqmc_effective_fission(
-        flux, mat_id, mcdc
-    )
+    # score_bin["effective-scattering"][:, t, x, y, z] += iqmc_effective_scattering(
+        # flux, mat_id, mcdc
+    # )
+    # score_bin["effective-fission"][:, t, x, y, z] += iqmc_effective_fission(
+        # flux, mat_id, mcdc
+    # )
+    iqmc["source"][:, t, x, y, z] += iqmc_effective_source(flux, mat_id, mcdc)
 
     if score_list["fission-source"]:
         score_bin["fission-source"] += iqmc_fission_source(flux, material)
@@ -3942,23 +3944,23 @@ def iqmc_distribute_tallies(mcdc):
                 allreduce_array(score_bin[name])
 
 
-@njit
-def iqmc_update_source(mcdc):
-    iqmc = mcdc["technique"]["iqmc"]
-    keff = mcdc["k_eff"]
-    scatter = iqmc["score"]["effective-scattering"]
-    fission = iqmc["score"]["effective-fission"]
-    fixed = iqmc["fixed_source"]
-    ### This block of code is only needed if using a nested Power Iteration
-    # if (
-        # mcdc["setting"]["mode_eigenvalue"]
-        # and iqmc["eigenmode_solver"] == "power_iteration"
-    # ):
-        # fission = iqmc["score"]["effective-fission-outter"]
-    # else:
-        # fission = iqmc["score"]["effective-fission"]
+# @njit
+# def iqmc_update_source(mcdc):
+#     iqmc = mcdc["technique"]["iqmc"]
+#     keff = mcdc["k_eff"]
+#     scatter = iqmc["score"]["effective-scattering"]
+#     fission = iqmc["score"]["effective-fission"]
+#     fixed = iqmc["fixed_source"]
+#     ### This block of code is only needed if using a nested Power Iteration
+#     # if (
+#         # mcdc["setting"]["mode_eigenvalue"]
+#         # and iqmc["eigenmode_solver"] == "power_iteration"
+#     # ):
+#         # fission = iqmc["score"]["effective-fission-outter"]
+#     # else:
+#         # fission = iqmc["score"]["effective-fission"]
 
-    iqmc["source"] = scatter + (fission / keff) + fixed
+#     iqmc["source"] = scatter + (fission / keff) + fixed
 
 
 @njit
@@ -4201,8 +4203,9 @@ def iqmc_effective_scattering(phi, mat_id, mcdc):
 
 @njit
 def iqmc_effective_source(phi, mat_id, mcdc):
+    k_eff = mcdc["k_eff"]
     S = iqmc_effective_scattering(phi, mat_id, mcdc)
-    F = iqmc_effective_fission(phi, mat_id, mcdc)
+    F = iqmc_effective_fission(phi, mat_id, mcdc) / k_eff
     return S + F
 
 

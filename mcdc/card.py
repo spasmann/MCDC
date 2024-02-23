@@ -119,8 +119,8 @@ class InputDeck:
                 },
                 "score_list": {
                     "flux": True,
-                    "effective-scattering": True,
-                    "effective-fission": True,
+                    # "effective-scattering": True,
+                    # "effective-fission": True,
                     "tilt-x": False,
                     "tilt-y": False,
                     "tilt-z": False,

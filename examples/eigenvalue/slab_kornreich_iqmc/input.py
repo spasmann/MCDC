@@ -41,7 +41,7 @@ tol = 1e-3
 Nx = 20
 x = np.linspace(0, 2.5, Nx + 1)
 generator = "halton"
-solver = "batch"
+solver = "power_iteration"
 fixed_source = np.zeros(Nx)
 phi0 = np.ones((Nx))
 
@@ -57,7 +57,7 @@ mcdc.iQMC(
     tol=tol,
     generator=generator,
     eigenmode_solver=solver,
-    # score=["tilt-x"],
+    score=["tilt-x"],
 )
 # Setting
 mcdc.setting(N_particle=N)

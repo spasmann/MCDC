@@ -565,7 +565,7 @@ def source_iteration(mcdc):
         # sum resultant flux on all processors
         kernel.iqmc_distribute_tallies(mcdc)
         iqmc["itt"] += 1
-        kernel.iqmc_update_source(mcdc)
+        # kernel.iqmc_update_source(mcdc)
         # calculate norm of sources
         iqmc["res"] = kernel.iqmc_res(iqmc["source"], total_source_old, mcdc)
         # iQMC convergence criteria
@@ -771,7 +771,7 @@ def loop_batch(mcdc):
         # sum resultant flux on all processors
         kernel.iqmc_distribute_tallies(mcdc)
         # update source adds effective scattering + fission + fixed-source
-        kernel.iqmc_update_source(mcdc)
+        # kernel.iqmc_update_source(mcdc)
         ####
 
         # update tallies and eigenvalue
