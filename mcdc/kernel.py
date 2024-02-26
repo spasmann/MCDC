@@ -3943,6 +3943,11 @@ def iqmc_distribute_tallies(mcdc):
             else:
                 allreduce_array(score_bin[name])
 
+    if domain_decomp:
+        allreduce_domain_array(iqmc["source"], mcdc)
+    else:
+        allreduce_array(iqmc["source"])
+
 
 # @njit
 # def iqmc_update_source(mcdc):
