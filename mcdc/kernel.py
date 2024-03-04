@@ -2019,12 +2019,7 @@ def score_reduce_bin(score, mcdc):
 def score_closeout_history(score):
     # Accumulate score and square of score into mean and sdev
     score["mean"][:] += score["bin"]
-    proc = MPI.COMM_WORLD.Get_rank()
     score["sdev"][:] += np.square(score["bin"])
-    # f = open('ref_tally'+str(proc)+'.csv','a')
-    # if score["bin"][0][0][0][0][0][4][0]>0:
-    #    f.write(str(score["bin"][0][0][0][0][0][4][0][0])+',\n')
-    # f.write(str(score["mean"][0][0][0][0][0][4][0][0])+',\n')
     # Reset bin
     score["bin"].fill(0.0)
 
@@ -3107,6 +3102,7 @@ def iqmc_tally_batch_history(mcdc):
         # iqmc["source-avg"] += iqmc["source"]
 
         score_bin["flux-avg"] += score_bin["flux"]
+        score_bin["flux-sdev"] += np.square(score_bin["flux"])
 
         # score_bin["fission-source-avg"] += score_bin["fission-source"]
 
@@ -3136,6 +3132,11 @@ def iqmc_tally_closeout_history(mcdc):
     # iqmc["source"] = iqmc["source-avg"] / N
 
     score_bin["flux"] = score_bin["flux-avg"] / N
+    score_bin["flux-sdev"] = np.sqrt(
+        (score_bin["flux-sdev"] / N - np.square(score_bin["flux"])) / (N - 1)
+    )
+    
+    
     # score_bin["fission-source"] = score_bin["fission-source-avg"] / N
 
     # if score_list["tilt-x"]:

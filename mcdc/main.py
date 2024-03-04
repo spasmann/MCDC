@@ -1063,6 +1063,9 @@ def generate_hdf5(mcdc):
                     "iqmc/tally/flux", data=np.squeeze(iqmc["score"]["flux"])
                 )
                 f.create_dataset(
+                    "iqmc/tally/flux-sdev", data=np.squeeze(iqmc["score"]["flux-sdev"])
+                )
+                f.create_dataset(
                     "iqmc/tally/fission_source",
                     data=iqmc["score"]["fission-source"],
                 )

@@ -610,8 +610,10 @@ def make_type_technique(N_particle, G, card):
         # scores_struct += [(name + "-avg", float64, shape)]
     if card["iqmc"]["eigenmode_solver"] == "batch":
         scores_struct += [("flux-avg", float64, (Ng, Nt, Nx, Ny, Nz))]
+        scores_struct += [("flux-sdev", float64, (Ng, Nt, Nx, Ny, Nz))]
     else:
         scores_struct += [("flux-avg", float64, (0, 0, 0, 0, 0))]
+        scores_struct += [("flux-sdev", float64, (0, 0, 0, 0, 0))]
 
     # TODO: make outter effective fission size zero if not eigenmode
     # (causes problems with numba)
