@@ -3132,6 +3132,8 @@ def iqmc_tally_closeout_history(mcdc):
     # iqmc["source"] = iqmc["source-avg"] / N
 
     score_bin["flux"] = score_bin["flux-avg"] / N
+    
+    allreduce_array(score_bin["flux-sdev"])
     score_bin["flux-sdev"] = np.sqrt(
         (score_bin["flux-sdev"] / N - np.square(score_bin["flux"])) / (N - 1)
     )
