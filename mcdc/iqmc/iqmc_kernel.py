@@ -36,15 +36,22 @@ def samples_init(mcdc):
 
 @toggle("iQMC")
 def scramble_samples(mcdc):
-    # TODO: use MCDC seed system
-    seed_batch = np.int64(mcdc["setting"]["N_particle"] * mcdc["idx_cycle"] + 1)
+    rng_seed = mcdc["setting"]["rng_seed"]
     iqmc = mcdc["technique"]["iqmc"]
     N, dim = iqmc["samples"].shape
     N_start = mcdc["mpi_work_start"]
 
     if iqmc["sample_method"] == "halton":
+        # This seed changes per batch but is the same for all MPI ranks.
+        # Each rank then skips a number of samples specified by N_start.
+        # This way each rank is pulling samples from the same newly scrambled
+        # sequence.
+        seed_batch = np.int64(rng_seed * mcdc["idx_cycle"] + 1)
         iqmc["samples"] = rhalton(N, dim, seed=seed_batch, skip=N_start)
     if iqmc["sample_method"] == "random":
+        # Using random samples we want the seed to be different for each batch
+        # and for each MPI rank.
+        seed_batch = np.int64(rng_seed * mcdc["mpi_rank"] * mcdc["idx_cycle"] + 1)
         iqmc["samples"] = random(N, dim, seed=seed_batch)
 
 
