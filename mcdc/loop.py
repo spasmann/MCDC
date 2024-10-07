@@ -487,7 +487,7 @@ def loop_iqmc(mcdc):
     kernel.iqmc_preprocess(mcdc)
     if mcdc["setting"]["mode_eigenvalue"]:
         # if iqmc["eigenmode_solver"] == "davidson":
-            # davidson(mcdc)
+        # davidson(mcdc)
         if iqmc["eigenmode_solver"] == "power_iteration":
             power_iteration(mcdc)
         if iqmc["eigenmode_solver"] == "batch":
@@ -496,7 +496,7 @@ def loop_iqmc(mcdc):
         if iqmc["fixed_source_solver"] == "source_iteration":
             source_iteration(mcdc)
         # if iqmc["fixed_source_solver"] == "gmres":
-            # gmres(mcdc)
+        # gmres(mcdc)
 
 
 # import time
@@ -787,10 +787,12 @@ def loop_batch(mcdc):
 
         mcdc["idx_cycle"] += 1
         # Entering active cycle?
-        if mcdc["idx_cycle"] > window and not mcdc["cycle_active"]:
-            if kernel.iqmc_batch_convergence(mcdc):
-                mcdc["setting"]["N_inactive"] = mcdc["idx_cycle"]
-                mcdc["cycle_active"] = True
+        if mcdc["idx_cycle"] >= mcdc["setting"]["N_inactive"]:
+            mcdc["cycle_active"] = True
+        # if mcdc["idx_cycle"] > window and not mcdc["cycle_active"]:
+        #     if kernel.iqmc_batch_convergence(mcdc):
+        #         mcdc["setting"]["N_inactive"] = mcdc["idx_cycle"]
+        #         mcdc["cycle_active"] = True
 
         # check for exit convergence
         if mcdc["cycle_active"] and (mcdc["k_sdv_running"] <= tol):
@@ -829,7 +831,7 @@ def power_iteration(mcdc):
             source_iteration(mcdc)
             iqmc["maxitt"] = maxit
         # if solver == "gmres":
-            # gmres(mcdc)
+        # gmres(mcdc)
         # reset counter for inner iteration
         iqmc["itt"] = 0
         if mcdc["technique"]["domain_decomp"]:

@@ -2517,10 +2517,24 @@ def distance_to_mesh(P, mesh, mcdc):
     # d = min(d, mesh_distance_search(y, uy, mesh["y"]))
     # d = min(d, mesh_distance_search(z, uz, mesh["z"]))
     # d = min(d, mesh_distance_search(t, 1.0 / v, mesh["t"]))
-    d = min(d, mesh_uniform_distance_search(x, ux, mesh["x"][0], mesh["x"][1]-mesh["x"][0]))
-    d = min(d, mesh_uniform_distance_search(y, uy, mesh["y"][0], mesh["y"][1]-mesh["y"][0]))
-    d = min(d, mesh_uniform_distance_search(z, uz, mesh["z"][0], mesh["z"][1]-mesh["z"][0]))
-    d = min(d, mesh_uniform_distance_search(t, 1.0/v, mesh["t"][0], mesh["t"][1]-mesh["t"][0]))
+    d = min(
+        d,
+        mesh_uniform_distance_search(x, ux, mesh["x"][0], mesh["x"][1] - mesh["x"][0]),
+    )
+    d = min(
+        d,
+        mesh_uniform_distance_search(y, uy, mesh["y"][0], mesh["y"][1] - mesh["y"][0]),
+    )
+    d = min(
+        d,
+        mesh_uniform_distance_search(z, uz, mesh["z"][0], mesh["z"][1] - mesh["z"][0]),
+    )
+    d = min(
+        d,
+        mesh_uniform_distance_search(
+            t, 1.0 / v, mesh["t"][0], mesh["t"][1] - mesh["t"][0]
+        ),
+    )
     return d
 
 
@@ -3016,11 +3030,34 @@ np.random.seed(12345678)
 
 @njit
 def scramble_LDS(mcdc):
-    # TODO: use MCDC seed system
-    seed_batch = np.random.randint(1000, 1000000)
-    N, dim = mcdc["technique"]["iqmc"]["lds"].shape
+    # # TODO: use MCDC seed system
+    # seed_batch = np.random.randint(1000, 1000000)
+    # N, dim = mcdc["technique"]["iqmc"]["lds"].shape
+    # N_start = mcdc["mpi_work_start"]
+    # mcdc["technique"]["iqmc"]["lds"] = rhalton(N, dim, seed=seed_batch, skip=N_start)
+    rng_seed = mcdc["setting"]["rng_seed"]
+    iqmc = mcdc["technique"]["iqmc"]
+    N, dim = iqmc["lds"].shape
     N_start = mcdc["mpi_work_start"]
-    mcdc["technique"]["iqmc"]["lds"] = rhalton(N, dim, seed=seed_batch, skip=N_start)
+
+    if iqmc["generator"] == "halton":
+        # This seed changes per batch but is the same for all MPI ranks.
+        # Each rank then skips a number of samples specified by N_start.
+        # This way each rank is pulling samples from the same newly scrambled
+        # sequence.
+        seed_batch = np.int64(rng_seed * mcdc["idx_cycle"] + 1)
+        iqmc["lds"] = rhalton(N, dim, seed=seed_batch, skip=N_start)
+    if iqmc["generator"] == "random":
+        # Using random samples we want the seed to be different for each batch
+        # and for each MPI rank.
+        seed_batch = np.int64(rng_seed * mcdc["mpi_rank"] * mcdc["idx_cycle"] + 1)
+        iqmc["lds"] = random(N, dim, seed=seed_batch)
+
+
+@njit
+def random(N, dim, seed=123456):
+    np.random.seed(seed)
+    return np.random.rand(N, dim)
 
 
 @njit
@@ -3132,13 +3169,12 @@ def iqmc_tally_closeout_history(mcdc):
     # iqmc["source"] = iqmc["source-avg"] / N
 
     score_bin["flux"] = score_bin["flux-avg"] / N
-    
+
     allreduce_array(score_bin["flux-sdev"])
     score_bin["flux-sdev"] = np.sqrt(
         (score_bin["flux-sdev"] / N - np.square(score_bin["flux"])) / (N - 1)
     )
-    
-    
+
     # score_bin["fission-source"] = score_bin["fission-source-avg"] / N
 
     # if score_list["tilt-x"]:
@@ -3153,14 +3189,14 @@ def iqmc_tally_closeout_history(mcdc):
     # if score_list["tilt-xy"]:
     #     score_bin["tilt-xy"] = score_bin["tilt-xy-avg"] / N
 
-        # TODO: get loop working with numba
-        # for name in literal_unroll(iqmc_score_list):
-        #     if score_list[name]:
-        #         name_avg = name+avg
-        #         score_bin[name_avg] = (
-        #             score_bin[name_avg] + score_bin[name]
-        #         ) / 2
-        #         score_bin[name] = score_bin[name_avg]
+    # TODO: get loop working with numba
+    # for name in literal_unroll(iqmc_score_list):
+    #     if score_list[name]:
+    #         name_avg = name+avg
+    #         score_bin[name_avg] = (
+    #             score_bin[name_avg] + score_bin[name]
+    #         ) / 2
+    #         score_bin[name] = score_bin[name_avg]
 
 
 @njit
@@ -3519,7 +3555,9 @@ def iqmc_prepare_source(mcdc):
                     # iqmc["score"]["effective-scattering"][:, t, i, j, k] = iqmc_effective_scattering(
                     #     flux[:, t, i, j, k], mat_idx, mcdc
                     # )
-                    iqmc["source"][:, t, i, j, k] = iqmc_effective_source(flux[:, t, i, j, k], mat_idx, mcdc)
+                    iqmc["source"][:, t, i, j, k] = iqmc_effective_source(
+                        flux[:, t, i, j, k], mat_idx, mcdc
+                    )
     # iqmc["score"]["effective-scattering"] = scatter
     # iqmc["score"]["effective-fission"] = fission
     # iqmc["score"]["effective-fission-outter"] = fission
@@ -3612,7 +3650,6 @@ def iqmc_res(flux_new, flux_old, mcdc):
     return res
 
 
-
 @njit
 def iqmc_mesh_uniform_get_index(P, mesh):
     # Check if outside grid
@@ -3629,13 +3666,14 @@ def iqmc_mesh_uniform_get_index(P, mesh):
         or P["z"] > mesh["z"][-1]
     ):
         outside = True
-        
-    t = math.floor((P["t"] - mesh["t"][0]) / (mesh["t"][1]-mesh["t"][0]))
-    x = math.floor((P["x"] - mesh["x"][0]) / (mesh["x"][1]-mesh["x"][0]))
-    y = math.floor((P["y"] - mesh["y"][0]) / (mesh["y"][1]-mesh["y"][0]))
-    z = math.floor((P["z"] - mesh["z"][0]) / (mesh["z"][1]-mesh["z"][0]))
-    
+
+    t = math.floor((P["t"] - mesh["t"][0]) / (mesh["t"][1] - mesh["t"][0]))
+    x = math.floor((P["x"] - mesh["x"][0]) / (mesh["x"][1] - mesh["x"][0]))
+    y = math.floor((P["y"] - mesh["y"][0]) / (mesh["y"][1] - mesh["y"][0]))
+    z = math.floor((P["z"] - mesh["z"][0]) / (mesh["z"][1] - mesh["z"][0]))
+
     return t, x, y, z, outside
+
 
 @njit
 def iqmc_score_tallies(P, distance, mcdc):
@@ -3687,10 +3725,10 @@ def iqmc_score_tallies(P, distance, mcdc):
 
     # Score effective source tallies
     # score_bin["effective-scattering"][:, t, x, y, z] += iqmc_effective_scattering(
-        # flux, mat_id, mcdc
+    # flux, mat_id, mcdc
     # )
     # score_bin["effective-fission"][:, t, x, y, z] += iqmc_effective_fission(
-        # flux, mat_id, mcdc
+    # flux, mat_id, mcdc
     # )
     iqmc["source"][:, t, x, y, z] += iqmc_effective_source(flux, mat_id, mcdc)
 

@@ -702,10 +702,9 @@ def prepare():
                 )
 
         if input_deck.technique["iqmc"]["generator"] == "random":
+            seed = np.int64(mcdc["setting"]["rng_seed"] * mcdc["mpi_rank"] * mcdc["idx_cycle"] + 1)
             np.random.seed(seed)
-            seeds = np.random.randint(1e6, size=mcdc["mpi_size"])
-            np.random.seed(seeds[mcdc["mpi_rank"]])
-            iqmc["lds"] = np.random.random((N_particle, N_dim))
+            iqmc["lds"] = np.random.random((N_work, N_dim))
 
     # =========================================================================
     # Derivative Source Method
